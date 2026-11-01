@@ -99,7 +99,7 @@ func GetDbConnByInstanceId(ctx context.Context, instanceId uint64) *dbi.DbConn {
 	return nil
 }
 
-// 删除db缓存并关闭该数据库所有连接
+// CloseDb 删除db缓存并关闭该数据库所有连接
 func CloseDb(dbId uint64, db string) {
 	connId := dbi.GetDbConnId(dbId, db)
 	// 注销实例索引（先获取连接信息以取得 instanceId）
@@ -109,4 +109,23 @@ func CloseDb(dbId uint64, db string) {
 		}
 	}
 	poolGroup.Close(connId)
+}
+
+// CloseInstanceConns 关闭某实例下的全部连接池。
+//
+// 用于连接级配置（TLS 证书/档位）变更后强制重建。不能按 (dbId, locator) 逐个 CloseDb：
+// 池键是调用方传入的原始 locator（`库` 或 `库/schema`），枚举不全必然残留按旧配置建立的连接；
+// 实例反向索引是唯一完整清单（GetConnIdsByInstance 返回副本，可安全启停）。
+func CloseInstanceConns(instanceId uint64) {
+	if instanceId == 0 {
+		return
+	}
+	// 注销索引与关池都必须无条件执行：
+	//   1. 不能为了注销先 poolGroup.Get——缓存为空时会按**旧配置**同步拨号一次
+	//      （正是要废弃的配置，可能把保存请求卡在拨号超时上）；
+	//   2. 拨号失败也必须注销，否则实例索引里留下死 connId，越改越脏。
+	connIds := dbi.ForgetInstanceConns(instanceId)
+	for _, connId := range connIds {
+		poolGroup.Close(connId)
+	}
 }

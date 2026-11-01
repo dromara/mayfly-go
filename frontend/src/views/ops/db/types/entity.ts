@@ -373,6 +373,40 @@ export interface DbMaskRuleQuery extends PageParam {
 /** 脱敏规则保存表单 */
 export type DbMaskRuleSaveForm = Partial<Omit<DbMaskRule, keyof BaseModel>>;
 
+/**
+ * 表访问控制：把某张表对指定角色设为禁止访问。
+ *
+ * roleIds 为空表示对所有账号生效（后端同一语义），因此不能默认填当前角色。
+ */
+export interface DbTableAcl extends BaseModel {
+    id: number;
+    dbId: number;
+    tableName: string;
+    /** 1 禁止（默认，黑名单）/ 2 允许（白名单：该库出现任一条 allow 即默认拒绝） */
+    effect?: number;
+    roleIds?: number[];
+    remark?: string;
+}
+
+export type DbTableAclSaveForm = Partial<Omit<DbTableAcl, keyof BaseModel>>;
+
+/**
+ * 列级访问控制：把某张表的某一列对指定角色设为禁止访问。
+ *
+ * 与表级同一套语义（roleIds 为空 = 所有账号）。列级表达的是「这一列不该出现」，
+ * 与「脱敏」（保留列、值变掩码）不是同一件事。
+ */
+export interface DbColumnAcl extends BaseModel {
+    id: number;
+    dbId: number;
+    tableName: string;
+    columnName: string;
+    roleIds?: number[];
+    remark?: string;
+}
+
+export type DbColumnAclSaveForm = Partial<Omit<DbColumnAcl, keyof BaseModel>>;
+
 /** 脱敏列标签查询条件 */
 export interface DbMaskColumnQuery extends PageParam {
     instanceId?: number;
@@ -389,6 +423,25 @@ export interface DbNamespace {
     HasDatabase: boolean;
     HasSchema: boolean;
     HasCatalog: boolean;
+}
+
+/**
+ * 连接加密状态（POST /instances/test-conn 的返回）。
+ *
+ * available=false 表示该方言读不到协商结果，**不等于未加密**；
+ * encrypted 只有在 available=true 时才有意义。
+ */
+export interface ConnTLSStatus {
+    available: boolean;
+    encrypted: boolean;
+    version?: string;
+    cipher?: string;
+}
+
+export interface ConnTestResult {
+    tls?: ConnTLSStatus;
+    // 读不到加密状态时的原因（后端已按当前语言渲染）
+    tlsNote?: string;
 }
 
 export interface DbCapabilities {

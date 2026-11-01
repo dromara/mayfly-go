@@ -118,4 +118,8 @@ const (
 	MetricDbLockWaitCount
 	// MetricDbSchemaDrift 与表结构基线不一致的表数
 	MetricDbSchemaDrift
+	// MetricDbTlsCertDaysLeft 已配置证书中最早到期的剩余天数（负数=已过期）
+	MetricDbTlsCertDaysLeft
+	// MetricDbPitrNotReady 不具备时间点恢复前提（1 未就绪 / 0 就绪）
+	MetricDbPitrNotReady
 )

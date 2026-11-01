@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"mayfly-go/internal/ai/llm/llmtest"
+
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -43,7 +45,7 @@ func TestCompactMidTurn_NoWindow(t *testing.T) {
 
 // TestCompactMidTurn_WithinBudget 预算内不裁剪
 func TestCompactMidTurn_WithinBudget(t *testing.T) {
-	m := &Manager{contextWindow: 100000}
+	m := NewManager(nil).WithModelProvider(&llmtest.Provider{Window: 100000})
 	msgs := []*Message{userMsg("short history")}
 	got, compacted := m.CompactMidTurn(context.Background(), "k", msgs, 100)
 	if compacted || len(got) != 1 {
@@ -54,7 +56,7 @@ func TestCompactMidTurn_WithinBudget(t *testing.T) {
 // TestCompactMidTurn_HardTrim 超预算时紧急裁剪：
 // 头部摘要 system 消息始终保留，且保留区不以孤立 tool 结果开头
 func TestCompactMidTurn_HardTrim(t *testing.T) {
-	m := &Manager{contextWindow: 200} // usable = 200 - 40 = 160，明显小于历史估算
+	m := NewManager(nil).WithModelProvider(&llmtest.Provider{Window: 200}) // usable = 200 - 40 = 160，明显小于历史估算
 	msgs := []*Message{
 		summaryHeader("[之前的对话摘要]\n..."),
 		userMsg(longText(200)),
@@ -154,7 +156,7 @@ func TestCompactMidTurn_SoftThreshold_TriggersSummary(t *testing.T) {
 			MessageThreshold: 1, KeepRecentCount: 1, TokenThreshold: 0,
 			Enabled: true, Summarizer: summarizer,
 		}).
-		WithContextWindow(200) // usable = 160，软阈值 120；历史估算远超
+		WithModelProvider(&llmtest.Provider{Window: 200}) // usable = 160，软阈值 120；历史估算远超
 
 	key := "conv:soft"
 	// est = 64+9+64+64+9+5 = 215 > usable(160)，触发软阈值 + 硬裁剪；
@@ -207,7 +209,7 @@ func TestGetHistory_SkipWindowCheck(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create store: %v", err)
 	}
-	m := NewManager(store).WithContextWindow(200) // usable=160，历史估算 256 必然超限
+	m := NewManager(store).WithModelProvider(&llmtest.Provider{Window: 200}) // usable=160，历史估算 256 必然超限
 	ctx := context.Background()
 	key := "conv:skip"
 

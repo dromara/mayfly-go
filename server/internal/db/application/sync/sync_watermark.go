@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"mayfly-go/internal/db/dbm/dbi"
-	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/domain/entity"
 
 	"github.com/spf13/cast"
@@ -51,10 +50,8 @@ func encodeValidationRow(row map[string]any, columns []*dbi.QueryColumn) string 
 // 优先方言专用 rewriter（Oracle/DM/MSSQL 语法各异），无则回退默认 LIMIT/OFFSET（MySQL/PG/SQLite/ClickHouse 通用）。
 // 源/目标可能异构，跨方言执行路径禁止直接拼 `LIMIT n`，否则不支持该语法的方言会整条 SQL 报错。
 func paginateTopN(conn *dbi.DbConn, baseSQL string, n int64) (string, error) {
-	if pw := sqlparser.GetPaginationRewriter(conn.GetDialect().GetSQLParser()); pw != nil {
-		return pw.RewritePagination(baseSQL, 0, n)
-	}
-	return sqlparser.DefaultRewritePagination(baseSQL, 0, n), nil
+	// 分页改写是必需能力；历史上这里回退默认 LIMIT 语法，在 Oracle/DM/MSSQL 上会直接报错
+	return conn.GetDialect().GetSQLParser().RewritePagination(baseSQL, 0, n)
 }
 
 // advanceSyncWatermark 推进同步水位

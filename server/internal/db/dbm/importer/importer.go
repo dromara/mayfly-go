@@ -29,6 +29,14 @@ type Options struct {
 	// PreviewLimit 仅解析用于预览的前 N 行数据（不含表头），<=0 表示不限制。
 	// 全量导入走 Stream 端到端流式，不聚合整表，故不需要行数上限
 	PreviewLimit int
+
+	// DateSerialColumns 需要把 Excel 序列数还原成时间文本的文件列下标（0-based）。
+	// 由上层按目标列类型给出（date/datetime/time 列）。
+	//
+	// 解析层不自行探测"单元格是否套了日期格式"：那要逐格 GetCellStyle，excelize 会因此
+	// 把整张 sheetN.xml 反序列化常驻内存 —— "不聚合整表"的内存保证被静默破坏。
+	// 改为目标列驱动后，目标列无日期类型的导入完全不触发该路径。
+	DateSerialColumns []int
 }
 
 // Table 解析结果：文件表头（无表头时为空）与数据行。所有单元格以文本形态返回，类型转换由上层负责。
@@ -82,6 +90,13 @@ type StreamHandler struct {
 
 	// OnRow 每条数据行回调一次（已剔除全空行）
 	OnRow func(row []string) error
+
+	// OnRowWarning 行级告警回调（不阻断导入）。
+	//
+	// 目前用于「CSV 该行字段数与首行不一致」：LazyQuotes 会把单元格内未转义的裸引号
+	// 当作重新断词，导致该行后续所有列整体位移；按下标映射时这会静默写进相邻列。
+	// 解析层不擅自改成严格模式（历史文件大量依赖宽松解析），但必须让上层能提示操作者。
+	OnRowWarning func(rowNum int, msg string)
 }
 
 // errStopScan 解析提前结束的控制流信号（非错误）：预览行数达到上限时用它中断迭代

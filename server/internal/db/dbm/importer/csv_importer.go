@@ -2,6 +2,7 @@ package importer
 
 import (
 	"encoding/csv"
+	"fmt"
 	"io"
 	"strings"
 
@@ -50,6 +51,8 @@ func (c *CSVImporter) Stream(r io.Reader, opts *Options, h *StreamHandler) error
 	}
 
 	rowNum := 0
+	// headerWidth 首行（表头或无表头时的第一行）字段数，用于发现「裸引号导致整行错位」
+	headerWidth := 0
 	for {
 		rec, readErr := cr.Read()
 		if readErr == io.EOF {
@@ -59,6 +62,15 @@ func (c *CSVImporter) Stream(r io.Reader, opts *Options, h *StreamHandler) error
 			return errorx.NewBizf("parse csv file failed: %s", readErr.Error())
 		}
 		rowNum++
+		if headerWidth == 0 {
+			headerWidth = len(rec)
+		} else if len(rec) != headerWidth {
+			// 字段数不一致：几乎必然是单元格内出现未转义的裸引号（LazyQuotes 重新断词），
+			// 后续列会整体位移。不阻断（历史文件依赖宽松解析），但必须上报给操作者。
+			if h != nil && h.OnRowWarning != nil {
+				h.OnRowWarning(rowNum, fmt.Sprintf("column count mismatch: expected %d, got %d (possible unescaped quote in this row); values may be shifted into neighbouring columns", headerWidth, len(rec)))
+			}
+		}
 		// 剥离首行首格的 UTF-8 BOM：它会粘在首个单元格上（表头名或首行值），
 		// 使表头匹配失败、或让数值列首格变成带隐形字符的非法值
 		if rowNum == 1 && len(rec) > 0 {

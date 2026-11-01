@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"math"
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
@@ -10,16 +11,19 @@ import (
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/internal/db/imsg"
 	"mayfly-go/internal/pkg/consts"
+	"mayfly-go/internal/pkg/tlsx"
 	tagapp "mayfly-go/internal/tag/application"
 	tagdto "mayfly-go/internal/tag/application/dto"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/utils/structx"
+	"strings"
 	"time"
 )
 
@@ -29,7 +33,11 @@ type Instance interface {
 	// GetPageList 分页获取数据库实例
 	GetPageList(condition *entity.DbInstanceQuery, orderBy ...string) (*model.PageResult[*entity.DbInstance], error)
 
-	TestConn(ctx context.Context, instanceEntity *entity.DbInstance, authCert *tagentity.ResourceAuthCert) error
+	// TestConn 测试实例连通性并回报本连接实际协商出的加密状态。
+	// material 为表单明文提交的证书材料（编辑态不重传则为 nil，由 normalizeDbTLS 按实例 id 回查旧密文），
+	// 与保存共用同一条 TLS 装配路径。返回值只含观测事实：读不到加密状态时 Available=false + Note，
+	// 绝不把「读不到」折叠成「未加密」或「已加密」。
+	TestConn(ctx context.Context, instanceEntity *entity.DbInstance, authCert *tagentity.ResourceAuthCert, material *tlsx.Material) (*dto.ConnTestResult, error)
 
 	SaveDbInstance(ctx context.Context, instance *dto.SaveDbInstance) (uint64, error)
 
@@ -71,20 +79,46 @@ func (app *instanceAppImpl) GetPageList(condition *entity.DbInstanceQuery, order
 	return app.GetRepo().GetPageList(condition, orderBy...)
 }
 
-func (app *instanceAppImpl) TestConn(ctx context.Context, instanceEntity *entity.DbInstance, authCert *tagentity.ResourceAuthCert) error {
+func (app *instanceAppImpl) TestConn(ctx context.Context, instanceEntity *entity.DbInstance, authCert *tagentity.ResourceAuthCert, material *tlsx.Material) (*dto.ConnTestResult, error) {
 	instanceEntity.Network = resolveInstanceNetwork(instanceEntity)
 
 	authCert, err := app.resourceAuthCertApp.GetRealAuthCert(authCert)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	dbConn, err := dbm.Conn(ctx, app.toDbInfoByAc(instanceEntity, authCert, ""))
-	if err != nil {
-		return err
+	// 编辑态测试连接：表单不回传证书内容，按 id 回查旧密文，保证「留空=沿用旧证书」
+	var old *entity.DbInstance
+	if instanceEntity.Id > 0 {
+		if stored, getErr := app.GetById(instanceEntity.Id); getErr == nil {
+			old = stored
+		}
 	}
-	dbConn.Close()
-	return nil
+	if err := app.normalizeDbTLS(instanceEntity, old, material); err != nil {
+		return nil, err
+	}
+
+	dbInfo, err := app.toDbInfoByAc(instanceEntity, authCert, "")
+	if err != nil {
+		return nil, err
+	}
+	dbConn, err := dbm.Conn(ctx, dbInfo)
+	if err != nil {
+		return nil, err
+	}
+	defer dbConn.Close()
+
+	// 连上之后立刻问服务端「这条连接到底加密了没有」：配置对不等于协商成功，
+	// 而验收需要的正是后者。读不到就如实标注观测缺口。
+	res := &dto.ConnTestResult{}
+	status, statusErr := dbConn.Metadata().TLSStatus(ctx)
+	if statusErr != nil {
+		res.TLS = &dbi.TLSStatus{Available: false}
+		res.TLSNote = i18n.TC(ctx, imsg.ErrTLSStatusUnavailable, "reason", statusErr.Error())
+	} else {
+		res.TLS = status
+	}
+	return res, nil
 }
 
 func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.SaveDbInstance) (uint64, error) {
@@ -112,6 +146,10 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.Sa
 			return 0, errorx.NewBizI(ctx, imsg.ErrDbInstExist)
 		}
 		instanceEntity.Code = stringx.RandLower(10)
+		// 新增：没有任何旧密文可沿用，材料必须由本次请求完整提供
+		if err := app.normalizeDbTLS(instanceEntity, nil, instance.TLSMaterial); err != nil {
+			return 0, err
+		}
 
 		return instanceEntity.Id, app.Tx(ctx, func(ctx context.Context) error {
 			return app.Insert(ctx, instanceEntity)
@@ -147,8 +185,20 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.Sa
 		return 0, err
 	}
 
-	return oldInstance.Id, app.Tx(ctx, func(ctx context.Context) error {
+	if err := app.normalizeDbTLS(instanceEntity, oldInstance, instance.TLSMaterial); err != nil {
+		return 0, err
+	}
+	tlsChanged := oldInstance.GetExtraString(entity.ExtraKeyTLSFingerprint) != instanceEntity.GetExtraString(entity.ExtraKeyTLSFingerprint) ||
+		oldInstance.TLSMaterialEnc != instanceEntity.TLSMaterialEnc
+
+	err = app.Tx(ctx, func(ctx context.Context) error {
 		return app.UpdateById(ctx, instanceEntity)
+	}, func(ctx context.Context) error {
+		// extra/tls_material 必须显式点名：结构体更新会跳过零值，
+		// 「关闭加密后 extra 少了一个键」「tls_material 清空」都写不进去，
+		// 表现为保存成功但连接仍按旧配置建立（与 mask 模块 SaveAllColumns 同一取舍）
+		return app.GetRepo().UpdateById(ctx, instanceEntity, "extra", "tls_material",
+			"update_time", "modifier_id", "modifier")
 	}, func(ctx context.Context) error {
 		return app.resourceAuthCertApp.RelateAuthCert(ctx, &tagdto.RelateAuthCert{
 			ResourceCode: oldInstance.Code,
@@ -166,6 +216,15 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.Sa
 			ParentTagCodePaths: tagCodePaths,
 		})
 	})
+	if err != nil {
+		return 0, err
+	}
+	// 连接级配置变了必须让旧连接池失效：池按「库+locator」缓存，不关就会继续
+	// 用旧证书/明文握手，用户只看到「改了没生效」。放在事务提交之后，避免回滚了却已断连
+	if tlsChanged {
+		dbm.CloseInstanceConns(oldInstance.Id)
+	}
+	return oldInstance.Id, nil
 }
 
 func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error {
@@ -250,14 +309,17 @@ func (app *instanceAppImpl) ToDbInfo(instance *entity.DbInstance, authCertName s
 		return nil, err
 	}
 
-	return app.toDbInfoByAc(instance, ac, database), nil
+	return app.toDbInfoByAc(instance, ac, database)
 }
 
 func (app *instanceAppImpl) getDatabases(ctx context.Context, instance *entity.DbInstance, ac *tagentity.ResourceAuthCert) ([]string, error) {
 	instance.Network = resolveInstanceNetwork(instance)
-	dbi := app.toDbInfoByAc(instance, ac, "")
+	info, err := app.toDbInfoByAc(instance, ac, "")
+	if err != nil {
+		return nil, err
+	}
 
-	dbConn, err := dbm.Conn(ctx, dbi)
+	dbConn, err := dbm.Conn(ctx, info)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +328,11 @@ func (app *instanceAppImpl) getDatabases(ctx context.Context, instance *entity.D
 	return dbConn.Metadata().GetDbNames()
 }
 
-func (app *instanceAppImpl) toDbInfoByAc(instance *entity.DbInstance, ac *tagentity.ResourceAuthCert, database string) *dbi.DbInfo {
+// toDbInfoByAc 把实例 + 授权凭证 + 库位组装成连接信息。
+//
+// 这是「实例配置 → 连接参数」的唯一转换点：TLS 的解密与结构化解码也收在这里，
+// 因此测试连接、取库名、正式建连三条路径看到的加密配置必然一致。
+func (app *instanceAppImpl) toDbInfoByAc(instance *entity.DbInstance, ac *tagentity.ResourceAuthCert, database string) (*dbi.DbInfo, error) {
 	di := new(dbi.DbInfo)
 	di.InstanceId = instance.Id
 	structx.Copy(di, instance)
@@ -278,7 +344,95 @@ func (app *instanceAppImpl) toDbInfoByAc(instance *entity.DbInstance, ac *tagent
 
 	di.Username = ac.Username
 	di.Password = ac.Ciphertext
-	return di
+
+	tlsCfg, err := app.resolveTLS(instance)
+	if err != nil {
+		return nil, err
+	}
+	di.TLS = tlsCfg
+	return di, nil
+}
+
+// resolveTLS 把实例上「可读参数（Extra）+ 密文材料（列）」组装成运行期 TLS 配置。
+//
+// 明文档不读取也不解释材料：mode 为 disable 时残留密文一律忽略，
+// 避免「界面显示已关闭、连接却仍按旧证书走」的错位。
+func (app *instanceAppImpl) resolveTLS(instance *entity.DbInstance) (*tlsx.Config, error) {
+	mode := tlsx.Mode(strings.TrimSpace(instance.GetExtraString(entity.ExtraKeyTLSMode)))
+	if !mode.Encrypted() {
+		return nil, nil
+	}
+	material, err := tlsx.OpenMaterial(instance.TLSMaterialEnc)
+	if err != nil {
+		return nil, err
+	}
+	return &tlsx.Config{
+		Mode:        mode,
+		ServerName:  strings.TrimSpace(instance.GetExtraString(entity.ExtraKeyTLSServerName)),
+		UseSystemCA: instance.GetExtraBool(entity.ExtraKeyTLSUseSystemCA),
+		Material:    material,
+	}, nil
+}
+
+// normalizeDbTLS 保存/测试连接前归一化 TLS 配置并落库密文。
+//
+// 语义与机器 SOCKS5 代理（normalizeMachineProxy）保持同构：
+//   - 档位白名单校验（含方言能力位），不支持就不让存，而不是等着建连时报错；
+//   - 材料留空 = 不修改（编辑表单不回显证书，用户不重传就沿用旧密文）；
+//   - 关闭加密即清空材料，避免残留凭据随 extra/列一起被带走。
+func (app *instanceAppImpl) normalizeDbTLS(me *entity.DbInstance, old *entity.DbInstance, material *tlsx.Material) error {
+	mode := tlsx.Mode(strings.TrimSpace(me.GetExtraString(entity.ExtraKeyTLSMode)))
+	if !mode.Encrypted() {
+		me.TLSMaterialEnc = ""
+		me.SetExtraValue(entity.ExtraKeyTLSFingerprint, "")
+		me.SetExtraValue(entity.ExtraKeyTLSMode, "")
+		return nil
+	}
+	if !mode.Valid() {
+		return errorx.NewBizf("unsupported tls mode: %q", string(mode))
+	}
+	backend := dbi.GetBackend(dbi.DbType(me.Type))
+	if backend == nil {
+		return errorx.NewBizf("unsupported database type: %q", me.Type)
+	}
+	if !backend.GetCapabilities().SupportsTLSMode(mode) {
+		return errorx.NewBizf("database type [%s] does not support tls mode [%s]", me.Type, string(mode))
+	}
+
+	// 留空沿用旧密文：编辑表单从不回显证书内容，用户不重传就代表「没改」。
+	//
+	// 必须**逐字段**合并而不是「整体为空才回退」：三个输入框是独立提交的，
+	// 只轮换 CA 时 resolved 非空，整体替换会把已存的客户端证书/私钥静默清掉——
+	// 保存显示成功，下次建连才失败，而旧密文已被覆盖，不可恢复。
+	resolved := tlsx.Material{}
+	if material != nil {
+		resolved = *material
+	}
+	if old != nil && old.TLSMaterialEnc != "" {
+		oldMaterial, err := tlsx.OpenMaterial(old.TLSMaterialEnc)
+		if err != nil {
+			return err
+		}
+		resolved = resolved.MergeMissing(oldMaterial)
+	}
+
+	cfg := &tlsx.Config{
+		Mode:        mode,
+		ServerName:  strings.TrimSpace(me.GetExtraString(entity.ExtraKeyTLSServerName)),
+		UseSystemCA: me.GetExtraBool(entity.ExtraKeyTLSUseSystemCA),
+		Material:    resolved,
+	}
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
+	sealed, err := resolved.Seal()
+	if err != nil {
+		return err
+	}
+	me.TLSMaterialEnc = sealed
+	me.SetExtraValue(entity.ExtraKeyTLSMode, string(mode))
+	me.SetExtraValue(entity.ExtraKeyTLSFingerprint, cfg.Key())
+	return nil
 }
 
 func (m *instanceAppImpl) genDbInstanceResourceTag(me *entity.DbInstance, authCerts []*tagentity.ResourceAuthCert) *tagdto.ResourceTag {
@@ -346,6 +500,20 @@ func (i *instanceAppImpl) Health(ctx context.Context, instanceId uint64) (*dbi.D
 		logx.DebugfContext(ctx, "count schema drift for db instance [%d] failed: %s", instanceId, err.Error())
 	}
 
+	// TLS 证书剩余天数不依赖库可达：它来自平台保存的证书本身，库连不上时「证书什么时候过期」
+	// 依然是已知事实，因此排在取连接之前
+	if instance, instErr := i.GetById(instanceId); instErr == nil {
+		if tlsCfg, tlsErr := i.resolveTLS(instance); tlsErr == nil && tlsCfg != nil {
+			if expiry, ok := tlsCfg.Material.EarliestExpiry(); ok {
+				days := int(math.Floor(time.Until(expiry).Hours() / 24))
+				health.TLSCertDaysLeft = &days
+			}
+		} else if tlsErr != nil {
+			// 解密失败同样是事实（如 aes.key 轮换后旧密文读不出），但证书指标只能标不可判定
+			logx.DebugfContext(ctx, "resolve tls config of db instance [%d] failed: %s", instanceId, tlsErr.Error())
+		}
+	}
+
 	conn, err := i.dbApp.GetDbConnByInstanceId(ctx, instanceId)
 	if err != nil {
 		// 取不到连接句柄本身就是「不可达」的事实（含实例不存在），而不是采样故障：
@@ -357,6 +525,15 @@ func (i *instanceAppImpl) Health(ctx context.Context, instanceId uint64) (*dbi.D
 	if err := conn.Ping(); err != nil {
 		health.PingErr = err
 		return health, nil
+	}
+
+	// PITR 前提：与可达性一起采，但失败不影响其它事实（读不到就保持 nil，不谎报为「未就绪」）
+	if readiness, recErr := conn.Metadata().RecoveryReadiness(ctx); recErr == nil {
+		prepared := readiness.Prepared
+		health.RecoveryPrepared = &prepared
+		health.RecoveryReason = readiness.Reason
+	} else {
+		logx.DebugfContext(ctx, "inspect recovery readiness of db instance [%d] failed: %s", instanceId, recErr.Error())
 	}
 
 	sessions, err := conn.Metadata().ListSessions(ctx)

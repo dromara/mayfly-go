@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 
+	"mayfly-go/internal/ai/llm"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 
@@ -26,10 +27,21 @@ const (
 	midTurnHistoryRatio = 2
 )
 
-// WithContextWindow 设置模型上下文窗口大小（token），0 表示未配置（跳过窗口检查）
-func (m *Manager) WithContextWindow(window int) *Manager {
-	m.contextWindow = window
+// WithModelProvider 注入模型访问入口（上下文窗口按当前生效模型读取）
+//
+// 会话管理器与进程同生命周期，窗口必须每轮读取：管理员改写模型配置后无需重建
+// 会话管理器，压缩阈值立即按新窗口计算
+func (m *Manager) WithModelProvider(provider llm.Provider) *Manager {
+	m.modelProvider = provider
 	return m
+}
+
+// contextWindow 当前模型上下文窗口（token），0 表示未配置（跳过窗口检查）
+func (m *Manager) contextWindow() int {
+	if m.modelProvider == nil {
+		return 0
+	}
+	return m.modelProvider.ContextWindow()
 }
 
 // enforceContextWindow 窗口检查与紧急裁剪（读取时基础预算，无 preamble 口径）
@@ -50,11 +62,11 @@ func (m *Manager) enforceContextWindow(ctx context.Context, key string, messages
 //
 // 返回压缩后的消息列表与是否发生压缩。
 func (m *Manager) CompactMidTurn(ctx context.Context, key string, messages []*Message, preambleTokens int) ([]*Message, bool) {
-	if m.contextWindow <= 0 || len(messages) == 0 {
+	window := m.contextWindow()
+	if window <= 0 || len(messages) == 0 {
 		return messages, false
 	}
 
-	window := m.contextWindow
 	usable := window - window/reservedOutputRatio - preambleTokens
 	est := EstimateHistoryTokens(messages)
 	if est <= usable {

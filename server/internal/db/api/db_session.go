@@ -39,6 +39,21 @@ func (d *DbSession) ReqConfs() *req.Confs {
 		// 取消自己发起的一次执行
 		req.NewPost("/cancel-exec", d.CancelExec).Log(req.NewLogSaveI(imsg.LogDbCancelExec)),
 
+		// 慢查询聚合：读 performance_schema / pg_stat_statements 的统计，不执行任何用户语句
+		req.NewGet("/:dbId/slow-queries", d.SlowQueries).RequiredPermissionCode("db:session:list"),
+
+		// 账号盘点：只读，列出实例账号与高危标志（不做任何 GRANT / CREATE USER）
+		req.NewGet("/:dbId/accounts", d.Accounts).RequiredPermissionCode("db:session:list"),
+
+		// 恢复能力：PITR 前提（binlog / WAL 归档）是否具备，不具备时给原因
+		req.NewGet("/:dbId/recovery-readiness", d.RecoveryReadiness).RequiredPermissionCode("db:session:list"),
+
+		// 指标趋势：读平台自己的采样表，不连库（库不可达时历史曲线仍可看）
+		req.NewGet("/:dbId/metrics", d.Metrics).RequiredPermissionCode("db:session:list"),
+
+		// 锁等待链：只读系统视图
+		req.NewGet("/:dbId/lock-waits", d.LockWaits).RequiredPermissionCode("db:session:list"),
+
 		// 执行计划：只读分析（实现写死不带 ANALYZE，看计划不会改动数据），与执行期同一套语句切割口径
 		req.NewPost("/sql-explain", d.ExplainSQL).Log(req.NewLogSaveI(imsg.LogDbExplainPlan)).RequiredPermissionCode("db:sqlscript:run"),
 	}
@@ -128,4 +143,52 @@ func (d *DbSession) CancelExec(rc *req.Ctx) {
 		}
 		biz.ErrIsNil(err)
 	}
+}
+
+// SlowQueries 实例级慢查询聚合（按累计耗时降序）
+// @router /api/dbs/:dbId/slow-queries [get]
+func (d *DbSession) SlowQueries(rc *req.Ctx) {
+	dbId, dbName := getDbId(rc), rc.Query("db")
+	d.accessibleConn(rc, dbId, dbName)
+	queries, err := d.dbApp.SlowQueries(rc.MetaCtx, dbId, dbName, cast.ToInt(rc.Query("limit")))
+	biz.ErrIsNil(err)
+	rc.ResData = queries
+}
+
+// LockWaits 实例级锁等待链（等待方 → 阻塞方）
+// @router /api/dbs/:dbId/lock-waits [get]
+func (d *DbSession) LockWaits(rc *req.Ctx) {
+	dbId, dbName := getDbId(rc), rc.Query("db")
+	d.accessibleConn(rc, dbId, dbName)
+	waits, err := d.dbApp.LockWaits(rc.MetaCtx, dbId, dbName)
+	biz.ErrIsNil(err)
+	rc.ResData = waits
+}
+
+// Metrics 实例指标趋势（来自平台采样表，不连接目标库）
+// @router /api/dbs/:dbId/metrics [get]
+func (d *DbSession) Metrics(rc *req.Ctx) {
+	dbId := getDbId(rc)
+	dbEntity, err := d.dbApp.GetById(dbId)
+	biz.ErrIsNil(err)
+	biz.IsTrue(dbEntity != nil && dbEntity.InstanceId > 0, "db instance not found")
+	series, err := application.GetDbMetricApp().Series(rc.MetaCtx, dbEntity.InstanceId, rc.Query("metric"), cast.ToInt(rc.Query("minutes")))
+	biz.ErrIsNil(err)
+	rc.ResData = series
+}
+
+// RecoveryReadiness 时间点恢复前提探测（只读，不做任何恢复动作）
+// @router /api/dbs/:dbId/recovery-readiness [get]
+func (d *DbSession) RecoveryReadiness(rc *req.Ctx) {
+	readiness, err := application.GetRecoveryApp().Readiness(rc.MetaCtx, getDbId(rc), rc.Query("db"))
+	biz.ErrIsNil(err)
+	rc.ResData = readiness
+}
+
+// Accounts 实例账号盘点（只读）
+// @router /api/dbs/:dbId/accounts [get]
+func (d *DbSession) Accounts(rc *req.Ctx) {
+	overview, err := application.GetAccountsApp().Overview(rc.MetaCtx, getDbId(rc), rc.Query("db"))
+	biz.ErrIsNil(err)
+	rc.ResData = overview
 }

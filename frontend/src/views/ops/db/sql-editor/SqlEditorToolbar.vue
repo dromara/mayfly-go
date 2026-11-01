@@ -31,6 +31,12 @@
                 </el-tooltip>
                 <el-divider direction="vertical" border-style="dashed" />
 
+                <!-- DDL 预检：不执行，只读表规模与主键，说明「批的是什么」 -->
+                <el-tooltip :show-after="1000" class="box-item" effect="dark" :content="$t('db.ddlPrecheck')" placement="top">
+                    <el-link @click="emit('precheck')" type="danger" underline="never" icon="WarnTriangleFilled"> </el-link>
+                </el-tooltip>
+                <el-divider direction="vertical" border-style="dashed" />
+
                 <el-tooltip :show-after="1000" class="box-item" effect="dark" content="format sql" placement="top">
                     <el-link @click="emit('format')" type="primary" underline="never" icon="MagicStick"> </el-link>
                 </el-tooltip>
@@ -82,6 +88,7 @@ const emit = defineEmits<{
     format: [];
     save: [];
     'update:atomic': [value: boolean];
+    precheck: [];
 }>();
 
 const beforeUpload = (file: File) => {

@@ -12,6 +12,7 @@ import type {
 import { createDefaultColumns, defaultColumnConfigs } from './shared/defaultColumns';
 import { buildSchemaTable, extractSchema, getDefaultDataType, QuoteEscape, wrapValueMssql } from './shared/utils';
 import { defineCapabilities, mssqlQuotePairs, mssqlSplitOptions } from './shared/capabilities';
+import { diffPrimaryKey } from './shared/primaryKey';
 import { offsetFetchPageSnippet } from './shared/snippets';
 import { DbType } from './dbType';
 import { registerDbDialect } from './registry';
@@ -50,13 +51,12 @@ const MSSQL_TYPE_LIST = [
     'varbinary',
 
     // 其他
-    'cursor',
     'rowversion',
     'hierarchyid',
+    'image',
     'uniqueidentifier',
     'sql_variant',
     'xml',
-    'table',
     // 空间几何类型 参照 https://learn.microsoft.com/zh-cn/sql/t-sql/spatial-geometry/spatial-types-geometry-transact-sql?view=sql-server-ver15
     'geometry',
     // 空间地理类型 参照 https://learn.microsoft.com/zh-cn/sql/t-sql/spatial-geography/spatial-types-geography?view=sql-server-ver15
@@ -80,32 +80,42 @@ const customKeywords: EditorCompletionItem[] = [
     },
 ];
 
-const fixedLengthTypes = [
-    'int',
-    'bigint',
-    'smallint',
-    'tinyint',
-    'float',
-    'real',
-    'datetime',
-    'smalldatetime',
-    'date',
-    'time',
-    'datetime2',
-    'datetimeoffset',
-    'bit',
-    'uniqueidentifier',
-    'geometry',
-    'geography',
-];
+/** 接受 `(长度[,小数位])` 的类型 */
+const lengthArgTypes = ['char', 'varchar', 'nchar', 'nvarchar', 'binary', 'varbinary', 'decimal', 'numeric'];
+/** 接受 `(小数秒精度)` 的时间类型（精度 0~7） */
+const fspArgTypes = ['datetime2', 'time', 'datetimeoffset'];
+
+/**
+ * 列类型的参数片段。
+ *
+ * 编辑表单换类型时长度输入框会留着旧值，原样写出会生成 `int(64)`、`datetime(320)` 这类非法 DDL，
+ * 故只对真正接受参数的类型族写出；时间类型额外限定小数秒精度区间（T-SQL 为 0~7）。
+ */
+function typeLengthSql(cl: ColumnDefinition): string {
+    const type = (cl.type || '').toLowerCase().trim();
+    if (!cl.length) {
+        return '';
+    }
+    if (lengthArgTypes.includes(type)) {
+        return cl.numScale ? `(${cl.length},${cl.numScale})` : `(${cl.length})`;
+    }
+    if (fspArgTypes.includes(type)) {
+        const fsp = Number(cl.length);
+        return Number.isInteger(fsp) && fsp >= 0 && fsp <= 7 ? `(${fsp})` : '';
+    }
+    return '';
+}
 
 class MssqlDialect implements DbDialect {
     getCapabilities(): DialectCapabilities {
         return defineCapabilities({
             supportsIndexComment: true,
             defaultIndexType: 'NONCLUSTERED',
+            // T-SQL 撤销主键要 ALTER TABLE ... DROP CONSTRAINT <约束名>，名字由 t-keys 下发
             // IDENTITY 属性建表后不可变更，仅新建时可设置
             canEditAutoIncrementOnEdit: false,
+            // go-mssqldb 一旦提供 CA 就同时校验主机名，无法只校链，故不声明 verify-ca
+            tlsModes: ['require', 'verify-full'],
             quotePairs: mssqlQuotePairs,
             sqlSplitOptions: mssqlSplitOptions,
         });
@@ -192,26 +202,13 @@ class MssqlDialect implements DbDialect {
     genColumnBasicSql(cl: ColumnDefinition): string {
         let val = cl.value ? (cl.value === 'CURRENT_TIMESTAMP' ? cl.value : `'${cl.value}'`) : '';
         let defVal = val ? `DEFAULT ${val}` : '';
-        // mssql哪些字段允许有长度/精度
-        let length = '';
-        if (!fixedLengthTypes.includes(cl.type)) {
-            if (cl.length) {
-                length = cl.numScale ? `(${cl.length},${cl.numScale})` : `(${cl.length})`;
-            }
-        }
-        const parts = [this.quoteIdentifier(cl.name), cl.type + length, cl.autoIncrement ? 'IDENTITY(1,1)' : '', defVal, cl.nullable ? 'NULL' : 'NOT NULL'];
+        const parts = [this.quoteIdentifier(cl.name), cl.type + typeLengthSql(cl), cl.autoIncrement ? 'IDENTITY(1,1)' : '', defVal, cl.nullable ? 'NULL' : 'NOT NULL'];
         return parts.filter(Boolean).join(' ');
     }
 
     /** MSSQL ALTER COLUMN 专用：不允许 IDENTITY 和 DEFAULT */
     genAlterColumnSql(cl: ColumnDefinition): string {
-        let length = '';
-        if (!fixedLengthTypes.includes(cl.type)) {
-            if (cl.length) {
-                length = cl.numScale ? `(${cl.length},${cl.numScale})` : `(${cl.length})`;
-            }
-        }
-        const parts = [this.quoteIdentifier(cl.name), cl.type + length, cl.nullable ? 'NULL' : 'NOT NULL'];
+        const parts = [this.quoteIdentifier(cl.name), cl.type + typeLengthSql(cl), cl.nullable ? 'NULL' : 'NOT NULL'];
         return parts.filter(Boolean).join(' ');
     }
 
@@ -330,6 +327,20 @@ ELSE
             });
         }
 
+        // 主键是表级约束：T-SQL 同样没有 DROP PRIMARY KEY，要 ALTER TABLE ... DROP CONSTRAINT <名字>；
+        // 名字由元数据 t-keys 下发，缺失时退回 `PK_<表>` 约定
+        const primaryKey = diffPrimaryKey(tableData.fields.oldFields, tableData.fields.res);
+        const hasOldPrimaryKey = tableData.fields.oldFields.some((field) => field.isPrimaryKey);
+        const constraintName = tableData.primaryKeyName || `PK_${tableName}`;
+        let pkSql = '';
+        if (primaryKey.changed && hasOldPrimaryKey) {
+            pkSql += `ALTER TABLE ${baseTable} DROP CONSTRAINT ${this.quoteIdentifier(constraintName)};\n`;
+        }
+        if (primaryKey.changed && primaryKey.columns.length > 0) {
+            const cols = primaryKey.columns.map((name) => this.quoteIdentifier(name)).join(',');
+            pkSql += `ALTER TABLE ${baseTable} ADD CONSTRAINT ${this.quoteIdentifier(constraintName)} PRIMARY KEY (${cols});\n`;
+        }
+
         let arr = [];
         delSql && arr.push(delSql);
         addArr.length > 0 && arr.push(addArr.join(';\n'));
@@ -337,6 +348,7 @@ ELSE
         updArr.length > 0 && arr.push(updArr.join(';\n'));
         changeCommentArr.length > 0 && arr.push(changeCommentArr.join(';\n'));
         addCommentArr.length > 0 && arr.push(addCommentArr.join(';\n'));
+        pkSql && arr.push(pkSql.trim());
 
         return arr.join(';\n');
     }

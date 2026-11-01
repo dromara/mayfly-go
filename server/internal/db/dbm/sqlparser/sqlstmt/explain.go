@@ -12,9 +12,16 @@ package sqlstmt
 type ExplainStmt struct {
 	Base
 	Inner StmtType
+	// Analyze 是否带 ANALYZE/ANALYSE：带则语句会**真正执行**内层语句。
+	// 即便内层是 SELECT（Inner 为空），也可能调用有副作用的函数（lo_export/dblink_exec 等），
+	// 故分类侧对 Analyze=true 一律按「可能写」处理（fail-closed）。
+	Analyze bool
 }
 
-// IsWrite 是否为会执行内层写的形态（EXPLAIN ANALYZE <写>）。
+// IsWrite 是否为会执行内层**写**的形态（EXPLAIN ANALYZE <写>）。
 func (s *ExplainStmt) IsWrite() bool { return s.Inner != "" }
+
+// Executes 是否真的执行了内层语句（带 ANALYZE），此时即便内层是读也不能保证无副作用。
+func (s *ExplainStmt) Executes() bool { return s.Analyze }
 
 func (*ExplainStmt) StmtKind() Kind { return KindOther }

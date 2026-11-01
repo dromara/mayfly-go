@@ -3,7 +3,9 @@ package dbi
 import (
 	"encoding/hex"
 	"fmt"
+	"mayfly-go/pkg/logx"
 	"strings"
+	"sync"
 
 	"github.com/spf13/cast"
 )
@@ -224,10 +226,28 @@ func SQLValueBytes(val any) string {
 	if val == nil {
 		return NULL
 	}
-	if strVal, ok := val.(string); ok && IsHexString(strVal) {
-		return fmt.Sprintf("X'%s'", strVal)
+	switch v := val.(type) {
+	case []byte:
+		return fmt.Sprintf("X'%s'", hex.EncodeToString(v))
+	case string:
+		if v == "" {
+			// 空 hex 与空串在文本上不可区分，保持历史形态
+			return SQLValueString(v)
+		}
+		if IsHexString(v) {
+			return fmt.Sprintf("X'%s'", v)
+		}
+		// 非 hex 字符串：按字面字节写入，而不是退回普通字符串字面量。
+		//
+		// 二进制列的中间值只有两种合法形态（hex 字符串 / []byte）。非 hex 只会来自
+		// 「跨方言 VARCHAR→BLOB 原样搬迁」这类场景：此时把文本字节写进 blob 才是保真语义。
+		// 旧实现退回 `'...'` 会让 MySQL 隐式转换（等于按字节写）而 PG 报错，
+		// 同一任务换个冲突策略就在"脏写"和"失败"之间漂移。此处与 BindValueBytes 统一。
+		warnBinaryTextOnce()
+		return fmt.Sprintf("X'%s'", hex.EncodeToString([]byte(v)))
+	default:
+		return SQLValueString(val)
 	}
-	return SQLValueString(val)
 }
 
 // ========== BindValue 函数族（与 SQLValue 同构的归一语义） ==========
@@ -265,17 +285,19 @@ func BindValueNumeric(val any) (any, error) {
 //   - []byte 原样；
 //   - hex 字符串（ValuerBytes 扫描中介形态）→ []byte，与 SQLValueBytes 输出 X'...' 同构；
 //     空串对应空字节集（旧实现 hex.DecodeString 直接能处理，不得以 IsHexString 误拒）；
-//   - 非 hex 字符或其他类型报错，避免把不识别的形态当字符串写进 blob 造成默默失真。
+//   - 非 hex 文本按字面字节写入（与 SQLValueBytes 同构），并留一次告警；其他类型报错。
 func BindValueBytes(val any) (any, error) {
 	switch v := val.(type) {
 	case []byte:
 		return v, nil
 	case string:
-		decoded, err := hex.DecodeString(v)
-		if err != nil {
-			return nil, fmt.Errorf("invalid binary value %q: not a hex string: %w", v, err)
+		if decoded, err := hex.DecodeString(v); err == nil {
+			return decoded, nil
 		}
-		return decoded, nil
+		// 非 hex：与文本路径 SQLValueBytes 一致，按字面字节写入（不报错）。
+		// 两条路径对同一中间值必须落同一结果，否则任务会随冲突策略时好时坏。
+		warnBinaryTextOnce()
+		return []byte(v), nil
 	default:
 		return nil, fmt.Errorf("unsupported binary value type %T", val)
 	}
@@ -386,3 +408,16 @@ var (
 		BindValue: BindValueBytes,
 	}
 )
+
+// binaryTextWarnOnce 非 hex 文本写入二进制列时只告警一次（每个进程一次）。
+//
+// 这类输入无法从值本身判断是"用户本意的字节"还是"编码错误"，因此按字面字节写入
+// （不丢数据、两条路径一致），但必须留一条可检索的告警，避免完全静默。
+var binaryTextWarnOnce sync.Once
+
+func warnBinaryTextOnce() {
+	binaryTextWarnOnce.Do(func() {
+		logx.Warn("binary column received non-hex text; writing its literal bytes. " +
+			"configure a transform rule if hex decoding was intended")
+	})
+}

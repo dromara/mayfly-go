@@ -149,6 +149,18 @@ var nonObjectFeatureProbes = []struct {
 		dbi.FeatExplain,
 		func(p dbi.MetadataProvider) bool { _, ok := p.(dbi.ExplainAnalyzer); return ok },
 	},
+	{
+		dbi.FeatTLSStatus,
+		func(p dbi.MetadataProvider) bool { _, ok := p.(dbi.TLSStatusInspector); return ok },
+	},
+	{
+		dbi.FeatRecovery,
+		func(p dbi.MetadataProvider) bool { _, ok := p.(dbi.RecoveryInspector); return ok },
+	},
+	{
+		dbi.FeatAccounts,
+		func(p dbi.MetadataProvider) bool { _, ok := p.(dbi.AccountInspector); return ok },
+	},
 }
 
 // TestNonObjectCapabilityDeclarationMatchesImplementation 非对象类能力的声明与实际实现一致性护栏。
@@ -199,6 +211,42 @@ func TestEveryDialectDeclaresNamespace(t *testing.T) {
 		ns := backend.GetCapabilities().NamespaceHierarchy
 		if !ns.HasDatabase && !ns.HasSchema && !ns.HasCatalog {
 			t.Errorf("dialect %q declares empty NamespaceHierarchy (GetCapabilities override missing WithNamespace?)", dt)
+		}
+	}
+}
+
+// TestTLSCapabilityDeclaration 护栏：TLS 能力位与档位清单必须同时成立。
+//
+// 两条独立事实任一缺失都会造成静默故障：
+//   - 只有 FeatTLS 没有档位 → 保存期校验没有合法集合可依据，用户选任何档位都被拒；
+//   - 只有档位没有 FeatTLS → 前端不渲染 TLS 入口，能力等于不存在。
+//
+// 另外禁止把 disable 写进档位清单（明文是每个方言的基线能力，不是「支持的加密档位」），
+// 并禁止重复声明，避免前端下拉出现重复项。
+func TestTLSCapabilityDeclaration(t *testing.T) {
+	for _, dt := range dbi.GetRegisteredDbTypes() {
+		backend := dbi.GetBackend(dt)
+		if backend == nil {
+			continue
+		}
+		caps := backend.GetCapabilities()
+		modes := caps.TLSModes
+		if caps.Has(dbi.FeatTLS) != (len(modes) > 0) {
+			t.Errorf("dialect %q: FeatTLS=%v but TLSModes=%v (both must be set together)",
+				dt, caps.Has(dbi.FeatTLS), modes)
+		}
+		seen := make(map[string]bool, len(modes))
+		for _, mode := range modes {
+			if !mode.Valid() {
+				t.Errorf("dialect %q declares unknown tls mode %q", dt, mode)
+			}
+			if !mode.Encrypted() {
+				t.Errorf("dialect %q must not declare plaintext mode %q as a tls capability", dt, mode)
+			}
+			if seen[string(mode)] {
+				t.Errorf("dialect %q declares duplicated tls mode %q", dt, mode)
+			}
+			seen[string(mode)] = true
 		}
 	}
 }

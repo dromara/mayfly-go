@@ -10,7 +10,7 @@ import (
 
 func TestInsertBasic(t *testing.T) {
 	sql := "INSERT INTO users (name, age) VALUES ('John', 30)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -27,7 +27,7 @@ func TestInsertBasic(t *testing.T) {
 
 func TestInsertMultipleRows(t *testing.T) {
 	sql := "INSERT INTO users (name, age) VALUES ('John', 30), ('Jane', 25), ('Bob', 35)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -43,7 +43,7 @@ func TestInsertMultipleRows(t *testing.T) {
 
 func TestUpdateBasic(t *testing.T) {
 	sql := "UPDATE users SET name = 'John' WHERE id = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -64,7 +64,7 @@ func TestUpdateBasic(t *testing.T) {
 
 func TestUpdateMultipleColumns(t *testing.T) {
 	sql := "UPDATE users SET name = 'John', age = 30, email = 'john@example.com' WHERE id = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -78,7 +78,7 @@ func TestUpdateMultipleColumns(t *testing.T) {
 
 func TestUpdateWithOrderByLimit(t *testing.T) {
 	sql := "UPDATE users SET status = 0 WHERE status = 1 ORDER BY id LIMIT 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -101,7 +101,7 @@ func TestUpdateWithOrderByLimit(t *testing.T) {
 }
 
 func TestUpdateNoLimitIsNil(t *testing.T) {
-	stmt, err := NewParser("UPDATE users SET name = 'John' WHERE id = 1").Parse()
+	stmt, err := newParser("UPDATE users SET name = 'John' WHERE id = 1").Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestUpdateNoLimitIsNil(t *testing.T) {
 
 func TestDeleteBasic(t *testing.T) {
 	sql := "DELETE FROM users WHERE id = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -135,7 +135,7 @@ func TestDeleteBasic(t *testing.T) {
 
 func TestDeleteMultipleTables(t *testing.T) {
 	sql := "DELETE t1, t2 FROM users t1 JOIN orders t2 ON t1.id = t2.user_id WHERE t1.status = 0"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -150,7 +150,7 @@ func TestDeleteMultipleTables(t *testing.T) {
 
 func TestDeleteWithOrderByLimit(t *testing.T) {
 	sql := "DELETE FROM users WHERE status = 0 ORDER BY id LIMIT 100"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -172,7 +172,7 @@ func TestDeleteWithOrderByLimit(t *testing.T) {
 }
 
 func TestDeleteNoLimitIsNil(t *testing.T) {
-	stmt, err := NewParser("DELETE FROM users WHERE id = 1").Parse()
+	stmt, err := newParser("DELETE FROM users WHERE id = 1").Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -185,7 +185,7 @@ func TestDeleteNoLimitIsNil(t *testing.T) {
 
 func TestDDLCreate(t *testing.T) {
 	sql := "CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50), age INT)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -203,7 +203,7 @@ func TestDDLCreate(t *testing.T) {
 
 func TestDDLDrop(t *testing.T) {
 	sql := "DROP TABLE users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -218,7 +218,7 @@ func TestDDLDrop(t *testing.T) {
 
 func TestDDLAlter(t *testing.T) {
 	sql := "ALTER TABLE users ADD COLUMN email VARCHAR(255)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -233,7 +233,7 @@ func TestDDLAlter(t *testing.T) {
 
 func TestDDLTruncate(t *testing.T) {
 	sql := "TRUNCATE TABLE users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -267,7 +267,7 @@ func TestInsertConflictClause(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			stmt, err := NewParser(c.sql).Parse()
+			stmt, err := newParser(c.sql).Parse()
 			if err != nil {
 				t.Fatalf("parse error: %v", err)
 			}

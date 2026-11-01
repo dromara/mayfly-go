@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"mayfly-go/internal/pkg/tlsx"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
+	"net"
 	"time"
 )
 
@@ -90,6 +92,14 @@ type DbInfo struct {
 
 	// PoolConfig 实例级连接池配置（可选，零值使用全局默认配置）
 	PoolConfig DbConnPoolConfig
+
+	// TLS 连接加密配置（nil/disable 表示明文）。由 application 层从实例配置组装，
+	// 方言只消费、不解析存储形态；证书内容不在日志与响应中出现（见 tlsx.Config.Describe）
+	TLS *tlsx.Config
+
+	// tlsFiles 只接受文件路径的驱动（libpq、DM）所需的证书落盘句柄；
+	// 生命周期与连接池绑定：建立时创建，DbConn.Close 时删除
+	tlsFiles *tlsx.FileSet
 
 	// db 底层连接池，由 Conn() 建立后赋值，方言通过 GetDb() 访问
 	db *sql.DB
@@ -224,6 +234,7 @@ func (di *DbInfo) Conn(ctx context.Context, backend DbBackend) (*DbConn, error) 
 	conn, err := backend.GetSQLDb(ctx, di)
 	if err != nil {
 		tunnel.Close() // 建连失败，释放已建立的通道，避免其引用计数泄漏
+		di.CleanupTLSFiles()
 		logx.Errorf("db connection failed: %s:%d/%s, err:%s", di.Host, di.Port, database, err.Error())
 		return nil, errorx.NewBizf("db connection failed: %s", err.Error())
 	}
@@ -231,6 +242,8 @@ func (di *DbInfo) Conn(ctx context.Context, backend DbBackend) (*DbConn, error) 
 	err = conn.Ping()
 	if err != nil {
 		tunnel.Close() // 探活失败同样要释放已建立的通道
+		_ = conn.Close()
+		di.CleanupTLSFiles()
 		logx.Errorf("db ping failed: %s:%d/%s, err:%s", di.Host, di.Port, database, err.Error())
 		return nil, errorx.NewBizf("db connection failed: %s", err.Error())
 	}
@@ -256,6 +269,64 @@ func (di *DbInfo) Conn(ctx context.Context, backend DbBackend) (*DbConn, error) 
 	logx.Infof("db connection: %s:%d/%s", di.Host, di.Port, database)
 
 	return dbc, nil
+}
+
+// EffectiveTLS 返回填好默认 ServerName 的 TLS 配置副本；未启用时返回 nil。
+//
+// ServerName 必须取「用户配置的原始主机名」而非 di.Host：dialTunnel 会把 Host 改写为
+// 通道本地地址（127.0.0.1），拿它做主机名校验会让所有经 SSH 隧道的 verify-full 连接
+// 必然失败——证书 CN/SAN 是数据库域名，不是 localhost。
+func (di *DbInfo) EffectiveTLS() *tlsx.Config {
+	if di.TLS == nil || !di.TLS.Enabled() {
+		return nil
+	}
+	cfg := *di.TLS
+	if cfg.ServerName == "" {
+		cfg.ServerName = di.originalHost()
+	}
+	return &cfg
+}
+
+// originalHost 取隧道建立前的目标主机名（RemoteAddr 为空说明未走隧道）
+func (di *DbInfo) originalHost() string {
+	if di.RemoteAddr != "" {
+		if host, _, err := net.SplitHostPort(di.RemoteAddr); err == nil {
+			return host
+		}
+		return di.RemoteAddr
+	}
+	return di.Host
+}
+
+// PrepareTLSFiles 为只接受文件路径的驱动准备证书文件（幂等）。
+//
+// 没有材料时返回 (nil, nil)：verify-* 走系统根证书的部署不需要任何文件。
+func (di *DbInfo) PrepareTLSFiles() (*tlsx.FileSet, error) {
+	if di.tlsFiles != nil {
+		return di.tlsFiles, nil
+	}
+	cfg := di.EffectiveTLS()
+	if cfg == nil {
+		return nil, nil
+	}
+	fs, err := cfg.WriteFiles()
+	if err != nil {
+		return nil, err
+	}
+	di.tlsFiles = fs
+	return fs, nil
+}
+
+// CleanupTLSFiles 删除临时证书目录。连接池关闭与建连失败两条路径都必须调用，
+// 否则证书会以 0600 的孤文件形式长期留在临时目录里。
+func (di *DbInfo) CleanupTLSFiles() {
+	if di.tlsFiles == nil {
+		return
+	}
+	if err := di.tlsFiles.Close(); err != nil {
+		logx.Warnf("cleanup tls temp files failed: %s", err.Error())
+	}
+	di.tlsFiles = nil
 }
 
 // dialTunnel 若连接配置了中转通道，则经注册的 TunnelOpener 建立通道，

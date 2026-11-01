@@ -19,7 +19,7 @@ func (*SqliteParser) Parse(stmt string) (result sqlstmt.Stmt, err error) {
 			err = fmt.Errorf("sqlite sql parse failed: %v", e)
 		}
 	}()
-	return NewParser(stmt).Parse()
+	return newParser(stmt).Parse()
 }
 
 // RewritePagination SQLite 分页改写：LIMIT count OFFSET offset

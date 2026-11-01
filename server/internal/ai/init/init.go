@@ -13,13 +13,27 @@ import (
 	resourcetoolext "mayfly-go/internal/ai/agent/ext/resourcetool"
 	"mayfly-go/internal/ai/api"
 	"mayfly-go/internal/ai/application"
+	aiconfig "mayfly-go/internal/ai/config"
 	"mayfly-go/internal/ai/infra/persistence"
 	"mayfly-go/internal/ai/skill"
+	sysapp "mayfly-go/internal/sys/application"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/starter"
 )
 
 func init() {
+	// 系统配置热生效：模型 / Agent 配置保存后刷新 AI 运行时（下一轮对话即用新配置）
+	//
+	// 依赖倒置：sys 只提供「配置已变更」钩子，不感知 AI 模块；此处把配置键与刷新
+	// 动作绑定，新增一类需要热生效的 AI 配置只需在这里多注册一行。
+	// 注册在包初始化期完成（早于任何请求），钩子本身在保存成功后才被触发
+	sysapp.RegisterConfigChangeHook(aiconfig.ConfigKeyModel, func(_ context.Context, _ string) {
+		application.ReloadModelConfig()
+	})
+	sysapp.RegisterConfigChangeHook(aiconfig.ConfigKeyAgent, func(_ context.Context, _ string) {
+		application.ReloadAgentConfig()
+	})
+
 	// 注册AI模块的IoC组件
 	starter.AddInitIocFunc(func() {
 		persistence.InitIoc()

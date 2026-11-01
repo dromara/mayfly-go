@@ -18,7 +18,7 @@ func (*DmParser) Parse(stmt string) (result sqlstmt.Stmt, err error) {
 			err = fmt.Errorf("dm sql parse failed: %v", e)
 		}
 	}()
-	return NewParser(stmt).Parse()
+	return newParser(stmt).Parse()
 }
 
 // RewritePagination 达梦分页改写：与 Oracle 12c+ 兼容，使用 OFFSET-FETCH 语法

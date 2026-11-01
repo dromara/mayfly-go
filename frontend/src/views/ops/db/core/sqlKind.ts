@@ -18,6 +18,11 @@ const STRUCTURE_KEYWORDS = ['create', 'alter', 'drop', 'truncate', 'rename', 'co
 /**
  * 只读语句首词基线：命中即按「查询」处理（独立结果 tab、不弹执行备注确认）。
  *
+ * **权威关系**：分类的服务端实现（server/internal/db/dbm/sqlparser）是唯一权威，
+ * 本地实现只为「编辑时即时反馈」存在，两者由 testdata/classify_cases.json 契约锁对齐。
+ * 需要更强判定（新语法/方言特性）时调 `POST /dbs/:dbId/classify` 取服务端结论，
+ * 不要在本文件继续扩写第三套解析逻辑。
+ *
  * 与后端 sqlparser.stmtTypeFromKeyword 的只读集合严格对齐——select/with/table 归 StmtTypeSelect，
  * show/explain/describe/desc 归 StmtTypeOther，两者都由后端走查询通道返回结果集；余下（含
  * insert/update/delete/DDL 与未识别动词）后端一律 doExec 按写入执行。前端「查询」必须与之同集合，

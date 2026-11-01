@@ -184,6 +184,58 @@ describe('DDL Generation Tests', () => {
             expect(sql).toContain('ALTER TABLE `test_db`.`old_table`');
             expect(sql).toContain('RENAME TO `new_table`');
         });
+
+        // 无符号类型在元数据里写作 unsigned bigint（与后端注册类型名一致），MySQL DDL 必须写成 bigint unsigned；
+        // 长度也只能跟在基础类型后（bigint(20) unsigned）。原样输出会 1064，表现为改长度/改可空保存后不生效
+        it('should spell unsigned types in MySQL order for MODIFY COLUMN', () => {
+            const dialect = getDbDialect(dbType);
+            const ctx = createTestContext({ db: 'test_db' });
+            const changeData: ChangeDiff<ColumnDefinition> = {
+                del: [],
+                add: [],
+                upd: [
+                    createTestField({ name: 'creator_id', type: 'unsigned bigint', nullable: true }),
+                    createTestField({ name: 'creator', type: 'varchar', length: 64, nullable: true }),
+                ],
+                changed: true,
+            };
+
+            const sql = dialect.getModifyColumnSql(ctx, 'test_table', changeData);
+
+            expect(sql).toContain('MODIFY COLUMN `creator_id` bigint unsigned NULL');
+            expect(sql).toContain('MODIFY COLUMN `creator` varchar(64) NULL');
+            expect(sql).not.toContain('unsigned bigint');
+        });
+
+        it('should place integer display width before the unsigned modifier', () => {
+            const dialect = getDbDialect(dbType);
+            const ctx = createTestContext({ db: 'test_db' });
+            const changeData: ChangeDiff<ColumnDefinition> = {
+                del: [],
+                add: [],
+                upd: [createTestField({ name: 'uid', type: 'unsigned bigint', length: '20', isPrimaryKey: true })],
+                changed: true,
+            };
+
+            const sql = dialect.getModifyColumnSql(ctx, 'test_table', changeData);
+
+            expect(sql).toContain('MODIFY COLUMN `uid` bigint(20) unsigned NOT NULL');
+        });
+
+        it('should keep precision and unsigned modifier together for unsigned decimal', () => {
+            const dialect = getDbDialect(dbType);
+            const ctx = createTestContext({ db: 'test_db' });
+            const changeData: ChangeDiff<ColumnDefinition> = {
+                del: [],
+                add: [],
+                upd: [createTestField({ name: 'price', type: 'unsigned decimal', length: '10', numScale: '2' })],
+                changed: true,
+            };
+
+            const sql = dialect.getModifyColumnSql(ctx, 'test_table', changeData);
+
+            expect(sql).toContain('MODIFY COLUMN `price` decimal(10,2) unsigned NOT NULL');
+        });
     });
 
     describe('PostgreSQL Dialect', () => {
@@ -478,6 +530,7 @@ describe('DDL Generation Tests', () => {
                     res: [
                         createTestField({ name: 'id', type: 'UInt64', isPrimaryKey: true, nullable: false, comment: '主键ID' }),
                         createTestField({ name: 'name', type: 'String', nullable: false, comment: '姓名' }),
+                        createTestField({ name: 'remark', type: 'String', nullable: true }),
                     ],
                     oldFields: [],
                 },
@@ -486,8 +539,11 @@ describe('DDL Generation Tests', () => {
             const sql = dialect.getCreateTableSql(ctx);
 
             expect(sql).toContain('CREATE TABLE `test_table`');
-            expect(sql).toContain('`id` UInt64 NOT NULL');
-            expect(sql).toContain('`name` String NOT NULL');
+            // ClickHouse 没有 NOT NULL 约束（写出即语法错误）：不可空就是裸类型，可空用 Nullable(T)
+            expect(sql).toContain('`id` UInt64');
+            expect(sql).toContain('`name` String');
+            expect(sql).toContain('`remark` Nullable(String)');
+            expect(sql).not.toContain('NOT NULL');
             expect(sql).toContain('ENGINE = MergeTree()');
             expect(sql).toContain('ORDER BY (`id`)');
             expect(sql).toContain("COMMENT '测试表'");
@@ -506,7 +562,8 @@ describe('DDL Generation Tests', () => {
             const sql = dialect.getModifyColumnSql(ctx, 'test_table', changeData);
 
             expect(sql).toContain('ALTER TABLE `test_table`');
-            expect(sql).toContain('ADD COLUMN `email` String NOT NULL');
+            expect(sql).toContain('ADD COLUMN `email` String');
+            expect(sql).not.toContain('NOT NULL');
         });
     });
 

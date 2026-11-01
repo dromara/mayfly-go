@@ -22,10 +22,9 @@ import (
 	proposaltoolext "mayfly-go/internal/ai/agent/ext/proposaltool"
 	skillext "mayfly-go/internal/ai/agent/ext/skill"
 	"mayfly-go/internal/ai/agent/middleware"
+	"mayfly-go/internal/ai/llm"
 	"mayfly-go/internal/ai/memory"
 	"mayfly-go/internal/ai/session"
-
-	"github.com/cloudwego/eino/components/model"
 )
 
 // Deps 扩展装配依赖（对应依赖允许为 nil，未装配时该扩展自动跳过注册）
@@ -34,8 +33,11 @@ type Deps struct {
 	MemoryManager *memory.Manager
 	// SessionManager 会话管理器（historyext 注入依赖；为 nil 时历史扩展跳过注册）
 	SessionManager *session.Manager
-	// ChatModel 聊天模型（memoryext 长期记忆提取依赖；为 nil 时提取能力降级不可用）
-	ChatModel model.AgenticModel
+	// ModelProvider 模型访问入口（memoryext 长期记忆提取依赖；为 nil 时提取能力降级不可用）
+	//
+	// 注入 Provider 而非 ChatModel 实例：提取器与进程同生命周期，模型配置变更后
+	// 仍需按新配置取模型
+	ModelProvider llm.Provider
 }
 
 // InstallAll 按内置优先顺序注册全部内置扩展到 Builder
@@ -53,7 +55,7 @@ func InstallAll(b *contributor.Builder, deps Deps) {
 	// 记忆搜索工具：memory_search（memory_tools，memoryManager 非 nil 时贡献）
 	memoryext.InstallTools(b, deps.MemoryManager)
 	// 记忆提取：装配期激活型（memory_extraction），非 nil 时注册
-	if e := memoryext.NewExtractionExtension(deps.MemoryManager, deps.SessionManager, deps.ChatModel); e != nil {
+	if e := memoryext.NewExtractionExtension(deps.MemoryManager, deps.SessionManager, deps.ModelProvider); e != nil {
 		b.RegisterService(e)
 	}
 	historyext.Install(b, deps.SessionManager)

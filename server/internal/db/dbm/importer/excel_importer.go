@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"fmt"
 	"io"
 	"math"
 	"strconv"
@@ -59,7 +60,7 @@ func (e *ExcelImporter) Stream(r io.Reader, opts *Options, h *StreamHandler) err
 	}
 
 	first := true
-	err = scanExcelRows(f, sheet, func(cols []string) error {
+	err = scanExcelRows(f, sheet, dateSerialColumnSet(opts.DateSerialColumns), func(cols []string) error {
 		if first {
 			first = false
 			var headers []string
@@ -90,7 +91,7 @@ func (e *ExcelImporter) Stream(r io.Reader, opts *Options, h *StreamHandler) err
 
 // scanExcelRows 以原始值模式逐行读取并回调，日期/时间格式的数字单元格先还原为 ISO 文本。
 // 回调返回错误即中止扫描（调用方用 sentinel 区分「提前结束」与真实错误）。
-func scanExcelRows(f *excelize.File, sheet string, fn func(cols []string) error) error {
+func scanExcelRows(f *excelize.File, sheet string, dateCols map[int]bool, fn func(cols []string) error) error {
 	rows, err := f.Rows(sheet)
 	if err != nil {
 		return errorx.NewBizf("read excel sheet [%s] failed: %s", sheet, err.Error())
@@ -98,14 +99,12 @@ func scanExcelRows(f *excelize.File, sheet string, fn func(cols []string) error)
 	defer func() { _ = rows.Close() }()
 
 	rawOpts := excelize.Options{RawCellValue: true}
-	rowNum := 0
 	for rows.Next() {
-		rowNum++
 		cols, colErr := rows.Columns(rawOpts)
 		if colErr != nil {
 			return errorx.NewBizf("read excel sheet [%s] failed: %s", sheet, colErr.Error())
 		}
-		normalizeDateCells(f, sheet, rowNum, cols)
+		normalizeDateCols(cols, dateCols)
 		if err := fn(cols); err != nil {
 			return err
 		}
@@ -116,19 +115,35 @@ func scanExcelRows(f *excelize.File, sheet string, fn func(cols []string) error)
 	return nil
 }
 
-// normalizeDateCells 对「值是数字」且「单元格套了日期/时间格式」的格子，把 Excel 序列数转成 ISO 文本。
-// 非日期格式的纯数字（金额、数量等）保持原样，不受影响。
-func normalizeDateCells(f *excelize.File, sheet string, rowNum int, cols []string) {
-	for i, v := range cols {
-		serial, ok := parseExcelSerial(v)
+// dateSerialColumnSet 把列下标切片转成集合（空切片返回 nil，热路径零分配）
+func dateSerialColumnSet(indices []int) map[int]bool {
+	if len(indices) == 0 {
+		return nil
+	}
+	set := make(map[int]bool, len(indices))
+	for _, i := range indices {
+		if i >= 0 {
+			set[i] = true
+		}
+	}
+	return set
+}
+
+// normalizeDateCols 把指定列（目标列为日期/时间）的 Excel 序列数还原为时间文本。
+//
+// 判据是"这一列映射到日期/时间目标列"，而不是"该单元格套了日期格式"：后者必须逐格
+// GetCellStyle，会让 excelize 全量解析整张 sheet。代价是：目标列是字符串时，日期单元格
+// 不再转 ISO（保留序列数），这是为内存安全做的显式取舍。
+func normalizeDateCols(cols []string, dateCols map[int]bool) {
+	if len(dateCols) == 0 {
+		return
+	}
+	for i := range cols {
+		if !dateCols[i] {
+			continue
+		}
+		serial, ok := parseExcelSerial(cols[i])
 		if !ok {
-			continue
-		}
-		ref, err := excelize.CoordinatesToCellName(i+1, rowNum)
-		if err != nil {
-			continue
-		}
-		if !cellHasDateTimeFormat(f, sheet, ref) {
 			continue
 		}
 		cols[i] = excelSerialToTime(serial)
@@ -138,7 +153,9 @@ func normalizeDateCells(f *excelize.File, sheet string, rowNum int, cols []strin
 // parseExcelSerial 解析落在合法日期区间的 Excel 序列数（1900 系统，1..≈9999-12-31）。
 func parseExcelSerial(s string) (float64, bool) {
 	f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
-	if err != nil || f < 1 || f > 2958466 { // 2958466 ≈ 9999-12-31
+	// 允许 [0,1)：纯时间单元格（12:00 = 0.5）没有整数部分，旧实现整体丢弃，
+	// 写 time 列会变成 "0.5" 这类非法文本。
+	if err != nil || f < 0 || f > 2958466 { // 2958466 ≈ 9999-12-31
 		return 0, false
 	}
 	return f, true
@@ -153,56 +170,18 @@ func excelSerialToTime(serial float64) string {
 	base, _ := time.Parse("2006-01-02", excel1900Epoch)
 	days := int64(math.Floor(serial))
 	frac := serial - float64(days)
+	// 无整数部分 = 纯时间（12:00 存成 0.5），输出 HH:MM:SS
+	if days == 0 {
+		// 输出 SQL time 字面量形态（HH:MM:SS），不是 Duration.String()
+		d := time.Duration(math.Round(frac * float64(24*time.Hour)))
+		return fmt.Sprintf("%02d:%02d:%02d", int(d/time.Hour), int(d%time.Hour/time.Minute), int(d%time.Minute/time.Second))
+	}
 	t := base.AddDate(0, 0, int(days))
 	if frac <= 0 {
 		return t.Format("2006-01-02")
 	}
 	t = t.Add(time.Duration(math.Round(frac * float64(24*time.Hour))))
 	return t.Format("2006-01-02 15:04:05")
-}
-
-// builtinDateTimeNumFmts Excel 内置的日期/时间数字格式 ID。
-var builtinDateTimeNumFmts = map[int]bool{
-	14: true, 15: true, 16: true, 17: true, 18: true, 19: true, 20: true, 21: true, 22: true,
-	27: true, 28: true, 29: true, 30: true, 31: true, 32: true, 33: true, 34: true, 35: true, 36: true,
-	45: true, 46: true, 47: true, 50: true, 57: true, 58: true,
-}
-
-// cellHasDateTimeFormat 判定单元格的数字格式是否为日期/时间。
-func cellHasDateTimeFormat(f *excelize.File, sheet, ref string) bool {
-	styleID, err := f.GetCellStyle(sheet, ref)
-	if err != nil || styleID == 0 {
-		return false
-	}
-	st, err := f.GetStyle(styleID)
-	if err != nil {
-		return false
-	}
-	if builtinDateTimeNumFmts[st.NumFmt] {
-		return true
-	}
-	if st.CustomNumFmt != nil {
-		return looksLikeDateTimeFormat(*st.CustomNumFmt)
-	}
-	return false
-}
-
-// looksLikeDateTimeFormat 自定义格式启发式判定：去掉引号字面量后，含 y/m/d/h/s 或时间冒号即视为日期/时间格式。
-// 数字格式（0 # ? % . , ; e E 及引号文本）不含这些字母，故不会误判纯数字单元格。
-func looksLikeDateTimeFormat(format string) bool {
-	var b strings.Builder
-	inQuote := false
-	for _, r := range format {
-		if r == '"' {
-			inQuote = !inQuote
-			continue
-		}
-		if !inQuote {
-			b.WriteRune(r)
-		}
-	}
-	s := strings.ToLower(b.String())
-	return strings.ContainsAny(s, "ymdhs") || strings.Contains(s, ":")
 }
 
 func init() {

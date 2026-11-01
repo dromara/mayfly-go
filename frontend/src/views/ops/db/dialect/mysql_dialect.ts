@@ -13,37 +13,93 @@ import { createDefaultColumns, defaultColumnConfigs } from './shared/defaultColu
 import { limitCommaPageSnippet } from './shared/snippets';
 import { appendLimitSql, getDefaultDataType, QuoteEscape, wrapValueDefault } from './shared/utils';
 import { backtickQuotePairs, defineCapabilities, mysqlSplitOptions } from './shared/capabilities';
+import { diffPrimaryKey } from './shared/primaryKey';
 import { DbType } from './dbType';
 import { registerDbDialect, setFallbackDialect } from './registry';
 import type { TableEditContext, TableInfoEditContext, ChangeDiff } from './types';
 
+/**
+ * 不能有字面量默认值的类型（MySQL：BLOB/TEXT/GEOMETRY/JSON 只允许表达式默认值）。
+ * 换类型时旧的字符串默认值会残留，原样写出必报 1101。
+ */
+const MYSQL_NO_LITERAL_DEFAULT_TYPES = [
+    'tinytext',
+    'text',
+    'mediumtext',
+    'longtext',
+    'tinyblob',
+    'blob',
+    'mediumblob',
+    'longblob',
+    'json',
+    'geometry',
+    'point',
+    'linestring',
+    'polygon',
+    'multipoint',
+    'multilinestring',
+    'multipolygon',
+    'geometrycollection',
+];
+
 // 参考官方文档：https://dev.mysql.com/doc/refman/8.0/en/data-types.html
+//
+// 只列「真正的数据类型」。unsigned / zerofill 是整数类型的修饰符而非类型，
+// 单独用 MYSQL_UNSIGNED_TYPE_BASES 生成可选项（见 getInfo），避免把修饰符混进类型名。
 const MYSQL_TYPE_LIST = [
     'bigint',
     'binary',
+    'bit',
     'blob',
+    'bool',
+    'boolean',
     'char',
-    'datetime',
     'date',
+    'datetime',
     'decimal',
     'double',
     'enum',
     'float',
+    'geometry',
+    'geometrycollection',
     'int',
+    'integer',
     'json',
+    'linestring',
     'longblob',
     'longtext',
     'mediumblob',
+    'mediumint',
     'mediumtext',
+    'multilinestring',
+    'multipoint',
+    'multipolygon',
+    'numeric',
+    'point',
+    'polygon',
+    'real',
     'set',
     'smallint',
     'text',
     'time',
     'timestamp',
+    'tinyblob',
     'tinyint',
+    'tinytext',
     'varbinary',
     'varchar',
+    'year',
 ];
+
+/**
+ * 无符号整数：内部值沿用 `unsigned bigint` 前缀形态（与后端注册类型名、跨库类型匹配口径一致），
+ * 下拉显示用 MySQL 的 DDL 语法形态 `bigint unsigned`。
+ *
+ * 必须作为可选项存在：列元数据回显的就是 `unsigned bigint`，清单里没有这一项时
+ * el-select 只能把它当自由文本显示（宽度不够还会被截成「unsigned ...」），
+ * 用户也选不回来——一旦改选成 `bigint`，保存后无符号属性就被静默丢弃。
+ */
+const MYSQL_UNSIGNED_TYPE_BASES = ['tinyint', 'smallint', 'mediumint', 'int', 'bigint'];
 
 // 参考官方文档：https://dev.mysql.com/doc/refman/8.3/en/functions.html
 const replaceFunctions: EditorCompletionItem[] = [
@@ -101,6 +157,8 @@ export class MysqlDialect implements DbDialect {
             supportsIndexComment: true,
             // MySQL 协议兼容：表列表展示创建时间等专属列
             mysqlCompatible: true,
+            // go-sql-driver 支持按名注册内存 tls.Config，三档（含只校链的 verify-ca）都可兑现
+            tlsModes: ['require', 'verify-ca', 'verify-full'],
             quotePairs: backtickQuotePairs,
             sqlSplitOptions: mysqlSplitOptions,
         });
@@ -116,7 +174,16 @@ export class MysqlDialect implements DbDialect {
             icon: 'icon db/mysql',
             defaultPort: 3306,
             formatSqlDialect: 'mysql',
-            columnTypes: MYSQL_TYPE_LIST.map((a) => ({ udtName: a, dataType: a, desc: '', space: '' })),
+            columnTypes: [
+                ...MYSQL_TYPE_LIST.map((a) => ({ udtName: a, dataType: a, desc: '', space: '' })),
+                // 无符号整数：value 为归一形态，label 用 DDL 语法形态，回显与手动选择都能命中
+                ...MYSQL_UNSIGNED_TYPE_BASES.map((base) => ({
+                    udtName: `unsigned ${base}`,
+                    dataType: `${base} unsigned`,
+                    desc: '无符号整数（只存非负数）',
+                    space: '',
+                })),
+            ],
         };
         return mysqlDialectInfo;
     }
@@ -186,23 +253,103 @@ export class MysqlDialect implements DbDialect {
         return `\`${name}\``;
     };
 
-    genColumnBasicSql(cl: ColumnDefinition): string {
-        let val = cl.value ? (cl.value === 'CURRENT_TIMESTAMP' ? cl.value : `'${cl.value}'`) : '';
-        let defVal = val ? `DEFAULT ${val}` : '';
-        let length = cl.length;
-        if (length) {
-            length = cl.numScale ? `(${cl.length},${cl.numScale})` : `(${cl.length})`;
-        } else {
-            length = '';
+    /**
+     * 列类型表达式（类型名 + 长度参数 + 无符号修饰）。
+     *
+     * 元数据与迁移链路把无符号类型归一为 `unsigned bigint`（与后端注册类型名、跨库类型匹配口径一致），
+     * 而 MySQL 的 DDL 语法是 `bigint unsigned`，且长度只能跟在基础类型后面（`bigint(20) unsigned`）：
+     * 前缀形态原样写进 ALTER/CREATE 会直接 1064，表现为「改长度/改可空保存后没生效」。
+     * 换序规则与后端 mysql sqlgen 保持一致。
+     */
+    private ddlColumnTypeSql(cl: ColumnDefinition): string {
+        const type = (cl.type || '').trim();
+        const length = this.typeLengthSql(cl);
+        const unsignedPrefix = 'unsigned ';
+        if (type.toLowerCase().startsWith(unsignedPrefix)) {
+            return `${type.slice(unsignedPrefix.length)}${length} unsigned`;
         }
-        let onUpdate = 'update_time' === cl.name ? ' ON UPDATE CURRENT_TIMESTAMP' : '';
+        return `${type}${length}`;
+    }
+
+    /**
+     * 只对「类型声明里真的接受该参数」的类型写出 `(长度[,精度])`。
+     *
+     * 编辑表单换类型时长度输入框会留着旧值（varchar(64) → json/date/enum），原样写出直接语法错误：
+     * 实测 MySQL 8.0.46 下 `json(64)`/`date(64)`/`enum(64)` 均 1064、`datetime(320)` 报 1426、
+     * `int(300)` 报「Display width out of range」。故这里按类型白名单 + 取值区间双重把关。
+     */
+    private typeLengthSql(cl: ColumnDefinition): string {
+        const type = (cl.type || '').toLowerCase().replace(/^unsigned\s+/, '').trim();
+        if (!cl.length) {
+            return '';
+        }
+        const raw = Number(cl.length);
+        const scale = Number(cl.numScale) || 0;
+
+        if (type === 'decimal' || type === 'numeric') {
+            return scale > 0 ? `(${cl.length},${cl.numScale})` : `(${cl.length})`;
+        }
+        if (type === 'float' || type === 'double' || type === 'real') {
+            // FLOAT(p)/FLOAT(M,D) 合法；DOUBLE 只写 (p) 是语法错误，必须有小数位
+            if (scale > 0) {
+                return `(${cl.length},${cl.numScale})`;
+            }
+            return type === 'float' ? `(${cl.length})` : '';
+        }
+        if (/^(tinyint|smallint|mediumint|int|bigint)$/.test(type)) {
+            // 显示宽度上限 255
+            return Number.isInteger(raw) && raw >= 1 && raw <= 255 ? `(${raw})` : '';
+        }
+        if (type === 'datetime' || type === 'time' || type === 'timestamp') {
+            // 小数秒精度 0~6
+            return Number.isInteger(raw) && raw >= 0 && raw <= 6 ? `(${raw})` : '';
+        }
+        if (type === 'year') {
+            return raw === 4 ? '(4)' : '';
+        }
+        if (['char', 'varchar', 'binary', 'varbinary', 'bit'].includes(type)) {
+            return `(${cl.length})`;
+        }
+        // text/blob 家族的 M 已被服务端忽略；json/date/enum/set/几何类型写参数即报错 → 一律不写
+        return '';
+    }
+
+    /**
+     * 默认值子句。
+     *
+     * 表达式默认值必须原样写进括号（`DEFAULT (uuid())`）：包上引号会退化成字符串字面量，
+     * 「每次插入生成新 uuid」就静默变成「插入固定文本 uuid()」。CURRENT_TIMESTAMP 保持
+     * 无括号形态，以兼容 5.7（5.7 不支持 8.0.13+ 的表达式默认值语法）。
+     */
+    private defaultClause(cl: ColumnDefinition): string {
+        if (!cl.value) {
+            return '';
+        }
+        // text/blob/json 等类型在 MySQL 里不能有**字面量**默认值（换类型时旧默认值会残留，直接写即 1101）。
+        // 8.0 的表达式默认值 `DEFAULT ('x')` 虽然可执行，但元数据会把它回读成 `_latin1\'x\'` 这类转义文本，
+        // 再写回就二次转义，故这类类型一律不写 DEFAULT——比生成一条必然失败的 DDL 更可控。
+        if (MYSQL_NO_LITERAL_DEFAULT_TYPES.includes((cl.type || '').toLowerCase().replace(/^unsigned\s+/, '').trim())) {
+            return '';
+        }
+        if (cl.valueIsExpression && cl.value.toUpperCase() !== 'CURRENT_TIMESTAMP') {
+            return `DEFAULT (${cl.value})`;
+        }
+        if (cl.value === 'CURRENT_TIMESTAMP') {
+            return `DEFAULT ${cl.value}`;
+        }
+        return `DEFAULT '${QuoteEscape(cl.value)}'`;
+    }
+
+    genColumnBasicSql(cl: ColumnDefinition): string {
         const parts = [
             this.quoteIdentifier(cl.name),
-            cl.type + length,
+            this.ddlColumnTypeSql(cl),
             cl.nullable ? 'NULL' : 'NOT NULL',
             cl.autoIncrement ? 'AUTO_INCREMENT' : '',
-            defVal,
-            onUpdate,
+            this.defaultClause(cl),
+            // 「自动更新」子句由元数据带回：MODIFY COLUMN 会重置未显式写出的属性，
+            // 不带回来就会让「只改注释」的编辑把时间列的自动更新静默抹掉
+            cl.onUpdate ?? '',
             cl.comment ? `COMMENT '${QuoteEscape(cl.comment)}'` : '',
         ];
         return parts.filter(Boolean).join(' ');
@@ -242,6 +389,19 @@ export class MysqlDialect implements DbDialect {
 
     getModifyColumnSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<ColumnDefinition>): string {
         let arr = [] as string[];
+
+        // 主键是表级约束，MODIFY 改不动它：勾选/取消「主键」必须另发 DROP/ADD PRIMARY KEY，
+        // 且二者可与其他 alter_specification 合并进同一条 ALTER TABLE
+        const primaryKey = diffPrimaryKey(tableData.fields.oldFields, tableData.fields.res);
+        if (primaryKey.changed) {
+            if (tableData.fields.oldFields.some((field) => field.isPrimaryKey)) {
+                arr.push('DROP PRIMARY KEY');
+            }
+            if (primaryKey.columns.length > 0) {
+                arr.push(`ADD PRIMARY KEY (${primaryKey.columns.map((name) => this.quoteIdentifier(name)).join(',')})`);
+            }
+        }
+
         if (changeData.del.length > 0) {
             changeData.del.forEach((a) => {
                 arr.push(`DROP COLUMN ${this.quoteIdentifier(a.name)}`);
@@ -311,7 +471,9 @@ export class MysqlDialect implements DbDialect {
                     );
                 });
             }
-            return `ALTER TABLE ${this.quoteIdentifier(tableName)}\n  ${parts.join(',\n  ')};`;
+            // 与列语句一致带上库限定：索引 DDL 只写裸表名时，一旦连接默认库不同就会作用到别的库
+            const dbTable = `${this.quoteIdentifier(tableData.db)}.${this.quoteIdentifier(tableName)}`;
+            return `ALTER TABLE ${dbTable}\n  ${parts.join(',\n  ')};`;
         }
         return '';
     }
@@ -334,7 +496,8 @@ export class MysqlDialect implements DbDialect {
     }
 
     wrapValue(columnType: string, value: unknown): string | number {
-        return wrapValueDefault(columnType, value) as string | number;
+        // MySQL 默认把反斜杠当转义符，字符串值里的 \ 必须加倍，否则 a\b 会被解释成退格
+        return wrapValueDefault(columnType, value, { escapeBackslash: true }) as string | number;
     }
 
     getBatchInsertPreviewSql(tableName: string, fieldArr: string[], duplicateStrategy: number): string {

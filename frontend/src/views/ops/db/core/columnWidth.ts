@@ -1,5 +1,6 @@
 import { getTextWidth } from '@/common/utils/string';
 import type { ColumnMetadata } from '../types';
+import { declaredColumnArgs } from './columnDefinition';
 
 /**
  * 根据列标题与表数据自动计算列宽度
@@ -44,6 +45,9 @@ export function flexColumnWidth(title: string, tableData: Record<string, unknown
 
 /**
  * 初始化所有列信息，完善需要显示的列类型，包含长度等，如varchar(20)
+ *
+ * 长度口径与表编辑表单同源（declaredColumnArgs）：只对类型声明里真正带参数的类型族拼接，
+ * 避免整数被显示成 tinyint(3) 这类没有意义的显示宽度。
  * @param columns 列元数据数组
  */
 export function initColumns(columns: ColumnMetadata[]) {
@@ -51,25 +55,11 @@ export function initColumns(columns: ColumnMetadata[]) {
         return;
     }
     for (let col of columns) {
-        if (col.charMaxLength && col.charMaxLength > 0) {
-            col.columnType = `${col.dataType}(${col.charMaxLength})`;
-            col.showLength = col.charMaxLength;
-            col.showScale = null;
+        const { length, numScale } = declaredColumnArgs(col);
+        if (length) {
+            col.columnType = `${col.dataType}(${length}${numScale ? ',' + numScale : ''})`;
             continue;
         }
-        if (col.numPrecision && col.numPrecision > 0) {
-            if (col.numScale && col.numScale > 0) {
-                col.columnType = `${col.dataType}(${col.numPrecision},${col.numScale})`;
-                col.showScale = col.numScale;
-            } else {
-                col.columnType = `${col.dataType}(${col.numPrecision})`;
-                col.showScale = null;
-            }
-
-            col.showLength = col.numPrecision;
-            continue;
-        }
-
         col.columnType = col.dataType;
     }
 }

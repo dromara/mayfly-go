@@ -41,7 +41,6 @@ const SQLITE_TYPE_LIST: SqlColumnType[] = [
     { udtName: 'clob', dataType: 'clob', desc: '', space: '', range: '' },
     // blob
     { udtName: 'blob', dataType: 'blob', desc: '', space: '', range: '' },
-    { udtName: 'no datatype specified', dataType: 'no datatype specified', desc: '', space: '', range: '' },
     // REAL
     { udtName: 'real', dataType: 'real', desc: '', space: '', range: '' },
     { udtName: 'double', dataType: 'double', desc: '', space: '', range: '' },

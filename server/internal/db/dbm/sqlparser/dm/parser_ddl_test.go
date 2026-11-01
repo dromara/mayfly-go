@@ -12,7 +12,7 @@ import (
 
 func TestDmCommentOnTable(t *testing.T) {
 	sql := "comment on table sys_user is '用户表'"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -25,7 +25,7 @@ func TestDmCommentOnTable(t *testing.T) {
 
 func TestDmCommentOnColumn(t *testing.T) {
 	sql := "COMMENT ON COLUMN sys_user.name IS '用户名'"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -46,7 +46,7 @@ func TestDmGrantAndRevoke(t *testing.T) {
 		"REVOKE SELECT ON sys_user FROM dev_role",
 	}
 	for _, sql := range sqls {
-		parser := NewParser(sql)
+		parser := newParser(sql)
 		stmt, err := parser.Parse()
 		if err != nil {
 			t.Fatalf("parse error for '%s': %v", sql, err)
@@ -59,7 +59,7 @@ func TestDmGrantAndRevoke(t *testing.T) {
 
 func TestDmTruncateAsDdl(t *testing.T) {
 	sql := "TRUNCATE TABLE sys_user"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)

@@ -5,11 +5,14 @@ import (
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/pkg/tlsx"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"net/url"
 	"strings"
 
-	_ "github.com/microsoft/go-mssqldb"
+	mssql "github.com/microsoft/go-mssqldb"
+	"github.com/microsoft/go-mssqldb/msdsn"
 )
 
 func init() {
@@ -128,7 +131,9 @@ func (mm *Backend) CommitTargetTx(conn *dbi.DbConn, tx *sql.Tx) error {
 func (mm *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	query := url.Values{}
 	query.Add("app name", "mayfly")
-	query.Add("tlsmin", "1.0")
+	// TLS 下限取 1.2：1.0/1.1 已被主流合规基线列为不安全协议。
+	// 仍允许在「其他连接参数」里显式覆盖（历史实例可能只支持 1.0，需要可见的例外而不是隐式放宽）
+	query.Add("tlsmin", "1.2")
 	query.Add("connection timeout", "10")
 	if d.Database != "" {
 		// 库位的 schema 段已由 codec 解析进 d.Schema
@@ -138,17 +143,44 @@ func (mm *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error)
 		}
 	}
 	params := query.Encode()
-	if d.Params != "" {
-		if !strings.HasPrefix(d.Params, "&") {
-			params = params + "&" + d.Params
+	userParams := d.Params
+	tlsCfg := d.EffectiveTLS()
+	if tlsCfg != nil {
+		// 结构化配置优先：手写的 encrypt/certificate 等会让两处真源互相覆盖
+		userParams = tlsx.StripKV(userParams, "encrypt", "trustservercertificate", "certificate",
+			"servercertificate", "hostnameincertificate", "tlsmin")
+	}
+	if userParams != "" {
+		if !strings.HasPrefix(userParams, "&") {
+			params = params + "&" + userParams
 		} else {
-			params = params + d.Params
+			params = params + userParams
 		}
 	}
 
-	const driverName = "mssql"
 	dsn := fmt.Sprintf("sqlserver://%s:%s@%s:%d?%s", url.PathEscape(d.Username), url.PathEscape(d.Password), d.Host, d.Port, params)
-	return sql.Open(driverName, dsn)
+	if tlsCfg == nil {
+		return sql.Open("mssql", dsn)
+	}
+
+	// 启用 TLS 时改走 Connector：go-mssqldb 允许直接注入 *tls.Config，
+	// 这样 CA/客户端证书无需落临时文件（DSN 的 certificate 参数只接受文件路径）
+	cfg, err := msdsn.Parse(dsn)
+	if err != nil {
+		return nil, errorx.NewBizf("parse mssql dsn failed: %s", err.Error())
+	}
+	built, err := tlsCfg.Build()
+	if err != nil {
+		return nil, err
+	}
+	cfg.TLSConfig = built
+	cfg.Encryption = msdsn.EncryptionRequired
+	// require 档只要求加密、不校验证书；verify-full 交出校验权（链 + 主机名）
+	cfg.TrustServerCertificate = tlsCfg.Mode == tlsx.ModeRequire
+	// ServerName 已由 tlsx 按「原始主机名」填好（隧道场景下与 DSN host 不同），
+	// 置 true 阻止驱动用 DSN host 覆盖它
+	cfg.HostInCertificateProvided = true
+	return sql.OpenDB(mssql.NewConnectorConfig(cfg)), nil
 }
 
 func (mm *Backend) GetDialect(di *dbi.DbInfo) dbi.Dialect {
@@ -159,8 +191,11 @@ func (mm *Backend) GetDialect(di *dbi.DbInfo) dbi.Dialect {
 // 会话内省（sys.dm_exec_sessions，MssqlMetadata 实现 SessionInspector）与执行计划分析
 // （SET SHOWPLAN_XML，MssqlMetadata 实现 ExplainAnalyzer），三者与声明一致。
 func (mm *Backend) GetCapabilities() dbi.MetadataCapabilities {
+	// TLS：只声明能如实兑现的档位。verify-ca 未声明——go-mssqldb 一旦提供 CA
+	// 就同时校验主机名（SetupTLS 的 certificate 分支），无法只校链
 	return dbi.NewAllCapabilities().
-		With(dbi.FeatViews, dbi.FeatSequences, dbi.FeatSessions, dbi.FeatExplain).
+		With(dbi.FeatViews, dbi.FeatSequences, dbi.FeatSessions, dbi.FeatExplain, dbi.FeatTLSStatus).
+		WithTLSModes(tlsx.ModeRequire, tlsx.ModeVerifyFull).
 		WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true, HasSchema: true})
 }
 

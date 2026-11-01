@@ -71,6 +71,15 @@ type DbSQLExecQuery struct {
 	StartTime  string `json:"startTime" form:"startTime"`
 	EndTime    string `json:"endTime" form:"endTime"`
 
-	Status    []int8
-	CreatorId uint64
+	Status []int8
+
+	// CreatorId 操作人筛选（审计页按人捞记录）
+	CreatorId uint64 `json:"creatorId" form:"creatorId"`
+
+	// ScopeDbIds 可见库范围，由 API 按登录账号的资源权限解析后注入。
+	//
+	// 执行记录含 SQL 原文与行级旧/新值（真实业务数据），不能只凭「已登录」就全量可见。
+	// 仓储层在集合为空时直接返回空页（fail-closed）：调用方忘了注入时退化为「看不到」，
+	// 而不是退化成「看全部」。
+	ScopeDbIds []uint64 `json:"-"`
 }

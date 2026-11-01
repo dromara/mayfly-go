@@ -5,10 +5,15 @@ import (
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/pkg/tlsx"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/collx"
+	"net"
+	"strconv"
 	"strings"
+	"time"
 
-	_ "gitee.com/liuzongyang/libpq"
+	pq "gitee.com/liuzongyang/libpq"
 )
 
 func init() {
@@ -131,13 +136,71 @@ func (pm *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error)
 		dbParam = "dbname=" + escapeLibpqParam(db)
 	}
 
-	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s %s sslmode=disable connect_timeout=8",
-		escapeLibpqParam(d.Host), d.Port, escapeLibpqParam(d.Username), escapeLibpqParam(d.Password), dbParam)
+	// host/port 在 libpq 里同时承担两个职责：拨号目标 + TLS 校验用的主机名
+	// （sslmode=verify-full 时 ServerName 直接取 host）。经中转通道时 di.Host/Port
+	// 已被改写成通道本地地址，若照抄进 DSN，verify-full 会拿 127.0.0.1 去校验证书，
+	// 必然失败。因此 DSN 保留原始主机名，拨号改由 fixedDialer 指向通道本地地址。
+	host, port := d.Host, d.Port
+	dialAddr := ""
+	if d.RemoteAddr != "" {
+		dialAddr = fmt.Sprintf("%s:%d", d.Host, d.Port)
+		if h, p, splitErr := net.SplitHostPort(d.RemoteAddr); splitErr == nil {
+			host = h
+			if parsedPort, convErr := strconv.Atoi(p); convErr == nil {
+				port = parsedPort
+			}
+		}
+	}
+
+	// 显式配置的 ServerName 必须真的生效：libpq 在 sslmode=verify-full 时把 DSN 的 host
+	// 直接当校验主机名，没有独立的 servername 参数。因此把 host 换成待校验的名字，
+	// 拨号仍走真实地址（自定义 Dialer）——否则界面上的「主机名」输入框是个摆设
+	if tlsCfgForName := d.EffectiveTLS(); tlsCfgForName != nil && tlsCfgForName.ServerName != "" && tlsCfgForName.ServerName != host {
+		if dialAddr == "" {
+			dialAddr = fmt.Sprintf("%s:%d", d.Host, d.Port)
+		}
+		host = tlsCfgForName.ServerName
+		port = d.Port
+	}
+
+	// 默认明文：libpq 不指定 sslmode 时是 prefer（会尝试加密再回落），
+	// 与「未配置即明文」的显式语义不一致，故恒显式下发
+	sslmode := "disable"
+	params := d.Params
+	var tlsParts []string
+	if tlsCfg := d.EffectiveTLS(); tlsCfg != nil {
+		sslmode = string(tlsCfg.Mode)
+		files, err := d.PrepareTLSFiles()
+		if err != nil {
+			return nil, err
+		}
+		// require 档刻意不传 sslrootcert：libpq 在 require 下若发现根证书文件存在，
+		// 会把行为升级为 verify-ca（见其 ssl.go 的向后兼容分支），
+		// 那等于把「只要加密」偷偷变成「必须校验链」
+		if files != nil {
+			if tlsCfg.Mode != tlsx.ModeRequire && files.CAPath != "" {
+				tlsParts = append(tlsParts, "sslrootcert="+escapeLibpqParam(files.CAPath))
+			}
+			if files.ClientCertPath != "" {
+				tlsParts = append(tlsParts, "sslcert="+escapeLibpqParam(files.ClientCertPath),
+					"sslkey="+escapeLibpqParam(files.ClientKeyPath))
+			}
+		}
+		// 结构化配置优先：剔除用户手写的 ssl* 参数，避免两处真源
+		params = tlsx.StripKV(params, "sslmode", "sslrootcert", "sslcert", "sslkey", "sslinline")
+	}
+
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s %s connect_timeout=8 sslmode=%s",
+		escapeLibpqParam(host), port, escapeLibpqParam(d.Username), escapeLibpqParam(d.Password), dbParam, sslmode)
+	if len(tlsParts) > 0 {
+		dsn = dsn + " " + strings.Join(tlsParts, " ")
+	}
+
 	// 存在额外指定参数，则拼接该连接参数
-	if d.Params != "" {
+	if params != "" {
 		// 存在指定的db，则需要将dbInstance配置中的parmas排除掉dbname和search_path
 		if db != "" {
-			paramArr := strings.Split(d.Params, "&")
+			paramArr := strings.Split(params, "&")
 			paramArr = collx.ArrayRemoveFunc(paramArr, func(param string) bool {
 				if strings.HasPrefix(param, "dbname=") {
 					return true
@@ -147,24 +210,48 @@ func (pm *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error)
 				}
 				return false
 			})
-			d.Params = strings.Join(paramArr, " ")
+			params = strings.Join(paramArr, " ")
 		}
-		dsn = fmt.Sprintf("%s %s", dsn, strings.Join(strings.Split(d.Params, "&"), " "))
+		dsn = fmt.Sprintf("%s %s", dsn, strings.Join(strings.Split(params, "&"), " "))
 	}
 
 	if pm.Param != "" && !strings.Contains(dsn, "dbtype") {
 		dsn = fmt.Sprintf("%s %s", dsn, pm.Param)
 	}
 
-	return sql.Open("postgres", dsn)
+	if dialAddr == "" {
+		return sql.Open("postgres", dsn)
+	}
+	connector, err := pq.NewConnector(dsn)
+	if err != nil {
+		return nil, errorx.NewBizf("build postgres connector failed: %s", err.Error())
+	}
+	connector.Dialer(fixedDialer{addr: dialAddr})
+	return sql.OpenDB(connector), nil
+}
+
+// fixedDialer 把 libpq 的拨号目标固定为通道本地地址。
+//
+// 为什么需要它而不是直接把本地地址写进 DSN：DSN 的 host 同时是 TLS 校验主机名，
+// 两者必须拆开才能让「经 SSH 隧道 + verify-full」成立。
+type fixedDialer struct{ addr string }
+
+func (d fixedDialer) Dial(network, _ string) (net.Conn, error) {
+	return net.Dial(network, d.addr)
+}
+
+func (d fixedDialer) DialTimeout(network, _ string, timeout time.Duration) (net.Conn, error) {
+	return net.DialTimeout(network, d.addr, timeout)
 }
 
 // GetCapabilities pg 系方言：核心能力全支持（含独立 schema 层），并声明已实现的视图、序列与会话内省。
 // 视图/序列/会话查询都基于 pg 9.x 通用系统表（pg_stat_activity 自 9.2 起即有 state/query 列），
 // 对 gauss/kingbase/vastbase 亦适用。
+// TLS：libpq 原生支持 sslmode 四档，证书以文件路径下发（由 tlsx 落临时目录）
 func (pm *Backend) GetCapabilities() dbi.MetadataCapabilities {
 	return dbi.NewAllCapabilities().
-		With(dbi.FeatViews, dbi.FeatSequences, dbi.FeatSessions, dbi.FeatExplain).
+		With(dbi.FeatViews, dbi.FeatSequences, dbi.FeatSessions, dbi.FeatExplain, dbi.FeatTLSStatus, dbi.FeatSlowQuery, dbi.FeatLockWait, dbi.FeatRecovery, dbi.FeatAccounts).
+		WithTLSModes(tlsx.ModeRequire, tlsx.ModeVerifyCA, tlsx.ModeVerifyFull).
 		WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true, HasSchema: true})
 }
 

@@ -40,6 +40,7 @@
 <script lang="ts" setup>
 import { Msg } from '@/hooks/useI18n';
 import TagTreeSelect from '@/views/ops/component/TagTreeSelect.vue';
+import { relateTagItem } from '@/views/ops/component/relateTagItem';
 import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import { useSshTunnelTransform } from '@/hooks/useResourceForm';
 import { computed, useTemplateRef, type PropType } from 'vue';
@@ -77,7 +78,7 @@ const emit = defineEmits(['val-change', 'cancel']);
 
 /** 表单声明（defineFormItems<MilvusForm>，渲染 + 校验唯一数据源；group 分组容器 + tagCodePaths/authCerts/sshTunnel 走插槽） */
 const items = defineFormItems<MilvusForm>([
-    { prop: 'tagCodePaths', label: 'tag.relateTag', required: true },
+    relateTagItem<MilvusForm>(),
     { prop: 'name', label: 'common.name', required: true, placeholder: 'common.pleaseInput' },
     { prop: 'host', label: 'milvus.host', type: 'textarea', required: true, placeholder: 'milvus.connAddress' },
     { type: 'group', label: 'common.account' },

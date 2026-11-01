@@ -61,11 +61,11 @@
 import { Button } from '@/components/ui/button';
 import { useDraggableFab } from '@/hooks/useDraggableFab';
 import { PanelLeftIcon, SparklesIcon, XIcon } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { URL_LOGIN } from '@/router/staticRouter';
-import { useAiEnabled } from './hooks/useAiEnabled';
+import { ensureAiProbed, useAiEnabled } from './hooks/useAiEnabled';
 import { useChatStore } from './stores/chatStore';
 import AiAssistantBody from './components/AiAssistantBody.vue';
 
@@ -74,9 +74,18 @@ const route = useRoute();
 const chatStore = useChatStore();
 const { aiEnabled } = useAiEnabled();
 
-// 登录页不渲染（探测请求在未登录态也会失败，此处双保险避免闪烁）
+// 登录页不渲染（探测请求在未登录态必然失败，此处双保险避免闪烁）
 const isLoginPage = computed(() => route.path === URL_LOGIN);
 const fabVisible = computed(() => aiEnabled.value && !isLoginPage.value);
+
+// 本组件在 App.vue 全局挂载、随进程只 setup 一次：登录页 setup 时没有 token，
+// 探测会被跳过且不占用「已探测」标志，因此离开登录页时必须补探一次，
+// 否则用户登录后要刷新页面才会出现入口
+watch(isLoginPage, (login) => {
+    if (!login) {
+        ensureAiProbed();
+    }
+});
 
 // 拖拽与位置持久化（与通知悬浮球同源 composable，独立 storage key）
 const { position, isDragging, hasMoved, startDrag } = useDraggableFab({

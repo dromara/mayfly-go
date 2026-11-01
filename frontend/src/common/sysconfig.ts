@@ -4,7 +4,6 @@ import openApi from './openApi';
 const AccountLoginSecurityKey = 'AccountLoginSecurity';
 const MachineConfigKey = 'MachineConfig';
 const SysStyleConfigKey = 'SysStyleConfig';
-const AiModelConfigKey = 'AiModelConfig';
 
 /**
  * 账号登录安全配置 (对应后端 config.AccountLoginSecurity)
@@ -56,40 +55,6 @@ export async function getSysStyleConfig(): Promise<{
     // 将字符串转为bool
     jsonValue.useWatermark = convertBool(jsonValue.useWatermark, true);
     return jsonValue;
-}
-
-/**
- * AI 模型配置（对应后端 internal/ai/config.ModelConfig）
- * 注意：value 含 apiKey，消费方仅做本地判空，禁止写日志/控制台输出
- */
-export interface AiModelConfig {
-    name?: string;
-    model?: string;
-    baseUrl?: string;
-    apiKey?: string;
-    timeOut?: number;
-    temperature?: number;
-    maxTokens?: number;
-    contextWindow?: number;
-    /** 思考模式开关（系统配置动态表单保存为字符串 "true"/"false"） */
-    enableThinking?: boolean | string;
-}
-
-/**
- * 获取 AI 模型配置
- *
- * @returns 未配置/解析失败返回 null
- */
-export async function getAiModelConfig(): Promise<AiModelConfig | null> {
-    const value = await getConfigValue(AiModelConfigKey);
-    if (!value) {
-        return null;
-    }
-    try {
-        return JSON.parse(value) as AiModelConfig;
-    } catch (e) {
-        return null;
-    }
 }
 
 /**

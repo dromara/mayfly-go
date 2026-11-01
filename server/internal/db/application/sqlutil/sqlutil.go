@@ -63,3 +63,20 @@ func BriefReason(err error) string {
 	}
 	return reason
 }
+
+// ExportSelects 为「导出这些表的数据」构造用于触发策略判定的 SELECT 语句（每表一条）。
+//
+// 导出等价于对每张表各做一次 SELECT *：只借它拿到语句分类与目标表，语句本身不会被执行，
+// 也不会因为表数量改变判定口径（拼成一条多表 JOIN 会让「目标表」事实与逐表导出的实际行为对不上）。
+// 表名为空时返回空切片——调用方应先用元数据解析出表清单（整库导出场景）。
+func ExportSelects(quoter dbi.Quoter, tables []string) []string {
+	sqls := make([]string, 0, len(tables))
+	for _, table := range tables {
+		name := strings.TrimSpace(table)
+		if name == "" {
+			continue
+		}
+		sqls = append(sqls, "SELECT * FROM "+quoter.Quote(name))
+	}
+	return sqls
+}

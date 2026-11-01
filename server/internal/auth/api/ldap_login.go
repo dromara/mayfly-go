@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"mayfly-go/internal/auth/api/form"
+	"mayfly-go/internal/auth/api/vo"
 	"mayfly-go/internal/auth/config"
 	"mayfly-go/internal/auth/imsg"
 	"mayfly-go/internal/auth/pkg/captcha"
@@ -40,7 +41,7 @@ func (l *LdapLogin) ReqConfs() *req.Confs {
 // @router /auth/ldap/enabled [get]
 func (a *LdapLogin) GetLdapEnabled(rc *req.Ctx) {
 	ldapLoginConfig := config.GetLdapLogin()
-	rc.ResData = ldapLoginConfig.Enable
+	rc.ResData = &vo.LdapEnabled{Enabled: ldapLoginConfig.Enable}
 }
 
 // @router /auth/ldap/login [post]

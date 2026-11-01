@@ -15,6 +15,8 @@
 
 // 实体类型
 export type {
+    ConnTestResult,
+    ConnTLSStatus,
     DbInstInfo,
     Db,
     DbForm,
@@ -40,6 +42,10 @@ export type {
     DbMaskColumn,
     DbMaskRuleQuery,
     DbMaskRuleSaveForm,
+    DbTableAcl,
+    DbTableAclSaveForm,
+    DbColumnAcl,
+    DbColumnAclSaveForm,
     DbMaskColumnQuery,
     DbMaskColumnSaveForm,
     DbNamespace,
@@ -67,6 +73,7 @@ export type {
     SchemaIndexDiff,
     SchemaDiffParam,
     ColumnMetadata,
+    DbTableKey,
     ImportColumn,
     ImportPreviewResult,
     DataImportResult,
@@ -80,6 +87,17 @@ export type {
     DbObjectNodeParams,
     DbTreeNodeData,
     TreeNodeCallbackData,
+    SensitiveScanResult,
+    SensitiveColumnFinding,
+    DbSlowQuery,
+    DbLockWait,
+    DbMetricSeries,
+    DbDdlPrecheckResult,
+    DbDdlFinding,
+    DbRecoveryReadiness,
+    DbAccount,
+    DbAccountRisk,
+    DbAccountOverview,
 } from './vo';
 
 // SQL 执行结果类型

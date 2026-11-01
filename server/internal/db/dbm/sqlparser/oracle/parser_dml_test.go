@@ -10,7 +10,7 @@ import (
 
 func TestOracleInsertBasic(t *testing.T) {
 	sql := "INSERT INTO users (name, age) VALUES ('John', 30)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -27,7 +27,7 @@ func TestOracleInsertBasic(t *testing.T) {
 
 func TestOracleInsertMultipleRows(t *testing.T) {
 	sql := "INSERT INTO users (name, age) VALUES ('John', 30)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -41,7 +41,7 @@ func TestOracleInsertMultipleRows(t *testing.T) {
 
 func TestOracleInsertReturning(t *testing.T) {
 	sql := "INSERT INTO users (name, age) VALUES ('John', 30) RETURNING id, name"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -57,7 +57,7 @@ func TestOracleInsertReturning(t *testing.T) {
 
 func TestOracleUpdateBasic(t *testing.T) {
 	sql := "UPDATE users SET name = \"John\" WHERE id = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -78,7 +78,7 @@ func TestOracleUpdateBasic(t *testing.T) {
 
 func TestOracleUpdateMultipleColumns(t *testing.T) {
 	sql := "UPDATE users SET name = 'John', age = 30, email = 'john@example.com' WHERE id = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -92,7 +92,7 @@ func TestOracleUpdateMultipleColumns(t *testing.T) {
 
 func TestOracleUpdateReturning(t *testing.T) {
 	sql := "UPDATE users SET status = 0 WHERE id = 1 RETURNING id, name, status"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -107,7 +107,7 @@ func TestOracleUpdateReturning(t *testing.T) {
 func TestOracleUpdateRowNum(t *testing.T) {
 	// Oracle 特有的 ROWNUM 用法
 	sql := "UPDATE users SET status = 0 WHERE ROWNUM <= 10 AND status = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -124,7 +124,7 @@ func TestOracleUpdateRowNum(t *testing.T) {
 
 func TestOracleDeleteBasic(t *testing.T) {
 	sql := "DELETE FROM users WHERE id = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -145,7 +145,7 @@ func TestOracleDeleteBasic(t *testing.T) {
 
 func TestOracleDeleteReturning(t *testing.T) {
 	sql := "DELETE FROM users WHERE status = 0 RETURNING id, name"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -160,7 +160,7 @@ func TestOracleDeleteReturning(t *testing.T) {
 func TestOracleDeleteRowNum(t *testing.T) {
 	// Oracle 特有的 ROWNUM 用法
 	sql := "DELETE FROM users WHERE ROWNUM <= 100 AND status = 0"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -177,7 +177,7 @@ func TestOracleDeleteRowNum(t *testing.T) {
 
 func TestOracleMergeInto(t *testing.T) {
 	sql := `MERGE INTO users u USING (SELECT 1 AS id, 'John' AS name FROM dual) s ON (u.id = s.id) WHEN MATCHED THEN UPDATE SET u.name = s.name WHEN NOT MATCHED THEN INSERT (id, name) VALUES (s.id, s.name)`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -195,7 +195,7 @@ func TestOracleMergeInto(t *testing.T) {
 
 func TestOracleInsertWithDoubleQuotes(t *testing.T) {
 	sql := `INSERT INTO "users" ("name", "age", "email") VALUES ('John', 30, 'john@example.com')`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -209,7 +209,7 @@ func TestOracleInsertWithDoubleQuotes(t *testing.T) {
 
 func TestOracleInsertWithSpecialChars(t *testing.T) {
 	sql := `INSERT INTO "logs" ("message", "level") VALUES ('Error: connection failed!', 'ERROR')`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -221,7 +221,7 @@ func TestOracleInsertWithSpecialChars(t *testing.T) {
 
 func TestOracleInsertReturningComplex(t *testing.T) {
 	sql := `INSERT INTO "users" ("name", "email") VALUES ('John', 'john@example.com') RETURNING "id", "name", "created_at"`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -235,7 +235,7 @@ func TestOracleInsertReturningComplex(t *testing.T) {
 
 func TestOracleUpdateWithDoubleQuotes(t *testing.T) {
 	sql := `UPDATE "users" SET "name" = 'John', "age" = 30 WHERE "id" = 1`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -249,7 +249,7 @@ func TestOracleUpdateWithDoubleQuotes(t *testing.T) {
 
 func TestOracleUpdateWithComplexWhere(t *testing.T) {
 	sql := `UPDATE "orders" SET "status" = 'cancelled' WHERE "status" = 'pending' AND "created_at" < TO_DATE('2024-01-01', 'YYYY-MM-DD')`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -264,7 +264,7 @@ func TestOracleUpdateWithComplexWhere(t *testing.T) {
 
 func TestOracleUpdateReturningComplex(t *testing.T) {
 	sql := `UPDATE "users" SET "status" = 0 WHERE "id" = 1 RETURNING "id", "name", "status"`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -278,7 +278,7 @@ func TestOracleUpdateReturningComplex(t *testing.T) {
 
 func TestOracleUpdateWithSubquery(t *testing.T) {
 	sql := `UPDATE "users" SET "total" = (SELECT SUM("amount") FROM "orders" WHERE "user_id" = "users"."id") WHERE "status" = 'active'`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -292,7 +292,7 @@ func TestOracleUpdateWithSubquery(t *testing.T) {
 
 func TestOracleUpdateRowNumComplex(t *testing.T) {
 	sql := `UPDATE "users" SET "status" = 0 WHERE ROWNUM <= 10 AND "status" = 1`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -308,7 +308,7 @@ func TestOracleUpdateRowNumComplex(t *testing.T) {
 
 func TestOracleDeleteWithDoubleQuotes(t *testing.T) {
 	sql := `DELETE FROM "users" WHERE "id" = 1`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -322,7 +322,7 @@ func TestOracleDeleteWithDoubleQuotes(t *testing.T) {
 
 func TestOracleDeleteReturningComplex(t *testing.T) {
 	sql := `DELETE FROM "users" WHERE "status" = 0 RETURNING "id", "name"`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -336,7 +336,7 @@ func TestOracleDeleteReturningComplex(t *testing.T) {
 
 func TestOracleDeleteWithSubquery(t *testing.T) {
 	sql := `DELETE FROM "users" WHERE "id" NOT IN (SELECT DISTINCT "user_id" FROM "orders")`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -350,7 +350,7 @@ func TestOracleDeleteWithSubquery(t *testing.T) {
 
 func TestOracleDeleteRowNumComplex(t *testing.T) {
 	sql := `DELETE FROM "logs" WHERE ROWNUM <= 1000 AND "level" = 'DEBUG'`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -366,7 +366,7 @@ func TestOracleDeleteRowNumComplex(t *testing.T) {
 
 func TestOracleInsertWithSchema(t *testing.T) {
 	sql := `INSERT INTO "SCOTT"."users" ("name", "age") VALUES ('John', 30)`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -383,7 +383,7 @@ func TestOracleInsertWithSchema(t *testing.T) {
 
 func TestOracleUpdateWithSchema(t *testing.T) {
 	sql := `UPDATE "SCOTT"."t_db" SET "name" = 'test' WHERE "id" = 5`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -411,7 +411,7 @@ func TestOracleUpdateWithSchema(t *testing.T) {
 
 func TestOracleDeleteWithSchema(t *testing.T) {
 	sql := `DELETE FROM "SCOTT"."logs" WHERE "created_at" < TO_DATE('2024-01-01', 'YYYY-MM-DD')`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -436,7 +436,7 @@ func TestOracleDeleteWithSchema(t *testing.T) {
 
 func TestOracleDDLCreateTableWithQuotes(t *testing.T) {
 	sql := `CREATE TABLE "users" ("id" INT PRIMARY KEY, "name" VARCHAR2(50) NOT NULL)`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -450,7 +450,7 @@ func TestOracleDDLCreateTableWithQuotes(t *testing.T) {
 
 func TestOracleDDLAlterTableAddColumn(t *testing.T) {
 	sql := `ALTER TABLE "users" ADD ("email" VARCHAR2(255))`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -464,7 +464,7 @@ func TestOracleDDLAlterTableAddColumn(t *testing.T) {
 
 func TestOracleDDLDropCascade(t *testing.T) {
 	sql := `DROP TABLE "users" CASCADE CONSTRAINTS`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -481,7 +481,7 @@ func TestOracleDDLDropCascade(t *testing.T) {
 func TestOracleDMLWithSingleLineComment(t *testing.T) {
 	// Oracle 单行注释 --
 	sql := "-- 更新用户信息\nUPDATE \"users\" SET \"name\" = 'John' WHERE \"id\" = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -497,7 +497,7 @@ func TestOracleDMLWithSingleLineComment(t *testing.T) {
 func TestOracleDMLWithMultiLineComment(t *testing.T) {
 	// 多行注释 /* */
 	sql := "/* 删除过期数据 */ DELETE FROM \"logs\" WHERE \"created_at\" < SYSDATE - 90"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -513,7 +513,7 @@ func TestOracleDMLWithMultiLineComment(t *testing.T) {
 func TestOracleDMLWithInlineComment(t *testing.T) {
 	// 行内注释
 	sql := `SELECT "id", "name" /* 用户名 */ FROM "users" WHERE "status" = 1`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -533,7 +533,7 @@ func TestOracleDMLWithMultipleComments(t *testing.T) {
 SELECT "id", "amount" FROM "orders" 
 WHERE "status" = 'PAID' AND "created_at" > TO_DATE('2024-01-01', 'YYYY-MM-DD')
 ORDER BY "created_at" DESC`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -548,7 +548,7 @@ ORDER BY "created_at" DESC`
 
 func TestOracleInsertWithComment(t *testing.T) {
 	sql := "-- 插入新用户\nINSERT INTO \"users\" (\"name\", \"email\") VALUES ('John', 'john@example.com')"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -563,7 +563,7 @@ func TestOracleUpdateWithComment(t *testing.T) {
 UPDATE "orders" SET "status" = 'CANCELLED' 
 WHERE "status" = 'PENDING' -- 只更新待处理订单
 AND "created_at" < SYSDATE - 30`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)

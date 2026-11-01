@@ -12,86 +12,158 @@ import (
 	"mayfly-go/internal/db/dbm/sqlparser/tokenizer"
 )
 
+// parseObjectNameAt 从 token 下标 idx 起读一个对象名（跳过 IF [NOT] EXISTS / ONLY 等修饰词）。
+//
+// 只读 token 流，不推进语句解析位置（保存并恢复 l.Pos），因此可安全用于「先取名字再跳到底」的 DDL 骨架。
+func (l *Lexer) parseObjectNameAt(idx int) string {
+	for idx < l.Length {
+		switch strings.ToUpper(l.Tokens[idx].Value) {
+		case "IF", "NOT", "EXISTS", "ONLY":
+			idx++
+			continue
+		}
+		break
+	}
+	save := l.Pos
+	l.Pos = idx
+	ref := l.parseTableRef()
+	l.Pos = save
+	return ref.Name
+}
+
+// ddlTargetObject 从 DDL 语句头之后定位目标对象名：
+//   - TABLE / VIEW / TRIGGER：紧随其后的对象名（支持 IF [NOT] EXISTS 与 schema 限定）；
+//   - INDEX：取 ON 之后的**表**名（DROP INDEX idx ON t / CREATE INDEX idx ON t）；
+//   - 其他对象类型（SCHEMA/DATABASE/FUNCTION/PROCEDURE…）返回空串——它们不是表，
+//     塞进 Target 会让「指定表」策略误命中。
+func (l *Lexer) ddlTargetObject() string {
+	for i := l.Pos; i < l.Length; i++ {
+		tok := l.Tokens[i]
+		if tok.Type == tokenizer.TokenOperator && tok.Value == ";" {
+			return ""
+		}
+		switch strings.ToUpper(tok.Value) {
+		case "TABLE", "VIEW", "TRIGGER":
+			return l.parseObjectNameAt(i + 1)
+		case "INDEX":
+			for k := i + 1; k < l.Length; k++ {
+				if l.Tokens[k].Type == tokenizer.TokenOperator && l.Tokens[k].Value == ";" {
+					return ""
+				}
+				if strings.EqualFold(l.Tokens[k].Value, "ON") {
+					return l.parseObjectNameAt(k + 1)
+				}
+			}
+			return ""
+		}
+	}
+	return ""
+}
+
+// ddlRenamePairs 提取表级改名对（`RENAME TABLE a TO b, c TO d` / `ALTER TABLE t RENAME TO t2`）。
+//
+// 只认 TO 形态且 FROM 必须是表名位置：`ALTER TABLE t RENAME COLUMN a TO b` 里的 a/b 是列，
+// 不能进 Renames（否则表级策略会在列名上误命中）。取不到 FROM 就跳过（不猜）。
+func (l *Lexer) ddlRenamePairs() []sqlstmt.Rename {
+	var pairs []sqlstmt.Rename
+	renameSeen := false
+	for i := l.Pos; i < l.Length; i++ {
+		tok := l.Tokens[i]
+		if tok.Type == tokenizer.TokenOperator && tok.Value == ";" {
+			break
+		}
+		if strings.EqualFold(tok.Value, "RENAME") {
+			renameSeen = true
+			continue
+		}
+		if !renameSeen || !strings.EqualFold(tok.Value, "TO") {
+			continue
+		}
+		// RENAME COLUMN a TO b：列改名，整条跳过
+		if i >= 2 && strings.EqualFold(l.Tokens[i-2].Value, "COLUMN") {
+			continue
+		}
+		to := l.parseObjectNameAt(i + 1)
+		if to == "" {
+			continue
+		}
+		fromIdx := -1
+		for j := i - 1; j >= l.Pos; j-- {
+			t := l.Tokens[j]
+			if t.Type == tokenizer.TokenIdentifier {
+				fromIdx = j
+				break
+			}
+			if t.Type == tokenizer.TokenKeyword && !strings.EqualFold(t.Value, "RENAME") && !strings.EqualFold(t.Value, "TABLE") {
+				fromIdx = j
+				break
+			}
+		}
+		if fromIdx < 0 {
+			continue
+		}
+		if from := l.parseObjectNameAt(fromIdx); from != "" && !strings.EqualFold(from, to) {
+			pairs = append(pairs, sqlstmt.Rename{From: from, To: to})
+		}
+	}
+	return pairs
+}
+
 // ParseCreateStmt CREATE语句骨架：跳至语句结束，包装为DdlStmt(CREATE)
 func (l *Lexer) ParseCreateStmt() sqlstmt.Stmt {
 	start := l.Pos
+	target := l.ddlTargetObject()
+	// 列定义同样必须在 Skip 之前提取（Skip 后 Pos 已到语句末尾）
+	columns := l.ddlColumnDefs()
 	l.SkipToNextStatement()
 	return &sqlstmt.DdlStmt{
 		Base:    sqlstmt.Base{Text: l.TextFrom(start)},
 		DdlKind: "CREATE",
+		Target:  target,
+		Columns: columns,
 	}
 }
 
 // ParseAlterStmt ALTER语句骨架：跳至语句结束，包装为DdlStmt(ALTER)
 func (l *Lexer) ParseAlterStmt() sqlstmt.Stmt {
 	start := l.Pos
+	// 同样先提取再 Skip（Skip 之后 Pos 已到末尾，ddlRenamePairs 会扫不到 TO）
+	target := l.ddlTargetObject()
+	renames := l.ddlRenamePairs()
 	l.SkipToNextStatement()
 	return &sqlstmt.DdlStmt{
 		Base:    sqlstmt.Base{Text: l.TextFrom(start)},
 		DdlKind: "ALTER",
+		Target:  target,
+		Renames: renames,
 	}
 }
 
 // ParseDropStmt DROP语句骨架：跳至语句结束，包装为DdlStmt(DROP)
 func (l *Lexer) ParseDropStmt() sqlstmt.Stmt {
 	start := l.Pos
+	target := l.ddlTargetObject()
 	l.SkipToNextStatement()
 	return &sqlstmt.DdlStmt{
 		Base:    sqlstmt.Base{Text: l.TextFrom(start)},
 		DdlKind: "DROP",
+		Target:  target,
 	}
-}
-
-// ParseSharedStatement 分发各方言语义完全一致的语句头：SELECT（含外层括号形态）、
-// UPDATE/DELETE/MERGE（多表写法与尾部子句已由骨架统一登记）、CREATE/DROP/ALTER/WITH，
-// 以及只需语句边界的非结构化 DDL。
-// 返回 ok=false 表示该语句头存在真正的方言差异（mysql 的 REPLACE/SHOW 等），
-// 必须由方言自己的分发处理，base 不做猜测；
-// INSERT 走通用形态，有冲突处理子句的方言必须在调用本分发之前先接管 INSERT
-func (l *Lexer) ParseSharedStatement() (sqlstmt.Stmt, bool) {
-	tok := l.Current()
-	switch {
-	case tok.IsKeyword("SELECT") || tok.Value == "(":
-		// 分发条件已保证骨架能解析出主体（括号内非 SELECT 时按查询形态降级保留原文）
-		sel, _ := l.parseSelectStatement()
-		return sel, true
-	case tok.IsKeyword("INSERT"):
-		// 方言若有冲突处理子句，需在调用本分发之前自行处理 INSERT
-		return l.parseInsert(), true
-	case tok.IsKeyword("UPDATE"):
-		return l.ParseUpdate(), true
-	case tok.IsKeyword("DELETE"):
-		return l.ParseDelete(), true
-	case isMergeAt(l.Tokens, l.Pos):
-		// MERGE INTO（upsert）：按「值 MERGE + 后随 INTO」判定，不依赖关键字登记（见 isMergeAt）
-		return l.parseMergeStmt(), true
-	case strings.EqualFold(tok.Value, "EXPLAIN"):
-		// EXPLAIN（语句头值匹配，EXPLAIN 未登记为关键字；语句不可能以裸标识符开头，故头位值匹配安全）：
-		// 区分「仅出计划」与「EXPLAIN ANALYZE 会真执行内层写」
-		return l.parseExplainStmt(), true
-	case tok.IsKeyword("CREATE"):
-		return l.ParseCreateStmt(), true
-	case tok.IsKeyword("DROP"):
-		return l.ParseDropStmt(), true
-	case tok.IsKeyword("ALTER"):
-		return l.ParseAlterStmt(), true
-	case tok.IsKeyword("WITH"):
-		return l.ParseWithStmt(), true
-	case tok.IsKeyword("TRUNCATE", "COMMENT", "GRANT", "REVOKE", "RENAME", "ANALYZE"):
-		// 非查询语句统一按 DDL 执行
-		return l.parseDdlStmt(), true
-	}
-	return nil, false
 }
 
 // parseDdlStmt 非结构化 DDL 骨架：跳至语句结束并包装为 DdlStmt(DDL)。
 // TRUNCATE / COMMENT ON / GRANT / REVOKE / RENAME / ANALYZE 等只需语句边界与文本，无需结构化建模
 func (l *Lexer) parseDdlStmt() sqlstmt.Stmt {
 	start := l.Pos
+	// 必须在 Skip 之前提取：SkipToNextStatement 会把 Pos 推到语句末尾，之后再扫就是空的
+	target := l.ddlTargetObject()
+	renames := l.ddlRenamePairs()
 	l.SkipToNextStatement()
 	return &sqlstmt.DdlStmt{
 		Base:    sqlstmt.Base{Text: l.TextFrom(start)},
 		DdlKind: "DDL",
+		Target:  target,
+		Renames: renames,
 	}
 }
 
@@ -99,9 +171,11 @@ func (l *Lexer) parseDdlStmt() sqlstmt.Stmt {
 func (l *Lexer) ParseOtherStmt() sqlstmt.Stmt {
 	start := l.Pos
 	l.SkipToNextStatement()
-	return &sqlstmt.OtherStmt{
-		Base: sqlstmt.Base{Text: l.TextFrom(start)},
-	}
+	text := l.TextFrom(start)
+	// 只读与否按整条语句的首词白名单判定（含方言注释/可执行注释语义），
+	// 白名单外一律按可能写处理：执行层据此选写通道，避免写语句从只读通道溜过。
+	readOnly := tokenizer.IsReadOnlyLeadingKeyword(tokenizer.LeadingKeyword(text, l.config))
+	return sqlstmt.NewOtherStmt(text, readOnly)
 }
 
 // ParseWithStmt WITH语句骨架：先扫描出主语句/数据修改 CTE 的实际类型回填 MainType，再跳至语句结束。
@@ -120,9 +194,22 @@ func (l *Lexer) ParseWithStmt() sqlstmt.Stmt {
 // MERGE 是写语句（upsert），结构不建模（各方言子句差异大、不纳入回滚快照），仅需边界与文本。
 func (l *Lexer) parseMergeStmt() sqlstmt.Stmt {
 	start := l.Pos
+	// MERGE INTO <target> USING ...：INTO 之后即目标表；取不到留空（不猜）
+	target := ""
+	for i := l.Pos; i < l.Length; i++ {
+		tok := l.Tokens[i]
+		if tok.Type == tokenizer.TokenOperator && tok.Value == ";" {
+			break
+		}
+		if strings.EqualFold(tok.Value, "INTO") {
+			target = l.parseObjectNameAt(i + 1)
+			break
+		}
+	}
 	l.SkipToNextStatement()
 	return &sqlstmt.MergeStmt{
-		Base: sqlstmt.Base{Text: l.TextFrom(start)},
+		Base:   sqlstmt.Base{Text: l.TextFrom(start)},
+		Target: target,
 	}
 }
 
@@ -130,11 +217,12 @@ func (l *Lexer) parseMergeStmt() sqlstmt.Stmt {
 // 随后跳至语句结束（EXPLAIN 不建模内部结构）。
 func (l *Lexer) parseExplainStmt() sqlstmt.Stmt {
 	start := l.Pos
-	inner := l.scanExplainInnerWrite()
+	inner, analyze := l.scanExplainInnerWrite()
 	l.SkipToNextStatement()
 	return &sqlstmt.ExplainStmt{
-		Base:  sqlstmt.Base{Text: l.TextFrom(start)},
-		Inner: inner,
+		Base:    sqlstmt.Base{Text: l.TextFrom(start)},
+		Inner:   inner,
+		Analyze: analyze,
 	}
 }
 
@@ -145,7 +233,7 @@ func (l *Lexer) parseExplainStmt() sqlstmt.Stmt {
 // 仅当 analyze 且内层为写动词（非 SELECT）时返回该写类型（EXPLAIN ANALYZE <写> 会真的写）；
 // 纯 EXPLAIN <任意>（只出计划）或 EXPLAIN ANALYZE <SELECT>（读）均返回空串，按 Other 只读处理。
 // tokenizer 已丢弃注释、把字符串/引用标识符归为非关键字整体 token，故字符串里的 'delete' 不会被当成内层动词。
-func (l *Lexer) scanExplainInnerWrite() sqlstmt.StmtType {
+func (l *Lexer) scanExplainInnerWrite() (sqlstmt.StmtType, bool) {
 	analyze := false
 	for i := l.Pos + 1; i < l.Length; i++ {
 		tok := l.Tokens[i]
@@ -158,12 +246,12 @@ func (l *Lexer) scanExplainInnerWrite() sqlstmt.StmtType {
 		}
 		if vt := l.stmtVerbTypeAt(i); vt != "" {
 			if analyze && vt != sqlstmt.StmtTypeSelect {
-				return vt
+				return vt, analyze
 			}
-			return ""
+			return "", analyze
 		}
 	}
-	return ""
+	return "", analyze
 }
 
 // scanWithMainType 扫描 WITH 语句 token，解析其有效语句类型（只读 l.Tokens，不移动 l.Pos）：

@@ -16,6 +16,13 @@ func InitIoc() {
 	ioc.Register(new(sqlexec.DbSQLExecAppImpl))
 	ioc.Register(new(dbDataImportAppImpl))
 	ioc.Register(new(sqlexec.DbSQLAppImpl))
+	ioc.Register(sqlexec.NewTableAclApp())
+	ioc.Register(NewDbExportTicketApp())
+	ioc.Register(new(dbMetricAppImpl))
+	ioc.Register(new(ddlPrecheckAppImpl))
+	ioc.Register(new(recoveryAppImpl))
+	ioc.Register(new(accountsAppImpl))
+	ioc.Register(new(dataDictAppImpl))
 	ioc.Register(new(dbsync.DataSyncAppImpl))
 	ioc.Register(new(transfer.DbTransferAppImpl))
 	ioc.Register(new(transfer.DbTransferFileAppImpl))
@@ -29,6 +36,10 @@ func Init() {
 		GetDataSyncTaskApp().InitCronJob()
 		GetDbTransferTaskApp().InitCronJob()
 		GetDbTransferTaskApp().TimerDeleteTransferFile()
+		GetDbSQLExecApp().TimerDeleteExpired()
+		// 指标采样：放在 Init 而不是 InitIoc——注册期依赖尚未注入，
+		// 此时取实例应用会是 nil，采样 goroutine 直接空指针
+		GetDbMetricApp().TimerSample()
 		sqlexec.InitDbFlowHandler()
 		// 表结构漂移巡检：基线只有持续重比才有意义，不巡检就是存了一堆没人看的哈希
 		dbschema.InitDriftCron()

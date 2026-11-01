@@ -19,6 +19,38 @@ var En = map[i18n.MsgId]string{
 	SQLScripRunProgress: "sql execution progress",
 	ErrDbNameExist:      "The database name already exists in this instance",
 	ErrDbNotAccess:      "The operation permissions of database [{{.dbName}}] are not configured",
+	LogDbTableAclSave:   "DB - Save table access control",
+	LogDbTableAclDelete: "DB - Delete table access control",
+
+	LogDbColumnAclSave:   "DB - Save column access control",
+	LogDbColumnAclDelete: "DB - Delete column access control",
+
+	ErrExportTicketNotFound:      "Export ticket not found",
+	ErrExportTicketMismatch:      "This ticket is not an export ticket and cannot be used to download a backup",
+	ErrExportTicketNotApproved:   "This export ticket has not been approved yet",
+	ErrExportTicketExpired:       "This export ticket has expired (downloadable within 24 hours after approval)",
+	ErrExportTicketNotOwner:      "Only the requester of this ticket may use it to download",
+	ErrExportTicketInvalid:       "The ticket does not record a valid export scope (database and tables), so it cannot authorize a download",
+	ErrExportTicketScopeMismatch: "The requested database or tables do not match the scope approved by the ticket",
+
+	ErrAclUnresolvable:      "This database enforces table/column access control, but the table references of this statement cannot be statically determined (derived table, subquery or parse failure); execution denied",
+	ErrAccountsUnreadable:   "Cannot read accounts of this instance (usually missing read-only privileges): {{.reason}}",
+	ErrAccountsUnsupported:  "Cannot inspect accounts on this instance: {{.reason}}",
+	ErrRecoveryUnsupported:  "Cannot inspect recovery readiness on this instance: {{.reason}}",
+	ErrDdlPrecheckTables:    "Precheck incomplete: failed to read table statistics ({{.err}})",
+	ErrMetricUnsupported:    "Unsupported metric: {{.metric}}",
+	ErrPerfUnsupported:      "This database type does not implement this performance diagnostic",
+	ErrSlowQueryUnavailable: "Slow query statistics unavailable on this instance: {{.reason}}",
+	ErrLockWaitUnavailable:  "Lock wait chains are unavailable on this instance: {{.reason}}. Check that performance_schema is enabled and the version supports it",
+
+	ErrColumnAccessDenied:      "Access to column {{.column}} is denied (it is on the administrator's protected list)",
+	ErrWholeTableReadDenied:    "This table has columns you may not read ({{.columns}}); exporting or copying the whole table would bypass column protection. Use query export with explicit columns instead",
+	ErrColumnAclColumnRequired: "Select a column to protect",
+
+	ErrTableAccessDenied:        "Access to table {{.table}} is denied (it is on the administrator's protected list)",
+	ErrTableAclRolesUnavailable: "The account's roles could not be resolved, so table-level access is denied",
+	ErrTableAclTableRequired:    "Select a table to protect",
+	ErrTableNotAllowed:          "Access to table {{.table}} is denied (this database uses an allow-list and the table is not on it)",
 
 	ErrExistRunFailSQL:      "There is an execution error in sql",
 	ErrNeedSubmitWorkTicket: "this operation needs approval via a work ticket, and is executed automatically once approved",
@@ -76,6 +108,9 @@ var En = map[i18n.MsgId]string{
 	TriggerReasonFullScan:      "the execution plan contains a full table/index scan",
 	TriggerReasonBigTableDdl:   "the target table reaches the large-table threshold, confirm locking and duration risks before the structural change",
 	TriggerReasonNoPrimaryKey:  "the target table has no primary key",
+	TriggerReasonSelectStar:    "the query selects all columns with SELECT *",
+	TriggerReasonMultiTableDml: "a multi-table update/delete cannot address old values per row",
+	TriggerReasonTableInList:   "the target table is on the administrator's protected list",
 	ErrReviewCheckNotEvaluated: "this check produced no verdict, which does not mean it did not match: {{.reason}}",
 	ErrReviewNoSqlToAnalyze:    "no statement to analyze",
 	ErrReviewNoTargetDb:        "a target database is required, otherwise the statement cannot be parsed and estimated with its dialect",
@@ -118,10 +153,10 @@ var En = map[i18n.MsgId]string{
 
 	LogDbExplainPlan: "db - Read SQL execution plan",
 
-	ErrExplainUnavailable: "no execution plan is available this time: {{.reason}} (this does not mean the statement needs no plan, nor that it is safe)",
+	ErrExplainUnavailable:   "no execution plan is available this time: {{.reason}} (this does not mean the statement needs no plan, nor that it is safe)",
+	ErrTLSStatusUnavailable: "unable to read the encryption status of this connection: {{.reason}} (this means neither encrypted nor unencrypted)",
 
-	ErrColumnValuesNoColumn:    "column [{{.column}}] does not exist in table [{{.table}}] (or it has been dropped), so its values were not sampled",
-	ErrColumnValuesUnsupported: "this dialect provides no pagination rewriter, so no values were sampled rather than guessing a row-limit syntax",
+	ErrColumnValuesNoColumn: "column [{{.column}}] does not exist in table [{{.table}}] (or it has been dropped), so its values were not sampled",
 
 	ErrSchemaBaselineEmpty:      "no table structure could be read from this database, so a baseline cannot be taken",
 	SchemaBaselineTruncatedNote: "the baseline covers only the first {{.max}} tables ({{.total}} in this database); changes to the remaining tables are not reported as drift",

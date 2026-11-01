@@ -8,6 +8,13 @@ build-cli:
 	cd cli && go mod tidy
 	cd cli && go build -o ../build/mayfly-cli main.go
 
+# 前后端 API 契约巡检：比对 rc.ResData 的实际静态类型/json 字段集与前端声明
+# （覆盖 **/api.ts 的 Api.newXxx<T> 与 common/openApi.ts 的 request.xxx<T>）。
+# 只比对字段形状，不判业务语义；报告点名的条目须逐条人工核对，勿直接自修正。
+.PHONY: api-contract
+api-contract:
+	@bash scripts/api-contract-audit/run.sh
+
 # 构建所有
 .PHONY: build-all
 build-all: build-cli

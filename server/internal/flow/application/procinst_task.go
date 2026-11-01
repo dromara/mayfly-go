@@ -314,12 +314,15 @@ func (p *procinstTaskAppImpl) completeTaskCandidate(ctx context.Context, candida
 // countCompletedCandidates 已完成候选人**行**数（与 NrOfAll 同口径）。
 // 事务内查询能看见本事务刚写的行，派生结果是本轮准确票数，不依赖内存自增
 func (p *procinstTaskAppImpl) countCompletedCandidates(ctx context.Context, taskId uint64) (int, error) {
-	rows, err := p.procinstTaskCandidateRepo.SelectByCond(
-		&entity.ProcinstTaskCandidate{TaskId: taskId, Status: entity.ProcinstTaskStatusCompleted}, "id")
+	// 必须用带 ctx 的计数：本函数与 completeTaskCandidate 在同一个事务里，
+	// 刚写入的候选人完成行尚未提交，走非事务连接会统计不到 → 已完成票数恒为旧值，
+	// 完成条件永远不满足，节点静默卡在待审批
+	count, err := p.procinstTaskCandidateRepo.CountByCondCtx(ctx,
+		&entity.ProcinstTaskCandidate{TaskId: taskId, Status: entity.ProcinstTaskStatusCompleted})
 	if err != nil {
 		return 0, err
 	}
-	return len(rows), nil
+	return int(count), nil
 }
 
 // completeInstTask 把审批任务从「审批中」原子地推到终态（通过 / 拒绝 / 退回）。

@@ -111,6 +111,8 @@ export default {
         metricDbSessionMaxElapsed: '最长会话已执行秒数',
         metricDbLockWaitCount: '等锁会话数',
         metricDbSchemaDrift: '与结构基线不一致的表数',
+        metricDbTlsCertDaysLeft: 'TLS 证书剩余有效天数',
+        metricDbPitrNotReady: '不具备时间点恢复前提（1=未就绪）',
         metricStatus: '在线状态',
         statusOnline: '在线',
         statusOffline: '离线',

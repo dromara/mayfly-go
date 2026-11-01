@@ -68,14 +68,27 @@ export abstract class SchemaDialectBase implements DbDialect {
      * oracle/dm 用大写 VARCHAR/NUMBER），故先把类型名归一为小写再匹配，使本实现可同时服务三家。
      * 覆盖 char/time/bit/num/dec 前缀的类型（dec 同时命中 decimal 与 oracle 的 number 家族别名）。
      * 子类可覆写以适配方言特有的类型长度语法。
+     *
+     * 时间类的小数秒精度只为 0~6：编辑表单里换类型时长度输入框会留着旧值（如 varchar(32) 改 timestamp），
+     * 原样写出会得到 `timestamp(32)`，pg 直接报「precision 32 must be between 0 and 6」。
      */
     getTypeLengthSql(cl: ColumnDefinition): string {
         const type = (cl.type || '').toLowerCase();
-        if (cl.length && this.matchType(type, ['char', 'time', 'bit', 'num', 'dec'])) {
+        if (!cl.length) {
+            return '';
+        }
+        if (this.matchType(type, ['char', 'binary', 'bit', 'num', 'dec'])) {
             if (cl.numScale && this.matchType(type, ['num', 'dec'])) {
                 return `(${cl.length}, ${cl.numScale})`;
             }
             return `(${cl.length})`;
+        }
+        if (this.matchType(type, ['time'])) {
+            const fsp = Number(cl.length);
+            if (!Number.isInteger(fsp) || fsp < 0 || fsp > 6) {
+                return '';
+            }
+            return `(${fsp})`;
         }
         return '';
     }
@@ -107,6 +120,11 @@ export abstract class SchemaDialectBase implements DbDialect {
      */
     getDefaultValueSql(cl: ColumnDefinition): string {
         if (cl.value && cl.value.length > 0) {
+            // 后端已判定为表达式默认值（函数/运算式）：原样输出，绝不能包引号，
+            // 否则 `now()`、`timezone('utc'::text, now())` 会被降级成字符串字面量
+            if (cl.valueIsExpression) {
+                return ` DEFAULT ${cl.value}`;
+            }
             let needsQuotes = false;
             if (this.matchType(cl.type, this.getDefaultValueQuotedTypeNames())) {
                 const lowerVal = cl.value.toLowerCase().replace(/\s+/g, '');

@@ -169,14 +169,10 @@ func isReadOnlyStatement(parser sqlparser.SQLParser, splitter sqlparser.SQLSplit
 	switch sqlparser.Classify(parser, splitter, sql, stmt, parseErr) {
 	case sqlstmt.StmtTypeSelect:
 		return true
-	case sqlstmt.StmtTypeOther:
-		switch splitter.LeadingKeyword(sql) {
-		case "show", "describe", "desc":
-			return true
-		case "explain":
-			// 纯 EXPLAIN 只出计划、不执行；EXPLAIN ANALYZE 会真正执行底层语句（可能是写），只读通道不得放行
-			return !explainAnalyzeRe.MatchString(sql)
-		}
+	case sqlstmt.StmtTypeOtherRead:
+		// 只读白名单（SHOW/DESC/EXPLAIN 纯计划/SET/事务…）由解析器按同一份名单判定，
+		// 这里不再自建首词白名单：两处各写一份必然漂移。
+		return true
 	}
 	return false
 }

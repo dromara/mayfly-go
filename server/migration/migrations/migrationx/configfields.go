@@ -70,13 +70,13 @@ func appendConfigFields(params string, fields []map[string]any) (string, bool, e
 	for _, add := range fields {
 		exists := false
 		for _, it := range items {
-			if it["model"] == add["model"] {
+			if fieldProp(it) == fieldProp(add) {
 				exists = true
 				break
 			}
 		}
 		if !exists {
-			items = append(items, add)
+			items = append(items, toLegacyField(add))
 			changed = true
 		}
 	}
@@ -90,12 +90,43 @@ func appendConfigFields(params string, fields []map[string]any) (string, bool, e
 	return string(updated), true, nil
 }
 
+// fieldProp 取字段定义的属性名：v1 形态用 prop，legacy 形态用 model
+func fieldProp(field map[string]any) string {
+	for _, key := range []string{"prop", "model"} {
+		if value, ok := field[key].(string); ok && value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+// toLegacyField 把任意形态的字段定义转成 legacy 键名，保证写回后形态一致
+func toLegacyField(field map[string]any) map[string]any {
+	legacy := map[string]any{"model": fieldProp(field)}
+	for _, pair := range [][2]string{{"label", "name"}, {"name", "name"}, {"tooltip", "placeholder"}, {"placeholder", "placeholder"}} {
+		if value, ok := field[pair[0]].(string); ok && value != "" {
+			legacy[pair[1]] = value
+			break
+		}
+	}
+	if options, ok := field["options"]; ok {
+		legacy["options"] = options
+	}
+	return legacy
+}
+
 // mergeSchemaFields 把 legacy 字段定义追加进 v1 schema 的 fields 数组，已有同 prop 的字段则跳过
 func mergeSchemaFields(raw any, fields []map[string]any) ([]any, bool) {
 	existing, _ := raw.([]any)
 	changed := false
 	for _, add := range fields {
-		prop, _ := add["model"].(string)
+		// prop 优先、回落 model：两种字段定义形态都要认。
+		// 只认 model 会让传 prop 的调用方静默变成 no-op——迁移返回 nil、字段却没进库，
+		// 表现为「升级后配置页看不到新配置项」，而日志里一切正常
+		prop, _ := add["prop"].(string)
+		if prop == "" {
+			prop, _ = add["model"].(string)
+		}
 		if prop == "" || schemaHasField(existing, prop) {
 			continue
 		}
@@ -127,14 +158,26 @@ func schemaHasField(fields []any, prop string) bool {
 // 直接断言会 panic，而迁移 panic 等于服务启动即退出
 func legacyFieldToFormField(add map[string]any) map[string]any {
 	field := map[string]any{}
-	if prop, _ := add["model"].(string); prop != "" {
+	// 键名兼容两种形态：v1 风格用 prop/label/tooltip，legacy 风格用 model/name
+	prop, _ := add["prop"].(string)
+	if prop == "" {
+		prop, _ = add["model"].(string)
+	}
+	if prop != "" {
 		field["prop"] = prop
 	}
-	if label, _ := add["name"].(string); label != "" {
+	label, _ := add["label"].(string)
+	if label == "" {
+		label, _ = add["name"].(string)
+	}
+	if label != "" {
 		field["label"] = label
 	}
 	if placeholder, _ := add["placeholder"].(string); placeholder != "" {
 		field["placeholder"] = placeholder
+	}
+	if tooltip, _ := add["tooltip"].(string); tooltip != "" {
+		field["tooltip"] = tooltip
 	}
 	if required, _ := add["required"].(bool); required {
 		field["rules"] = map[string]any{"required": true}

@@ -1,76 +1,3358 @@
 {
-  "_comment": [
-    "SQL 读写/语句类型跨语言契约（前后端唯一事实来源）。",
-    "服务端由 internal/db/dbm/classify_contract_test.go 读取（驱动生产方言装配的解析器 + sqlparser.Classify）；",
-    "前端由 views/ops/db/core/__tests__/classifyContract.test.ts 读取（isQueryStatement + 方言能力）。",
-    "stmtType = 后端 sqlparser.Classify 的权威分类（决定执行路由与触发策略）；isQuery = 前端 isQueryStatement 的读/写判定（决定结果 tab 布局与本地执行备注确认）。",
-    "多数情况 isQuery == (stmtType==select)。other 桶是有意差异：show/desc 后端归 other（读通道）、前端归只读；call/do/set/vacuum 后端仍归 other（读通道），前端按 fail-closed 归写入——两侧各自断言，本文件显式记录该分歧而非掩盖它。EXPLAIN ANALYZE <写> 已由后端解析器判为内层写类型（ExplainStmt.Inner），与前端一致。",
-    "可预期结果按真实数据库语义书写，而非任一实现的当前输出；任一侧改动分类规则都必须同步本文件，否则另一侧变红。"
-  ],
-  "cases": [
-    { "name": "select-基础", "dbType": "mysql", "sql": "SELECT id, name FROM users WHERE id > 1", "stmtType": "select", "isQuery": true },
-    { "name": "select-mariadb", "dbType": "mariadb", "sql": "SELECT * FROM t", "stmtType": "select", "isQuery": true },
-    { "name": "select-postgres", "dbType": "postgres", "sql": "SELECT * FROM t", "stmtType": "select", "isQuery": true },
-    { "name": "select-gauss", "dbType": "gauss", "sql": "SELECT 1", "stmtType": "select", "isQuery": true },
-    { "name": "select-kingbase", "dbType": "kingbaseEs", "sql": "SELECT 1", "stmtType": "select", "isQuery": true },
-    { "name": "select-vastbase", "dbType": "vastbase", "sql": "SELECT 1", "stmtType": "select", "isQuery": true },
-    { "name": "select-sqlite", "dbType": "sqlite", "sql": "SELECT * FROM t", "stmtType": "select", "isQuery": true },
-    { "name": "select-clickhouse", "dbType": "clickhouse", "sql": "SELECT id FROM t", "stmtType": "select", "isQuery": true },
-    { "name": "cte-纯读", "dbType": "postgres", "sql": "WITH c AS (SELECT id FROM t) SELECT * FROM c", "stmtType": "select", "isQuery": true },
-    { "name": "show", "dbType": "mysql", "sql": "SHOW TABLES", "stmtType": "select", "isQuery": true },
-    { "name": "describe", "dbType": "mysql", "sql": "DESCRIBE users", "stmtType": "other", "isQuery": true },
-    { "name": "explain-仅计划", "dbType": "mysql", "sql": "EXPLAIN SELECT * FROM t", "stmtType": "other", "isQuery": true },
-
-    { "name": "insert", "dbType": "mariadb", "sql": "INSERT INTO t VALUES (1)", "stmtType": "insert", "isQuery": false },
-    { "name": "update", "dbType": "postgres", "sql": "UPDATE t SET a = 1 WHERE id = 2", "stmtType": "update", "isQuery": false },
-    { "name": "delete", "dbType": "sqlite", "sql": "DELETE FROM t WHERE id = 1", "stmtType": "delete", "isQuery": false },
-    { "name": "create", "dbType": "dm", "sql": "CREATE TABLE t (id INT)", "stmtType": "ddl", "isQuery": false },
-    { "name": "truncate", "dbType": "mysql", "sql": "TRUNCATE TABLE t", "stmtType": "ddl", "isQuery": false },
-    { "name": "replace-归入insert", "dbType": "mysql", "sql": "REPLACE INTO t VALUES (1)", "stmtType": "insert", "isQuery": false },
-
-    { "name": "merge-oracle", "dbType": "oracle", "sql": "MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.a = s.a", "stmtType": "merge", "isQuery": false },
-    { "name": "merge-mssql", "dbType": "mssql", "sql": "MERGE INTO t AS tgt USING s ON tgt.id = s.id WHEN MATCHED THEN UPDATE SET tgt.a = s.a;", "stmtType": "merge", "isQuery": false },
-
-    { "name": "cte-主语句delete", "dbType": "postgres", "sql": "WITH c AS (SELECT id FROM t) DELETE FROM u WHERE id IN (SELECT id FROM c)", "stmtType": "delete", "isQuery": false },
-    { "name": "数据修改型cte", "dbType": "postgres", "sql": "WITH c AS (DELETE FROM t RETURNING id) SELECT * FROM c", "stmtType": "delete", "isQuery": false },
-
-    { "name": "select-into-建表", "dbType": "mssql", "sql": "SELECT id INTO bak_users FROM users WHERE id > 1", "stmtType": "insert", "isQuery": false },
-    { "name": "select-into-outfile", "dbType": "mysql", "sql": "SELECT a FROM t INTO OUTFILE '/tmp/x.txt'", "stmtType": "insert", "isQuery": false },
-
-    { "name": "call-后端other前端写", "dbType": "mysql", "sql": "CALL my_proc()", "stmtType": "other", "isQuery": false },
-    { "name": "vacuum-后端other前端写", "dbType": "postgres", "sql": "VACUUM ANALYZE t", "stmtType": "other", "isQuery": false },
-    { "name": "explain-analyze-delete-两侧一致为写", "dbType": "postgres", "sql": "EXPLAIN ANALYZE DELETE FROM t WHERE id = 1", "stmtType": "delete", "isQuery": false },
-
-    { "name": "select-字符串含DELETE", "dbType": "mysql", "sql": "SELECT * FROM t WHERE note = 'please DELETE the row'", "stmtType": "select", "isQuery": true },
-    { "name": "select-字符串含INSERT-INTO", "dbType": "mysql", "sql": "SELECT id FROM t WHERE sql_text = 'INSERT INTO x VALUES (1)'", "stmtType": "select", "isQuery": true },
-    { "name": "select-JSON串含关键词", "dbType": "postgres", "sql": "SELECT * FROM t WHERE meta = '{\"action\":\"delete\",\"table\":\"users\"}'", "stmtType": "select", "isQuery": true },
-    { "name": "select-转义单引号", "dbType": "postgres", "sql": "SELECT * FROM t WHERE name = 'O''Brien'", "stmtType": "select", "isQuery": true },
-    { "name": "select-前导注释含DELETE", "dbType": "mysql", "sql": "-- DELETE FROM users\nSELECT 1", "stmtType": "select", "isQuery": true },
-    { "name": "select-块注释含UPDATE", "dbType": "oracle", "sql": "/* UPDATE t SET x = 1 */ SELECT * FROM dual", "stmtType": "select", "isQuery": true },
-    { "name": "select-CASE内串含insert", "dbType": "sqlite", "sql": "SELECT CASE WHEN act = 'insert' THEN 1 ELSE 0 END FROM t", "stmtType": "select", "isQuery": true },
-    { "name": "insert-值含分号与双引号", "dbType": "mysql", "sql": "INSERT INTO t VALUES ('a;b', \"c\", 'it''s')", "stmtType": "insert", "isQuery": false },
-    { "name": "insert-值含DELETE文本", "dbType": "postgres", "sql": "INSERT INTO logs VALUES ('DELETE FROM users')", "stmtType": "insert", "isQuery": false },
-    { "name": "insert-JSON值含drop", "dbType": "postgres", "sql": "INSERT INTO t (cfg) VALUES ('{\"drop\":\"table x\"}')", "stmtType": "insert", "isQuery": false },
-    { "name": "update-值含DROP文本", "dbType": "mysql", "sql": "UPDATE t SET name = 'DROP TABLE x' WHERE id = 1", "stmtType": "update", "isQuery": false },
-    { "name": "update-JSON值含op-delete", "dbType": "postgres", "sql": "UPDATE t SET payload = '{\"op\":\"delete\"}' WHERE id = 1", "stmtType": "update", "isQuery": false },
-    { "name": "delete-条件串含insert", "dbType": "mysql", "sql": "DELETE FROM t WHERE name = 'insert'", "stmtType": "delete", "isQuery": false },
-    { "name": "cte-体内串含INSERT-INTO且主语句delete", "dbType": "postgres", "sql": "WITH c AS (SELECT 'INSERT INTO x' AS s) DELETE FROM u WHERE id = 1", "stmtType": "delete", "isQuery": false },
-    { "name": "cte-纯读-体内串含delete", "dbType": "postgres", "sql": "WITH c AS (SELECT id FROM t) SELECT * FROM c WHERE x = 'delete from z'", "stmtType": "select", "isQuery": true },
-    { "name": "select-into-带字面量", "dbType": "mssql", "sql": "SELECT 'x' INTO bak FROM t", "stmtType": "insert", "isQuery": false },
-    { "name": "merge-ON条件串含delete", "dbType": "oracle", "sql": "MERGE INTO t USING s ON (t.name = 'delete') WHEN MATCHED THEN UPDATE SET t.a = s.a", "stmtType": "merge", "isQuery": false },
-    { "name": "explain-analyze-update-内层写", "dbType": "postgres", "sql": "EXPLAIN ANALYZE UPDATE t SET x = 'delete'", "stmtType": "update", "isQuery": false },
-    { "name": "explain-analyze-select-后端读前端写", "dbType": "postgres", "sql": "EXPLAIN ANALYZE SELECT * FROM t WHERE x = 'y'", "stmtType": "other", "isQuery": false },
-    { "name": "set-值为DELETE语句文本", "dbType": "mysql", "sql": "SET @sql = 'DELETE FROM t'", "stmtType": "other", "isQuery": false },
-    { "name": "do-dollar-quote体", "dbType": "postgres", "sql": "DO $$ BEGIN NULL; END $$", "stmtType": "other", "isQuery": false },
-
-    { "name": "select-oracle-q串含delete", "dbType": "oracle", "sql": "SELECT q'[delete from t]' AS s FROM dual", "stmtType": "select", "isQuery": true },
-    { "name": "insert-oracle-q串值", "dbType": "oracle", "sql": "INSERT INTO t VALUES (q'[a;b]')", "stmtType": "insert", "isQuery": false },
-    { "name": "select-pg-U&Unicode串", "dbType": "postgres", "sql": "SELECT U&'\\0041BC' AS s", "stmtType": "select", "isQuery": true },
-    { "name": "select-mssql方括号标识符名为delete", "dbType": "mssql", "sql": "SELECT * FROM [delete]", "stmtType": "select", "isQuery": true },
-
-    { "name": "select-oracle-N串含关键词", "dbType": "oracle", "sql": "SELECT N'insert into t' AS s FROM dual", "stmtType": "select", "isQuery": true },
-    { "name": "select-pg-E串含转义引号包住delete", "dbType": "postgres", "sql": "SELECT E'a\\'delete\\'b' AS x", "stmtType": "select", "isQuery": true },
-    { "name": "insert-mysql-N串含JSON-delete", "dbType": "mysql", "sql": "INSERT INTO t VALUES (N'{\"k\":\"delete\"}')", "stmtType": "insert", "isQuery": false },
-    { "name": "select-pg-E串hex转义", "dbType": "postgres", "sql": "SELECT E'\\x41;' AS x", "stmtType": "select", "isQuery": true }
-  ]
+    "_comment": [
+        "SQL 读写/语句类型跨语言契约（前后端唯一事实来源）。",
+        "服务端由 internal/db/dbm/classify_contract_test.go 读取（驱动生产方言装配的解析器 + sqlparser.Classify）；",
+        "前端由 views/ops/db/core/__tests__/classifyContract.test.ts 读取（isQueryStatement + 方言能力）。",
+        "stmtType = 后端 sqlparser.Classify 的权威分类（决定执行路由与触发策略）；isQuery = 前端 isQueryStatement 的读/写判定（决定结果 tab 布局与本地执行备注确认）。",
+        "多数情况 isQuery == (stmtType==select)。other 已拆为 other-read（导航/事务/维护，走只读通道）与 other-write（CALL/LOAD/COPY/DO/EXPLAIN ANALYZE 等可能写，走写通道）；前端 isQuery 只看「是否返回结果集」，故 set/vacuum 允许 后端=other-read 而 前端=非查询，两侧各自断言、本文件显式记录该差异。EXPLAIN ANALYZE \u003c写\u003e 已由后端解析器判为内层写类型（ExplainStmt.Inner），与前端一致。",
+        "可预期结果按真实数据库语义书写，而非任一实现的当前输出；任一侧改动分类规则都必须同步本文件，否则另一侧变红。"
+    ],
+    "cases": [
+        {
+            "name": "select-基础",
+            "dbType": "mysql",
+            "sql": "SELECT id, name FROM users WHERE id \u003e 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "select-mariadb",
+            "dbType": "mariadb",
+            "sql": "SELECT * FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "select-postgres",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "select-gauss",
+            "dbType": "gauss",
+            "sql": "SELECT 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "select-kingbase",
+            "dbType": "kingbaseEs",
+            "sql": "SELECT 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "select-vastbase",
+            "dbType": "vastbase",
+            "sql": "SELECT 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "select-sqlite",
+            "dbType": "sqlite",
+            "sql": "SELECT * FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "select-clickhouse",
+            "dbType": "clickhouse",
+            "sql": "SELECT id FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "cte-纯读",
+            "dbType": "postgres",
+            "sql": "WITH c AS (SELECT id FROM t) SELECT * FROM c",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "show",
+            "dbType": "mysql",
+            "sql": "SHOW TABLES",
+            "stmtType": "other-read",
+            "isQuery": true
+        },
+        {
+            "name": "describe",
+            "dbType": "mysql",
+            "sql": "DESCRIBE users",
+            "stmtType": "other-read",
+            "isQuery": true
+        },
+        {
+            "name": "explain-仅计划",
+            "dbType": "mysql",
+            "sql": "EXPLAIN SELECT * FROM t",
+            "stmtType": "other-read",
+            "isQuery": true
+        },
+        {
+            "name": "insert",
+            "dbType": "mariadb",
+            "sql": "INSERT INTO t VALUES (1)",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "update",
+            "dbType": "postgres",
+            "sql": "UPDATE t SET a = 1 WHERE id = 2",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "delete",
+            "dbType": "sqlite",
+            "sql": "DELETE FROM t WHERE id = 1",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "create",
+            "dbType": "dm",
+            "sql": "CREATE TABLE t (id INT)",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "truncate",
+            "dbType": "mysql",
+            "sql": "TRUNCATE TABLE t",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "replace-归入insert",
+            "dbType": "mysql",
+            "sql": "REPLACE INTO t VALUES (1)",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "merge-oracle",
+            "dbType": "oracle",
+            "sql": "MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.a = s.a",
+            "stmtType": "merge",
+            "isQuery": false
+        },
+        {
+            "name": "merge-mssql",
+            "dbType": "mssql",
+            "sql": "MERGE INTO t AS tgt USING s ON tgt.id = s.id WHEN MATCHED THEN UPDATE SET tgt.a = s.a;",
+            "stmtType": "merge",
+            "isQuery": false
+        },
+        {
+            "name": "cte-主语句delete",
+            "dbType": "postgres",
+            "sql": "WITH c AS (SELECT id FROM t) DELETE FROM u WHERE id IN (SELECT id FROM c)",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "数据修改型cte",
+            "dbType": "postgres",
+            "sql": "WITH c AS (DELETE FROM t RETURNING id) SELECT * FROM c",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "select-into-建表",
+            "dbType": "mssql",
+            "sql": "SELECT id INTO bak_users FROM users WHERE id \u003e 1",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "select-into-outfile",
+            "dbType": "mysql",
+            "sql": "SELECT a FROM t INTO OUTFILE '/tmp/x.txt'",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "call-后端other前端写",
+            "dbType": "mysql",
+            "sql": "CALL my_proc()",
+            "stmtType": "other-write",
+            "isQuery": false
+        },
+        {
+            "name": "vacuum-后端other前端写",
+            "dbType": "postgres",
+            "sql": "VACUUM ANALYZE t",
+            "stmtType": "other-read",
+            "isQuery": false
+        },
+        {
+            "name": "explain-analyze-delete-两侧一致为写",
+            "dbType": "postgres",
+            "sql": "EXPLAIN ANALYZE DELETE FROM t WHERE id = 1",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "select-字符串含DELETE",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t WHERE note = 'please DELETE the row'",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "select-字符串含INSERT-INTO",
+            "dbType": "mysql",
+            "sql": "SELECT id FROM t WHERE sql_text = 'INSERT INTO x VALUES (1)'",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "select-JSON串含关键词",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t WHERE meta = '{\"action\":\"delete\",\"table\":\"users\"}'",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "select-转义单引号",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t WHERE name = 'O''Brien'",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "select-前导注释含DELETE",
+            "dbType": "mysql",
+            "sql": "-- DELETE FROM users\nSELECT 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "select-块注释含UPDATE",
+            "dbType": "oracle",
+            "sql": "/* UPDATE t SET x = 1 */ SELECT * FROM dual",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "select-CASE内串含insert",
+            "dbType": "sqlite",
+            "sql": "SELECT CASE WHEN act = 'insert' THEN 1 ELSE 0 END FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "insert-值含分号与双引号",
+            "dbType": "mysql",
+            "sql": "INSERT INTO t VALUES ('a;b', \"c\", 'it''s')",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "insert-值含DELETE文本",
+            "dbType": "postgres",
+            "sql": "INSERT INTO logs VALUES ('DELETE FROM users')",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "insert-JSON值含drop",
+            "dbType": "postgres",
+            "sql": "INSERT INTO t (cfg) VALUES ('{\"drop\":\"table x\"}')",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "update-值含DROP文本",
+            "dbType": "mysql",
+            "sql": "UPDATE t SET name = 'DROP TABLE x' WHERE id = 1",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "update-JSON值含op-delete",
+            "dbType": "postgres",
+            "sql": "UPDATE t SET payload = '{\"op\":\"delete\"}' WHERE id = 1",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "delete-条件串含insert",
+            "dbType": "mysql",
+            "sql": "DELETE FROM t WHERE name = 'insert'",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "cte-体内串含INSERT-INTO且主语句delete",
+            "dbType": "postgres",
+            "sql": "WITH c AS (SELECT 'INSERT INTO x' AS s) DELETE FROM u WHERE id = 1",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "cte-纯读-体内串含delete",
+            "dbType": "postgres",
+            "sql": "WITH c AS (SELECT id FROM t) SELECT * FROM c WHERE x = 'delete from z'",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "select-into-带字面量",
+            "dbType": "mssql",
+            "sql": "SELECT 'x' INTO bak FROM t",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "merge-ON条件串含delete",
+            "dbType": "oracle",
+            "sql": "MERGE INTO t USING s ON (t.name = 'delete') WHEN MATCHED THEN UPDATE SET t.a = s.a",
+            "stmtType": "merge",
+            "isQuery": false
+        },
+        {
+            "name": "explain-analyze-update-内层写",
+            "dbType": "postgres",
+            "sql": "EXPLAIN ANALYZE UPDATE t SET x = 'delete'",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "explain-analyze-select-后端读前端写",
+            "dbType": "postgres",
+            "sql": "EXPLAIN ANALYZE SELECT * FROM t WHERE x = 'y'",
+            "stmtType": "other-write",
+            "isQuery": false
+        },
+        {
+            "name": "set-值为DELETE语句文本",
+            "dbType": "mysql",
+            "sql": "SET @sql = 'DELETE FROM t'",
+            "stmtType": "other-read",
+            "isQuery": false
+        },
+        {
+            "name": "do-dollar-quote体",
+            "dbType": "postgres",
+            "sql": "DO $$ BEGIN NULL; END $$",
+            "stmtType": "other-write",
+            "isQuery": false
+        },
+        {
+            "name": "select-oracle-q串含delete",
+            "dbType": "oracle",
+            "sql": "SELECT q'[delete from t]' AS s FROM dual",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "insert-oracle-q串值",
+            "dbType": "oracle",
+            "sql": "INSERT INTO t VALUES (q'[a;b]')",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "select-pg-U\u0026Unicode串",
+            "dbType": "postgres",
+            "sql": "SELECT U\u0026'\\0041BC' AS s",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "select-mssql方括号标识符名为delete",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM [delete]",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "select-oracle-N串含关键词",
+            "dbType": "oracle",
+            "sql": "SELECT N'insert into t' AS s FROM dual",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "select-pg-E串含转义引号包住delete",
+            "dbType": "postgres",
+            "sql": "SELECT E'a\\'delete\\'b' AS x",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "insert-mysql-N串含JSON-delete",
+            "dbType": "mysql",
+            "sql": "INSERT INTO t VALUES (N'{\"k\":\"delete\"}')",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "select-pg-E串hex转义",
+            "dbType": "postgres",
+            "sql": "SELECT E'\\x41;' AS x",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-0",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-1",
+            "dbType": "mysql",
+            "sql": "SELECT `a`, `b` FROM `t` WHERE `a` \u003e 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-2",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t1 JOIN t2 ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-3",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t1 LEFT JOIN t2 ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-4",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t1 STRAIGHT_JOIN t2 ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-5",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t PARTITION (p0) WHERE id \u003e 0",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-6",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t USE INDEX (i) JOIN u FORCE INDEX (j) ON u.id = t.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-7",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t IGNORE INDEX (i) WHERE a = 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-8",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t FORCE INDEX FOR ORDER BY (i) ORDER BY a",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-9",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM (SELECT id FROM t) x",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-10",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t1, t2, t3 WHERE t1.a = t2.a",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-11",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t WHERE MATCH(a) AGAINST ('x')",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-12",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t WHERE a REGEXP '^x'",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-13",
+            "dbType": "mysql",
+            "sql": "SELECT JSON_EXTRACT(j, '$.a') FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-14",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t LIMIT 10",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-15",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t LIMIT 10, 20",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-16",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t ORDER BY a DESC LIMIT 5",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-17",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t WHERE id IN (1,2,3) AND (a = 1 OR b BETWEEN 1 AND 2)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-18",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t WHERE id IN (SELECT id FROM s)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-19",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t WHERE EXISTS (SELECT 1 FROM s)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-20",
+            "dbType": "mysql",
+            "sql": "SELECT a FROM t1 UNION ALL SELECT b FROM t2 LIMIT 10",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-21",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t1 JOIN t2 ON t1.id = t2.id JOIN t3 ON t3.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-22",
+            "dbType": "mysql",
+            "sql": "UPDATE t SET a = 1 WHERE id = 2",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-23",
+            "dbType": "mysql",
+            "sql": "UPDATE t SET a = 1 WHERE id = 2 LIMIT 10",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-24",
+            "dbType": "mysql",
+            "sql": "UPDATE t1 JOIN t2 ON t1.id = t2.id SET t1.v = t2.v",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-25",
+            "dbType": "mysql",
+            "sql": "UPDATE t1, t2 SET t1.a = t2.a WHERE t1.id = t2.id",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-26",
+            "dbType": "mysql",
+            "sql": "DELETE FROM t WHERE id = 1",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-27",
+            "dbType": "mysql",
+            "sql": "DELETE FROM t WHERE id = 1 LIMIT 5",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-28",
+            "dbType": "mysql",
+            "sql": "DELETE t1 FROM t1 JOIN t2 ON t1.id = t2.id",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-29",
+            "dbType": "mysql",
+            "sql": "DELETE FROM t1, t2 USING t1 JOIN t2 ON t1.id = t2.id",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-30",
+            "dbType": "mysql",
+            "sql": "INSERT INTO t (a, b) VALUES (1, 2)",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-31",
+            "dbType": "mysql",
+            "sql": "INSERT INTO t SET a = 1, b = 2",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-32",
+            "dbType": "mysql",
+            "sql": "INSERT INTO t (a) SELECT a FROM s",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-33",
+            "dbType": "mysql",
+            "sql": "INSERT IGNORE INTO t (a) VALUES (1)",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-34",
+            "dbType": "mysql",
+            "sql": "REPLACE INTO t (a) VALUES (1)",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-35",
+            "dbType": "mysql",
+            "sql": "INSERT INTO t (a) VALUES (1) ON DUPLICATE KEY UPDATE a = 2",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-36",
+            "dbType": "mysql",
+            "sql": "WITH c AS (SELECT 1) SELECT * FROM c",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-37",
+            "dbType": "mysql",
+            "sql": "CREATE TABLE t (id int PRIMARY KEY, v varchar(20)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-38",
+            "dbType": "mysql",
+            "sql": "CREATE TABLE t LIKE u",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-39",
+            "dbType": "mysql",
+            "sql": "CREATE TABLE t AS SELECT * FROM u",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-40",
+            "dbType": "mysql",
+            "sql": "ALTER TABLE t ADD INDEX idx (a), ADD COLUMN b int",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-41",
+            "dbType": "mysql",
+            "sql": "ALTER TABLE t RENAME TO t2",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-42",
+            "dbType": "mysql",
+            "sql": "RENAME TABLE a TO b, c TO d",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-43",
+            "dbType": "mysql",
+            "sql": "DROP TABLE IF EXISTS t",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-45",
+            "dbType": "mysql",
+            "sql": "CREATE PROCEDURE p() BEGIN UPDATE t SET v = 1; DELETE FROM s; END",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-47",
+            "dbType": "mysql",
+            "sql": "SHOW CREATE TABLE t",
+            "stmtType": "other-read",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-48",
+            "dbType": "mysql",
+            "sql": "DESC t",
+            "stmtType": "other-read",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-50",
+            "dbType": "mysql",
+            "sql": "EXPLAIN ANALYZE DELETE FROM t",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-51",
+            "dbType": "mysql",
+            "sql": "SET @a = 1",
+            "stmtType": "other-read",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-52",
+            "dbType": "mysql",
+            "sql": "BEGIN",
+            "stmtType": "other-read",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-53",
+            "dbType": "mysql",
+            "sql": "COMMIT",
+            "stmtType": "other-read",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-54",
+            "dbType": "mysql",
+            "sql": "CALL p_proc(1)",
+            "stmtType": "other-write",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-55",
+            "dbType": "mysql",
+            "sql": "LOAD DATA INFILE '/tmp/a.csv' INTO TABLE t",
+            "stmtType": "other-write",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-56",
+            "dbType": "mysql",
+            "sql": "PREPARE s FROM 'SELECT 1'",
+            "stmtType": "other-write",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-58",
+            "dbType": "mysql",
+            "sql": "SELECT a FROM t WHERE a = 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-61",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t LIMIT 5",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-62",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t ORDER BY a LIMIT 10",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-63",
+            "dbType": "mysql",
+            "sql": "SELECT COUNT(*) FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-64",
+            "dbType": "mysql",
+            "sql": "SELECT a, b FROM t GROUP BY a, b HAVING COUNT(*) \u003e 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-65",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t1 UNION SELECT * FROM t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-66",
+            "dbType": "mysql",
+            "sql": "INSERT INTO t (a) VALUES (1)",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-74",
+            "dbType": "mysql",
+            "sql": "CREATE TABLE t (id int PRIMARY KEY)",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-75",
+            "dbType": "mysql",
+            "sql": "ALTER TABLE t ADD COLUMN c int",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-76",
+            "dbType": "mysql",
+            "sql": "DROP TABLE t",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-78",
+            "dbType": "mysql",
+            "sql": "CREATE INDEX i ON t (a)",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-79",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t1, t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-80",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t WHERE a \u003e 1 AND b \u003c 2 OR c = 3",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-81",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t WHERE a IS NULL",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-82",
+            "dbType": "mysql",
+            "sql": "SELECT DISTINCT a FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-83",
+            "dbType": "mysql",
+            "sql": "SELECT a AS x FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mysql-84",
+            "dbType": "mysql",
+            "sql": "UPDATE t SET a = a + 1",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-85",
+            "dbType": "mysql",
+            "sql": "DELETE FROM t",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mysql-86",
+            "dbType": "mysql",
+            "sql": "SELECT * FROM t1 JOIN t2 ON t1.id = t2.id WHERE t1.a \u003e 0 GROUP BY t2.b HAVING COUNT(*) \u003e 1 ORDER BY t2.b LIMIT 5",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-1",
+            "dbType": "postgres",
+            "sql": "SELECT a, b FROM t WHERE a \u003e 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-2",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t1 JOIN t2 ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-3",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t1 LEFT OUTER JOIN t2 ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-4",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t1 RIGHT JOIN t2 ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-5",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t1 FULL OUTER JOIN t2 ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-6",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t1 CROSS JOIN t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-7",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t1 NATURAL JOIN t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-8",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM a JOIN b USING (id) LEFT JOIN c ON c.id = a.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-9",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM a JOIN b ON b.id = a.id JOIN c ON c.id = b.id JOIN d ON d.id = c.id JOIN e ON e.id = d.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-10",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM (SELECT id FROM t) x",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-11",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t1 JOIN LATERAL (SELECT * FROM t2 WHERE t2.id = t1.id) s ON true",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-12",
+            "dbType": "postgres",
+            "sql": "SELECT sum(x) OVER (PARTITION BY y ORDER BY z ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-13",
+            "dbType": "postgres",
+            "sql": "SELECT k, sum(v) FILTER (WHERE v \u003e 0) FROM m GROUP BY GROUPING SETS ((k), ())",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-14",
+            "dbType": "postgres",
+            "sql": "SELECT k, sum(v) FROM m GROUP BY ROLLUP (k)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-15",
+            "dbType": "postgres",
+            "sql": "SELECT DISTINCT ON (a) a, b FROM t ORDER BY a, b",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-16",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM ONLY t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-17",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t TABLESAMPLE SYSTEM (1)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-18",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t TABLESAMPLE BERNOULLI (10) REPEATABLE (42)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-19",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t AS x (a, b) WHERE x.a \u003e 0",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-20",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t FOR UPDATE OF t SKIP LOCKED",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-21",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t FOR SHARE",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-22",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t1, t2, t3 WHERE t1.a = t2.a",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-23",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t WHERE x = ANY(ARRAY[1,2])",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-24",
+            "dbType": "postgres",
+            "sql": "SELECT payload-\u003e\u003e'name' FROM j WHERE payload @\u003e '{\"a\":1}'",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-25",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t LIMIT 10 OFFSET 20",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-26",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t OFFSET 5 ROWS FETCH NEXT 10 ROWS ONLY",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-27",
+            "dbType": "postgres",
+            "sql": "UPDATE t SET a = s.a FROM s",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-28",
+            "dbType": "postgres",
+            "sql": "UPDATE t SET a = s.a FROM s JOIN u ON u.id = s.id",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-30",
+            "dbType": "postgres",
+            "sql": "DELETE FROM t WHERE id = 1",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-31",
+            "dbType": "postgres",
+            "sql": "DELETE FROM t USING s",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-32",
+            "dbType": "postgres",
+            "sql": "DELETE FROM t USING s JOIN u ON u.id = s.id",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-33",
+            "dbType": "postgres",
+            "sql": "INSERT INTO t (id, v) VALUES (1, 2)",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-34",
+            "dbType": "postgres",
+            "sql": "INSERT INTO t (id, v) SELECT id, v FROM s",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-35",
+            "dbType": "postgres",
+            "sql": "INSERT INTO t (id) VALUES (1) ON CONFLICT DO NOTHING",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-36",
+            "dbType": "postgres",
+            "sql": "INSERT INTO t (id, v) VALUES (1, 2) ON CONFLICT (id) DO UPDATE SET v = excluded.v",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-37",
+            "dbType": "postgres",
+            "sql": "INSERT INTO t (id) VALUES (1) RETURNING id",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-38",
+            "dbType": "postgres",
+            "sql": "MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.v = s.v",
+            "stmtType": "merge",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-39",
+            "dbType": "postgres",
+            "sql": "WITH c AS (SELECT 1) SELECT * FROM c",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-40",
+            "dbType": "postgres",
+            "sql": "WITH RECURSIVE r AS (SELECT 1 UNION ALL SELECT n + 1 FROM r) SELECT * FROM r",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-41",
+            "dbType": "postgres",
+            "sql": "WITH d AS (DELETE FROM t RETURNING id) SELECT * FROM d",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-42",
+            "dbType": "postgres",
+            "sql": "SELECT a FROM t1 UNION SELECT b FROM t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-43",
+            "dbType": "postgres",
+            "sql": "SELECT a FROM t1 INTERSECT SELECT a FROM t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-44",
+            "dbType": "postgres",
+            "sql": "SELECT a FROM t1 EXCEPT SELECT a FROM t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-45",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t WHERE EXISTS (SELECT 1 FROM s)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-46",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t WHERE id IN (SELECT id FROM s)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-47",
+            "dbType": "postgres",
+            "sql": "SELECT (SELECT max(x) FROM s) FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-48",
+            "dbType": "postgres",
+            "sql": "CREATE TABLE t (id int PRIMARY KEY, v varchar(20) NOT NULL)",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-49",
+            "dbType": "postgres",
+            "sql": "CREATE INDEX i ON t (a)",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-50",
+            "dbType": "postgres",
+            "sql": "ALTER TABLE ONLY t ADD COLUMN c int",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-51",
+            "dbType": "postgres",
+            "sql": "DROP TABLE IF EXISTS t CASCADE",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-52",
+            "dbType": "postgres",
+            "sql": "TRUNCATE t",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-53",
+            "dbType": "postgres",
+            "sql": "VACUUM t",
+            "stmtType": "other-read",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-54",
+            "dbType": "postgres",
+            "sql": "COPY t FROM '/tmp/a.csv'",
+            "stmtType": "other-write",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-55",
+            "dbType": "postgres",
+            "sql": "CALL p_proc(1)",
+            "stmtType": "other-write",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-56",
+            "dbType": "postgres",
+            "sql": "EXPLAIN SELECT * FROM t",
+            "stmtType": "other-read",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-57",
+            "dbType": "postgres",
+            "sql": "EXPLAIN ANALYZE SELECT * FROM t",
+            "stmtType": "other-write",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-59",
+            "dbType": "postgres",
+            "sql": "SELECT a FROM t WHERE a = 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-61",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t1 LEFT JOIN t2 ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-62",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t LIMIT 5",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-63",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t ORDER BY a LIMIT 10",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-64",
+            "dbType": "postgres",
+            "sql": "SELECT COUNT(*) FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-65",
+            "dbType": "postgres",
+            "sql": "SELECT a, b FROM t GROUP BY a, b HAVING COUNT(*) \u003e 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-66",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t1 UNION SELECT * FROM t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-67",
+            "dbType": "postgres",
+            "sql": "INSERT INTO t (a) VALUES (1)",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-68",
+            "dbType": "postgres",
+            "sql": "INSERT INTO t (a) SELECT a FROM s",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-75",
+            "dbType": "postgres",
+            "sql": "CREATE TABLE t (id int PRIMARY KEY)",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-76",
+            "dbType": "postgres",
+            "sql": "ALTER TABLE t ADD COLUMN c int",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-77",
+            "dbType": "postgres",
+            "sql": "DROP TABLE t",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-78",
+            "dbType": "postgres",
+            "sql": "TRUNCATE TABLE t",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-80",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t1, t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-81",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t WHERE a \u003e 1 AND b \u003c 2 OR c = 3",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-82",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t WHERE a IS NULL",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-83",
+            "dbType": "postgres",
+            "sql": "SELECT DISTINCT a FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-84",
+            "dbType": "postgres",
+            "sql": "SELECT a AS x FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-postgres-85",
+            "dbType": "postgres",
+            "sql": "UPDATE t SET a = a + 1",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-86",
+            "dbType": "postgres",
+            "sql": "DELETE FROM t",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-postgres-87",
+            "dbType": "postgres",
+            "sql": "SELECT * FROM t1 JOIN t2 ON t1.id = t2.id WHERE t1.a \u003e 0 GROUP BY t2.b HAVING COUNT(*) \u003e 1 ORDER BY t2.b LIMIT 5",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-0",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM e, d WHERE e.id = d.id(+) AND e.st = 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-1",
+            "dbType": "oracle",
+            "sql": "SELECT id, LEVEL FROM t START WITH pid IS NULL CONNECT BY PRIOR id = pid ORDER SIBLINGS BY name",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-2",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM t WHERE ROWNUM \u003c= 10",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-3",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM t SAMPLE (1)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-4",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM t PIVOT (SUM(x) FOR y IN ('a','b'))",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-5",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM (SELECT a.*, ROWNUM rn FROM (SELECT * FROM t ORDER BY id) a WHERE ROWNUM \u003c= 20) WHERE rn \u003e 10",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-6",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM dual",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-7",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM t OFFSET 5 ROWS FETCH NEXT 10 ROWS ONLY",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-8",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM t FETCH FIRST 10 ROWS ONLY",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-9",
+            "dbType": "oracle",
+            "sql": "SELECT a FROM t1 MINUS SELECT a FROM t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-10",
+            "dbType": "oracle",
+            "sql": "SELECT DECODE(a, 1, 'x', 'y'), NVL(b, 0), CASE WHEN c \u003e 0 THEN 1 ELSE 0 END FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-11",
+            "dbType": "oracle",
+            "sql": "SELECT LISTAGG(name, ',') WITHIN GROUP (ORDER BY name) FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-12",
+            "dbType": "oracle",
+            "sql": "SELECT `ID` FROM `T` WHERE `ID` \u003e 0",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-13",
+            "dbType": "oracle",
+            "sql": "UPDATE t SET a = (SELECT MAX(x) FROM s)",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-14",
+            "dbType": "oracle",
+            "sql": "DELETE FROM t WHERE ROWNUM \u003c= 10",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-15",
+            "dbType": "oracle",
+            "sql": "INSERT INTO t (a) SELECT a FROM s WHERE b \u003e 0",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-16",
+            "dbType": "oracle",
+            "sql": "MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.v = s.v WHEN NOT MATCHED THEN INSERT (id, v) VALUES (s.id, s.v)",
+            "stmtType": "merge",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-17",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM t1 WHERE a IN (SELECT a FROM t2 WHERE b IN (SELECT b FROM t3))",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-18",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM t WHERE a LIKE 'x%' AND b IS NOT NULL",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-19",
+            "dbType": "oracle",
+            "sql": "COMMIT",
+            "stmtType": "other-read",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-20",
+            "dbType": "oracle",
+            "sql": "ROLLBACK",
+            "stmtType": "other-read",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-21",
+            "dbType": "oracle",
+            "sql": "EXPLAIN PLAN FOR SELECT * FROM t",
+            "stmtType": "other-read",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-22",
+            "dbType": "oracle",
+            "sql": "CREATE TABLE t (id NUMBER(10) PRIMARY KEY, v VARCHAR2(20))",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-23",
+            "dbType": "oracle",
+            "sql": "ALTER TABLE t ADD (c NUMBER(5))",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-24",
+            "dbType": "oracle",
+            "sql": "DROP TABLE t PURGE",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-25",
+            "dbType": "oracle",
+            "sql": "CREATE OR REPLACE VIEW v AS SELECT * FROM t",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-26",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-27",
+            "dbType": "oracle",
+            "sql": "SELECT a FROM t WHERE a = 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-28",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM t1 JOIN t2 ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-29",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM t1 LEFT JOIN t2 ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-30",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM t LIMIT 5",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-31",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM t ORDER BY a LIMIT 10",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-32",
+            "dbType": "oracle",
+            "sql": "SELECT COUNT(*) FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-33",
+            "dbType": "oracle",
+            "sql": "SELECT a, b FROM t GROUP BY a, b HAVING COUNT(*) \u003e 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-34",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM t1 UNION SELECT * FROM t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-35",
+            "dbType": "oracle",
+            "sql": "INSERT INTO t (a) VALUES (1)",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-36",
+            "dbType": "oracle",
+            "sql": "INSERT INTO t (a) SELECT a FROM s",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-37",
+            "dbType": "oracle",
+            "sql": "UPDATE t SET a = 1 WHERE id = 2",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-38",
+            "dbType": "oracle",
+            "sql": "DELETE FROM t WHERE id = 1",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-39",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM (SELECT id FROM t) x",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-40",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM t WHERE id IN (SELECT id FROM s)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-41",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM t WHERE EXISTS (SELECT 1 FROM s)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-42",
+            "dbType": "oracle",
+            "sql": "WITH c AS (SELECT 1) SELECT * FROM c",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-43",
+            "dbType": "oracle",
+            "sql": "CREATE TABLE t (id int PRIMARY KEY)",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-44",
+            "dbType": "oracle",
+            "sql": "ALTER TABLE t ADD COLUMN c int",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-45",
+            "dbType": "oracle",
+            "sql": "DROP TABLE t",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-46",
+            "dbType": "oracle",
+            "sql": "TRUNCATE TABLE t",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-47",
+            "dbType": "oracle",
+            "sql": "CREATE INDEX i ON t (a)",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-48",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM t1, t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-49",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM t WHERE a \u003e 1 AND b \u003c 2 OR c = 3",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-50",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM t WHERE a IS NULL",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-51",
+            "dbType": "oracle",
+            "sql": "SELECT DISTINCT a FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-52",
+            "dbType": "oracle",
+            "sql": "SELECT a AS x FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-oracle-53",
+            "dbType": "oracle",
+            "sql": "UPDATE t SET a = a + 1",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-54",
+            "dbType": "oracle",
+            "sql": "DELETE FROM t",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-oracle-55",
+            "dbType": "oracle",
+            "sql": "SELECT * FROM t1 JOIN t2 ON t1.id = t2.id WHERE t1.a \u003e 0 GROUP BY t2.b HAVING COUNT(*) \u003e 1 ORDER BY t2.b LIMIT 5",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-0",
+            "dbType": "dm",
+            "sql": "SELECT * FROM e, d WHERE e.id = d.id(+) AND e.st = 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-1",
+            "dbType": "dm",
+            "sql": "SELECT id, LEVEL FROM t START WITH pid IS NULL CONNECT BY PRIOR id = pid ORDER SIBLINGS BY name",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-2",
+            "dbType": "dm",
+            "sql": "SELECT * FROM t WHERE ROWNUM \u003c= 10",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-3",
+            "dbType": "dm",
+            "sql": "SELECT * FROM t SAMPLE (1)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-4",
+            "dbType": "dm",
+            "sql": "SELECT * FROM t PIVOT (SUM(x) FOR y IN ('a','b'))",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-5",
+            "dbType": "dm",
+            "sql": "SELECT * FROM (SELECT a.*, ROWNUM rn FROM (SELECT * FROM t ORDER BY id) a WHERE ROWNUM \u003c= 20) WHERE rn \u003e 10",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-6",
+            "dbType": "dm",
+            "sql": "SELECT * FROM dual",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-7",
+            "dbType": "dm",
+            "sql": "SELECT * FROM t OFFSET 5 ROWS FETCH NEXT 10 ROWS ONLY",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-8",
+            "dbType": "dm",
+            "sql": "SELECT * FROM t FETCH FIRST 10 ROWS ONLY",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-9",
+            "dbType": "dm",
+            "sql": "SELECT a FROM t1 MINUS SELECT a FROM t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-10",
+            "dbType": "dm",
+            "sql": "SELECT DECODE(a, 1, 'x', 'y'), NVL(b, 0), CASE WHEN c \u003e 0 THEN 1 ELSE 0 END FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-11",
+            "dbType": "dm",
+            "sql": "SELECT LISTAGG(name, ',') WITHIN GROUP (ORDER BY name) FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-12",
+            "dbType": "dm",
+            "sql": "SELECT `ID` FROM `T` WHERE `ID` \u003e 0",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-13",
+            "dbType": "dm",
+            "sql": "UPDATE t SET a = (SELECT MAX(x) FROM s)",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-14",
+            "dbType": "dm",
+            "sql": "DELETE FROM t WHERE ROWNUM \u003c= 10",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-15",
+            "dbType": "dm",
+            "sql": "INSERT INTO t (a) SELECT a FROM s WHERE b \u003e 0",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-16",
+            "dbType": "dm",
+            "sql": "MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.v = s.v WHEN NOT MATCHED THEN INSERT (id, v) VALUES (s.id, s.v)",
+            "stmtType": "merge",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-17",
+            "dbType": "dm",
+            "sql": "SELECT * FROM t1 WHERE a IN (SELECT a FROM t2 WHERE b IN (SELECT b FROM t3))",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-18",
+            "dbType": "dm",
+            "sql": "SELECT * FROM t WHERE a LIKE 'x%' AND b IS NOT NULL",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-19",
+            "dbType": "dm",
+            "sql": "COMMIT",
+            "stmtType": "other-read",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-20",
+            "dbType": "dm",
+            "sql": "ROLLBACK",
+            "stmtType": "other-read",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-21",
+            "dbType": "dm",
+            "sql": "EXPLAIN PLAN FOR SELECT * FROM t",
+            "stmtType": "other-read",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-22",
+            "dbType": "dm",
+            "sql": "CREATE TABLE t (id NUMBER(10) PRIMARY KEY, v VARCHAR2(20))",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-23",
+            "dbType": "dm",
+            "sql": "ALTER TABLE t ADD (c NUMBER(5))",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-24",
+            "dbType": "dm",
+            "sql": "DROP TABLE t PURGE",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-25",
+            "dbType": "dm",
+            "sql": "CREATE OR REPLACE VIEW v AS SELECT * FROM t",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-26",
+            "dbType": "dm",
+            "sql": "SELECT * FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-27",
+            "dbType": "dm",
+            "sql": "SELECT a FROM t WHERE a = 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-28",
+            "dbType": "dm",
+            "sql": "SELECT * FROM t1 JOIN t2 ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-29",
+            "dbType": "dm",
+            "sql": "SELECT * FROM t1 LEFT JOIN t2 ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-30",
+            "dbType": "dm",
+            "sql": "SELECT * FROM t LIMIT 5",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-31",
+            "dbType": "dm",
+            "sql": "SELECT * FROM t ORDER BY a LIMIT 10",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-32",
+            "dbType": "dm",
+            "sql": "SELECT COUNT(*) FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-33",
+            "dbType": "dm",
+            "sql": "SELECT a, b FROM t GROUP BY a, b HAVING COUNT(*) \u003e 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-34",
+            "dbType": "dm",
+            "sql": "SELECT * FROM t1 UNION SELECT * FROM t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-35",
+            "dbType": "dm",
+            "sql": "INSERT INTO t (a) VALUES (1)",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-36",
+            "dbType": "dm",
+            "sql": "INSERT INTO t (a) SELECT a FROM s",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-37",
+            "dbType": "dm",
+            "sql": "UPDATE t SET a = 1 WHERE id = 2",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-38",
+            "dbType": "dm",
+            "sql": "DELETE FROM t WHERE id = 1",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-39",
+            "dbType": "dm",
+            "sql": "SELECT * FROM (SELECT id FROM t) x",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-40",
+            "dbType": "dm",
+            "sql": "SELECT * FROM t WHERE id IN (SELECT id FROM s)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-41",
+            "dbType": "dm",
+            "sql": "SELECT * FROM t WHERE EXISTS (SELECT 1 FROM s)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-42",
+            "dbType": "dm",
+            "sql": "WITH c AS (SELECT 1) SELECT * FROM c",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-43",
+            "dbType": "dm",
+            "sql": "CREATE TABLE t (id int PRIMARY KEY)",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-44",
+            "dbType": "dm",
+            "sql": "ALTER TABLE t ADD COLUMN c int",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-45",
+            "dbType": "dm",
+            "sql": "DROP TABLE t",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-46",
+            "dbType": "dm",
+            "sql": "TRUNCATE TABLE t",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-47",
+            "dbType": "dm",
+            "sql": "CREATE INDEX i ON t (a)",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-48",
+            "dbType": "dm",
+            "sql": "SELECT * FROM t1, t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-49",
+            "dbType": "dm",
+            "sql": "SELECT * FROM t WHERE a \u003e 1 AND b \u003c 2 OR c = 3",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-50",
+            "dbType": "dm",
+            "sql": "SELECT * FROM t WHERE a IS NULL",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-51",
+            "dbType": "dm",
+            "sql": "SELECT DISTINCT a FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-52",
+            "dbType": "dm",
+            "sql": "SELECT a AS x FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-dm-53",
+            "dbType": "dm",
+            "sql": "UPDATE t SET a = a + 1",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-54",
+            "dbType": "dm",
+            "sql": "DELETE FROM t",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-dm-55",
+            "dbType": "dm",
+            "sql": "SELECT * FROM t1 JOIN t2 ON t1.id = t2.id WHERE t1.a \u003e 0 GROUP BY t2.b HAVING COUNT(*) \u003e 1 ORDER BY t2.b LIMIT 5",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-0",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t WITH (NOLOCK) WHERE id \u003e 0",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-1",
+            "dbType": "mssql",
+            "sql": "SELECT TOP 10 * FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-2",
+            "dbType": "mssql",
+            "sql": "SELECT TOP (10) * FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-3",
+            "dbType": "mssql",
+            "sql": "SELECT TOP (10) PERCENT * FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-4",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t ORDER BY id OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-5",
+            "dbType": "mssql",
+            "sql": "SELECT [a].[id] FROM [dbo].[t] AS [a] WHERE [a].[v] \u003e 0",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-6",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM [t]]x]",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-7",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t1 CROSS APPLY (SELECT TOP 1 * FROM t2 WHERE t2.id = t1.id) x",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-8",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t1 OUTER APPLY (SELECT * FROM t2) x",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-9",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t1 CROSS APPLY fn(t1.id) f",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-10",
+            "dbType": "mssql",
+            "sql": "UPDATE t SET a = s.a FROM s WHERE s.id = t.id",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-11",
+            "dbType": "mssql",
+            "sql": "DELETE t1 FROM t1 JOIN t2 ON t1.id = t2.id",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-12",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t1 JOIN t2 WITH (NOLOCK) ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-13",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t PIVOT (SUM(x) FOR y IN ([a],[b])) p",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-14",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM (SELECT ROW_NUMBER() OVER (ORDER BY id) rn, t.* FROM t) x WHERE rn BETWEEN 11 AND 20",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-15",
+            "dbType": "mssql",
+            "sql": "MERGE INTO t AS tgt USING s AS src ON tgt.id = src.id WHEN MATCHED THEN UPDATE SET tgt.v = src.v OUTPUT inserted.id",
+            "stmtType": "merge",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-16",
+            "dbType": "mssql",
+            "sql": "INSERT INTO t (a) VALUES (1)",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-17",
+            "dbType": "mssql",
+            "sql": "CREATE TABLE t (id int IDENTITY(1,1) PRIMARY KEY, v nvarchar(20))",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-18",
+            "dbType": "mssql",
+            "sql": "CREATE NONCLUSTERED INDEX i ON t (a)",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-19",
+            "dbType": "mssql",
+            "sql": "ALTER TABLE t ADD c int",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-20",
+            "dbType": "mssql",
+            "sql": "EXEC p_proc 1",
+            "stmtType": "other-write",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-21",
+            "dbType": "mssql",
+            "sql": "DECLARE @a int",
+            "stmtType": "other-write",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-22",
+            "dbType": "mssql",
+            "sql": "SET @a = 1",
+            "stmtType": "other-read",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-23",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t1 UNION ALL SELECT * FROM t2 ORDER BY 1 OFFSET 0 ROWS FETCH NEXT 5 ROWS ONLY",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-24",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t WHERE a IN (1, 2, 3)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-25",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-26",
+            "dbType": "mssql",
+            "sql": "SELECT a FROM t WHERE a = 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-27",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t1 JOIN t2 ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-28",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t1 LEFT JOIN t2 ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-29",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t LIMIT 5",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-30",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t ORDER BY a LIMIT 10",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-31",
+            "dbType": "mssql",
+            "sql": "SELECT COUNT(*) FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-32",
+            "dbType": "mssql",
+            "sql": "SELECT a, b FROM t GROUP BY a, b HAVING COUNT(*) \u003e 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-33",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t1 UNION SELECT * FROM t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-35",
+            "dbType": "mssql",
+            "sql": "INSERT INTO t (a) SELECT a FROM s",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-36",
+            "dbType": "mssql",
+            "sql": "UPDATE t SET a = 1 WHERE id = 2",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-37",
+            "dbType": "mssql",
+            "sql": "DELETE FROM t WHERE id = 1",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-38",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM (SELECT id FROM t) x",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-39",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t WHERE id IN (SELECT id FROM s)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-40",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t WHERE EXISTS (SELECT 1 FROM s)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-41",
+            "dbType": "mssql",
+            "sql": "WITH c AS (SELECT 1) SELECT * FROM c",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-42",
+            "dbType": "mssql",
+            "sql": "CREATE TABLE t (id int PRIMARY KEY)",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-43",
+            "dbType": "mssql",
+            "sql": "ALTER TABLE t ADD COLUMN c int",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-44",
+            "dbType": "mssql",
+            "sql": "DROP TABLE t",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-45",
+            "dbType": "mssql",
+            "sql": "TRUNCATE TABLE t",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-46",
+            "dbType": "mssql",
+            "sql": "CREATE INDEX i ON t (a)",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-47",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t1, t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-48",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t WHERE a \u003e 1 AND b \u003c 2 OR c = 3",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-49",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t WHERE a IS NULL",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-50",
+            "dbType": "mssql",
+            "sql": "SELECT DISTINCT a FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-51",
+            "dbType": "mssql",
+            "sql": "SELECT a AS x FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-mssql-52",
+            "dbType": "mssql",
+            "sql": "UPDATE t SET a = a + 1",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-53",
+            "dbType": "mssql",
+            "sql": "DELETE FROM t",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-mssql-54",
+            "dbType": "mssql",
+            "sql": "SELECT * FROM t1 JOIN t2 ON t1.id = t2.id WHERE t1.a \u003e 0 GROUP BY t2.b HAVING COUNT(*) \u003e 1 ORDER BY t2.b LIMIT 5",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-0",
+            "dbType": "sqlite",
+            "sql": "PRAGMA table_info(t)",
+            "stmtType": "other-read",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-1",
+            "dbType": "sqlite",
+            "sql": "INSERT OR REPLACE INTO t (a) VALUES (1)",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-2",
+            "dbType": "sqlite",
+            "sql": "INSERT OR IGNORE INTO t (a) VALUES (1)",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-3",
+            "dbType": "sqlite",
+            "sql": "INSERT INTO t (a) VALUES (1) ON CONFLICT(a) DO UPDATE SET a = excluded.a",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-4",
+            "dbType": "sqlite",
+            "sql": "SELECT * FROM t LIMIT -1 OFFSET 10",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-5",
+            "dbType": "sqlite",
+            "sql": "VACUUM",
+            "stmtType": "other-read",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-6",
+            "dbType": "sqlite",
+            "sql": "ANALYZE",
+            "stmtType": "other-read",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-7",
+            "dbType": "sqlite",
+            "sql": "BEGIN",
+            "stmtType": "other-read",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-8",
+            "dbType": "sqlite",
+            "sql": "CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT) WITHOUT ROWID",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-9",
+            "dbType": "sqlite",
+            "sql": "CREATE INDEX IF NOT EXISTS i ON t (a)",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-10",
+            "dbType": "sqlite",
+            "sql": "ALTER TABLE t RENAME TO t2",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-11",
+            "dbType": "sqlite",
+            "sql": "CREATE VIEW v AS SELECT * FROM t",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-12",
+            "dbType": "sqlite",
+            "sql": "CREATE TRIGGER trg AFTER INSERT ON t BEGIN UPDATE t SET v = 1; END",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-13",
+            "dbType": "sqlite",
+            "sql": "SELECT * FROM t WHERE a GLOB 'x*'",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-14",
+            "dbType": "sqlite",
+            "sql": "WITH RECURSIVE r AS (SELECT 1 UNION ALL SELECT n + 1 FROM r) SELECT * FROM r",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-15",
+            "dbType": "sqlite",
+            "sql": "SELECT ROW_NUMBER() OVER (PARTITION BY a ORDER BY b) FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-16",
+            "dbType": "sqlite",
+            "sql": "UPDATE t SET a = s.a FROM s WHERE s.id = t.id",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-17",
+            "dbType": "sqlite",
+            "sql": "DELETE FROM t RETURNING id",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-18",
+            "dbType": "sqlite",
+            "sql": "EXPLAIN QUERY PLAN SELECT * FROM t",
+            "stmtType": "other-read",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-19",
+            "dbType": "sqlite",
+            "sql": "ATTACH DATABASE '/tmp/a.db' AS a",
+            "stmtType": "other-write",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-20",
+            "dbType": "sqlite",
+            "sql": "SELECT * FROM t1 JOIN t2 USING (id)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-21",
+            "dbType": "sqlite",
+            "sql": "SELECT a, SUM(b) FROM t GROUP BY a",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-22",
+            "dbType": "sqlite",
+            "sql": "SELECT * FROM t WHERE a LIKE '%x%' ESCAPE '\\'",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-23",
+            "dbType": "sqlite",
+            "sql": "SELECT * FROM t LIMIT 20",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-24",
+            "dbType": "sqlite",
+            "sql": "SELECT * FROM t1, t2 WHERE t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-26",
+            "dbType": "sqlite",
+            "sql": "SELECT a FROM t WHERE a = 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-27",
+            "dbType": "sqlite",
+            "sql": "SELECT * FROM t1 JOIN t2 ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-28",
+            "dbType": "sqlite",
+            "sql": "SELECT * FROM t1 LEFT JOIN t2 ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-29",
+            "dbType": "sqlite",
+            "sql": "SELECT * FROM t LIMIT 5",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-30",
+            "dbType": "sqlite",
+            "sql": "SELECT * FROM t ORDER BY a LIMIT 10",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-31",
+            "dbType": "sqlite",
+            "sql": "SELECT COUNT(*) FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-32",
+            "dbType": "sqlite",
+            "sql": "SELECT a, b FROM t GROUP BY a, b HAVING COUNT(*) \u003e 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-33",
+            "dbType": "sqlite",
+            "sql": "SELECT * FROM t1 UNION SELECT * FROM t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-34",
+            "dbType": "sqlite",
+            "sql": "INSERT INTO t (a) VALUES (1)",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-35",
+            "dbType": "sqlite",
+            "sql": "INSERT INTO t (a) SELECT a FROM s",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-36",
+            "dbType": "sqlite",
+            "sql": "UPDATE t SET a = 1 WHERE id = 2",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-38",
+            "dbType": "sqlite",
+            "sql": "SELECT * FROM (SELECT id FROM t) x",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-39",
+            "dbType": "sqlite",
+            "sql": "SELECT * FROM t WHERE id IN (SELECT id FROM s)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-40",
+            "dbType": "sqlite",
+            "sql": "SELECT * FROM t WHERE EXISTS (SELECT 1 FROM s)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-41",
+            "dbType": "sqlite",
+            "sql": "WITH c AS (SELECT 1) SELECT * FROM c",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-42",
+            "dbType": "sqlite",
+            "sql": "CREATE TABLE t (id int PRIMARY KEY)",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-43",
+            "dbType": "sqlite",
+            "sql": "ALTER TABLE t ADD COLUMN c int",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-44",
+            "dbType": "sqlite",
+            "sql": "DROP TABLE t",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-45",
+            "dbType": "sqlite",
+            "sql": "TRUNCATE TABLE t",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-46",
+            "dbType": "sqlite",
+            "sql": "CREATE INDEX i ON t (a)",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-47",
+            "dbType": "sqlite",
+            "sql": "SELECT * FROM t1, t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-48",
+            "dbType": "sqlite",
+            "sql": "SELECT * FROM t WHERE a \u003e 1 AND b \u003c 2 OR c = 3",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-49",
+            "dbType": "sqlite",
+            "sql": "SELECT * FROM t WHERE a IS NULL",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-50",
+            "dbType": "sqlite",
+            "sql": "SELECT DISTINCT a FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-51",
+            "dbType": "sqlite",
+            "sql": "SELECT a AS x FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-sqlite-52",
+            "dbType": "sqlite",
+            "sql": "UPDATE t SET a = a + 1",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-53",
+            "dbType": "sqlite",
+            "sql": "DELETE FROM t",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-sqlite-54",
+            "dbType": "sqlite",
+            "sql": "SELECT * FROM t1 JOIN t2 ON t1.id = t2.id WHERE t1.a \u003e 0 GROUP BY t2.b HAVING COUNT(*) \u003e 1 ORDER BY t2.b LIMIT 5",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-0",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t FINAL PREWHERE a \u003e 0 WHERE b = 1 ARRAY JOIN arr AS x LIMIT 10",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-1",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t SETTINGS max_threads = 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-2",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t SAMPLE 0.1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-3",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t1 ASOF JOIN t2 ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-4",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t1 ANY LEFT JOIN t2 USING (id)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-5",
+            "dbType": "clickhouse",
+            "sql": "SELECT k, count() FROM t GROUP BY k WITH TOTALS",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-6",
+            "dbType": "clickhouse",
+            "sql": "SELECT k, count() FROM t GROUP BY k WITH ROLLUP",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-7",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t LIMIT 5 BY k",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-8",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM `db`.`t` LIMIT 5",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-9",
+            "dbType": "clickhouse",
+            "sql": "INSERT INTO t SELECT * FROM s",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-clickhouse-10",
+            "dbType": "clickhouse",
+            "sql": "ALTER TABLE t UPDATE v = 1 WHERE id = 2",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-clickhouse-11",
+            "dbType": "clickhouse",
+            "sql": "ALTER TABLE t DELETE WHERE id = 2",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-clickhouse-12",
+            "dbType": "clickhouse",
+            "sql": "OPTIMIZE TABLE t FINAL",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-clickhouse-13",
+            "dbType": "clickhouse",
+            "sql": "CREATE MATERIALIZED VIEW mv TO t AS SELECT * FROM s",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-clickhouse-14",
+            "dbType": "clickhouse",
+            "sql": "SELECT arrayMap(x -\u003e x + 1, arr) FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-15",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t1 GLOBAL JOIN t2 USING (id)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-16",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t1 LEFT ARRAY JOIN arr AS x",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-17",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t WHERE a = 1 AND b IN (1, 2)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-18",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t LIMIT 10 OFFSET 5",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-19",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t1 UNION ALL SELECT * FROM t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-20",
+            "dbType": "clickhouse",
+            "sql": "SELECT toDate(ts) d, count() FROM t GROUP BY d ORDER BY d",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-21",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t WHERE ts \u003e= now() - INTERVAL 1 DAY",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-22",
+            "dbType": "clickhouse",
+            "sql": "TRUNCATE TABLE t",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-clickhouse-23",
+            "dbType": "clickhouse",
+            "sql": "SYSTEM FLUSH LOGS",
+            "stmtType": "other-write",
+            "isQuery": false
+        },
+        {
+            "name": "acc-clickhouse-24",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t1 JOIN t2 ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-25",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-26",
+            "dbType": "clickhouse",
+            "sql": "SELECT a FROM t WHERE a = 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-28",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t1 LEFT JOIN t2 ON t1.id = t2.id",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-29",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t LIMIT 5",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-30",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t ORDER BY a LIMIT 10",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-31",
+            "dbType": "clickhouse",
+            "sql": "SELECT COUNT(*) FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-32",
+            "dbType": "clickhouse",
+            "sql": "SELECT a, b FROM t GROUP BY a, b HAVING COUNT(*) \u003e 1",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-33",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t1 UNION SELECT * FROM t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-34",
+            "dbType": "clickhouse",
+            "sql": "INSERT INTO t (a) VALUES (1)",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-clickhouse-35",
+            "dbType": "clickhouse",
+            "sql": "INSERT INTO t (a) SELECT a FROM s",
+            "stmtType": "insert",
+            "isQuery": false
+        },
+        {
+            "name": "acc-clickhouse-36",
+            "dbType": "clickhouse",
+            "sql": "UPDATE t SET a = 1 WHERE id = 2",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-clickhouse-37",
+            "dbType": "clickhouse",
+            "sql": "DELETE FROM t WHERE id = 1",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-clickhouse-38",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM (SELECT id FROM t) x",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-39",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t WHERE id IN (SELECT id FROM s)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-40",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t WHERE EXISTS (SELECT 1 FROM s)",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-41",
+            "dbType": "clickhouse",
+            "sql": "WITH c AS (SELECT 1) SELECT * FROM c",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-42",
+            "dbType": "clickhouse",
+            "sql": "CREATE TABLE t (id int PRIMARY KEY)",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-clickhouse-43",
+            "dbType": "clickhouse",
+            "sql": "ALTER TABLE t ADD COLUMN c int",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-clickhouse-44",
+            "dbType": "clickhouse",
+            "sql": "DROP TABLE t",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-clickhouse-46",
+            "dbType": "clickhouse",
+            "sql": "CREATE INDEX i ON t (a)",
+            "stmtType": "ddl",
+            "isQuery": false
+        },
+        {
+            "name": "acc-clickhouse-47",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t1, t2",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-48",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t WHERE a \u003e 1 AND b \u003c 2 OR c = 3",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-49",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t WHERE a IS NULL",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-50",
+            "dbType": "clickhouse",
+            "sql": "SELECT DISTINCT a FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-51",
+            "dbType": "clickhouse",
+            "sql": "SELECT a AS x FROM t",
+            "stmtType": "select",
+            "isQuery": true
+        },
+        {
+            "name": "acc-clickhouse-52",
+            "dbType": "clickhouse",
+            "sql": "UPDATE t SET a = a + 1",
+            "stmtType": "update",
+            "isQuery": false
+        },
+        {
+            "name": "acc-clickhouse-53",
+            "dbType": "clickhouse",
+            "sql": "DELETE FROM t",
+            "stmtType": "delete",
+            "isQuery": false
+        },
+        {
+            "name": "acc-clickhouse-54",
+            "dbType": "clickhouse",
+            "sql": "SELECT * FROM t1 JOIN t2 ON t1.id = t2.id WHERE t1.a \u003e 0 GROUP BY t2.b HAVING COUNT(*) \u003e 1 ORDER BY t2.b LIMIT 5",
+            "stmtType": "select",
+            "isQuery": true
+        }
+    ]
 }

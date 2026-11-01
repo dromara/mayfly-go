@@ -18,7 +18,7 @@ func (*OracleParser) Parse(stmt string) (result sqlstmt.Stmt, err error) {
 			err = fmt.Errorf("oracle sql parse failed: %v", e)
 		}
 	}()
-	return NewParser(stmt).Parse()
+	return newParser(stmt).Parse()
 }
 
 // RewritePagination Oracle 12c+ 分页改写：OFFSET-FETCH 语法

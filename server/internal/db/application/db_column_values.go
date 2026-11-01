@@ -16,7 +16,6 @@ import (
 
 	"mayfly-go/internal/db/application/sqlexec"
 	"mayfly-go/internal/db/dbm/dbi"
-	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/imsg"
 	"mayfly-go/pkg/errorx"
 
@@ -35,6 +34,17 @@ func (d *dbAppImpl) ColumnValues(ctx context.Context, dbId uint64, dbName, table
 	}
 	if limit <= 0 || limit > columnValuesMax {
 		limit = columnValuesMax
+	}
+
+	// 值补全读的是真实数据（SELECT DISTINCT 具体列），绕过表级权限就等于给了
+	// 一个逐列取值的旁路：编辑器里被挡住，输入框补全却把值捞出来
+	tableAcl := sqlexec.GetTableAclApp()
+	if err := tableAcl.AssertTablesAllowed(ctx, dbId, []string{table}); err != nil {
+		return nil, err
+	}
+	// 采样会把这些值直接回填到输入框，列级保护必须与查询同口径
+	if err := tableAcl.AssertColumnsAllowed(ctx, dbId, []string{table}, []sqlexec.ColumnRef{{Table: table, Column: column}}); err != nil {
+		return nil, err
 	}
 
 	// 标识符以元数据为准：大小写按库侧真实列名取回，请求里写的名字只用于匹配
@@ -73,14 +83,11 @@ func (d *dbAppImpl) ColumnValues(ctx context.Context, dbId uint64, dbName, table
 // ctx 只为「方言不支持」这条错误渲染语言：它拿不到请求上下文时，中文界面的用户会收到
 // 一截英文提示，而这条错误恰恰是界面上会弹出来的
 func buildColumnValuesSQL(ctx context.Context, conn *dbi.DbConn, table, column string, limit int) (string, error) {
-	rewriter := sqlparser.GetPaginationRewriter(conn.GetDialect().GetSQLParser())
-	if rewriter == nil {
-		return "", errorx.NewBizI(ctx, imsg.ErrColumnValuesUnsupported)
-	}
 	quoter := conn.GetDialect().Quoter()
 	quotedColumn, quotedTable := quoter.QuoteIdent(column), quoter.QuoteIdent(table)
 	baseSQL := fmt.Sprintf("SELECT DISTINCT %s FROM %s WHERE %s IS NOT NULL", quotedColumn, quotedTable, quotedColumn)
-	return rewriter.RewritePagination(baseSQL, 0, int64(limit))
+	// 分页改写是 SQLParser 的必需能力（见 sqlparser 包注释），不再有「方言不支持」回退分支
+	return conn.GetDialect().GetSQLParser().RewritePagination(baseSQL, 0, int64(limit))
 }
 
 // findColumnOf 校验列存在于该表的库侧元数据中，并返回库侧真实列名。

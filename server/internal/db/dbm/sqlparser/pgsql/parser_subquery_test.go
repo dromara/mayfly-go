@@ -10,7 +10,7 @@ import (
 
 func TestPgSubqueryInFrom(t *testing.T) {
 	sql := "SELECT * FROM (SELECT id, name FROM users WHERE status = 1) AS u WHERE u.id > 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -42,7 +42,7 @@ func TestPgSubqueryInFrom(t *testing.T) {
 
 func TestPgSubqueryInWhere(t *testing.T) {
 	sql := "SELECT * FROM users WHERE id IN (SELECT user_id FROM orders WHERE amount > 100)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -63,7 +63,7 @@ func TestPgSubqueryInWhere(t *testing.T) {
 
 func TestPgSubqueryInSelect(t *testing.T) {
 	sql := "SELECT id, name, (SELECT COUNT(*) FROM orders WHERE orders.user_id = users.id) AS order_count FROM users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -88,7 +88,7 @@ func TestPgSubqueryInSelect(t *testing.T) {
 
 func TestPgNestedSubquery(t *testing.T) {
 	sql := "SELECT * FROM (SELECT * FROM (SELECT id FROM users WHERE status = 1) AS inner_u) AS outer_u WHERE outer_u.id > 5"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -108,7 +108,7 @@ func TestPgNestedSubquery(t *testing.T) {
 
 func TestPgSubqueryWithUnion(t *testing.T) {
 	sql := "SELECT * FROM (SELECT id FROM users UNION SELECT id FROM admins) AS all_users WHERE all_users.id > 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -127,7 +127,7 @@ func TestPgSubqueryWithUnion(t *testing.T) {
 
 func TestPgCorrelatedSubquery(t *testing.T) {
 	sql := "SELECT u.id, u.name FROM users u WHERE u.id IN (SELECT o.user_id FROM orders o WHERE o.user_id = u.id AND o.amount > 50)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -148,7 +148,7 @@ func TestPgCorrelatedSubquery(t *testing.T) {
 
 func TestPgSubqueryWithExists(t *testing.T) {
 	sql := "SELECT * FROM users WHERE EXISTS (SELECT 1 FROM orders WHERE orders.user_id = users.id)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -169,7 +169,7 @@ func TestPgSubqueryWithExists(t *testing.T) {
 
 func TestPgMultipleSubqueries(t *testing.T) {
 	sql := "SELECT * FROM users WHERE id IN (SELECT user_id FROM orders) AND department_id IN (SELECT id FROM departments WHERE name = 'IT')"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -190,7 +190,7 @@ func TestPgMultipleSubqueries(t *testing.T) {
 
 func TestPgSubqueryWithLimit(t *testing.T) {
 	sql := "SELECT * FROM (SELECT id, name FROM users ORDER BY created_at DESC LIMIT 10) AS top_users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -220,7 +220,7 @@ func TestPgComplexSubquery(t *testing.T) {
 		AND u.id IN (SELECT user_id FROM user_groups WHERE group_id = 5)
 	ORDER BY u.name`
 
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -256,7 +256,7 @@ func TestPgComplexSubquery(t *testing.T) {
 
 func TestPgMultipleJoins(t *testing.T) {
 	sql := "SELECT u.id, o.amount, p.name FROM users u LEFT JOIN orders o ON u.id = o.user_id INNER JOIN products p ON o.product_id = p.id WHERE u.status = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -287,7 +287,7 @@ func TestPgMultipleJoins(t *testing.T) {
 
 func TestPgRightJoin(t *testing.T) {
 	sql := "SELECT * FROM users u RIGHT JOIN orders o ON u.id = o.user_id"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -302,7 +302,7 @@ func TestPgRightJoin(t *testing.T) {
 
 func TestPgCrossJoin(t *testing.T) {
 	sql := "SELECT * FROM users CROSS JOIN roles"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -319,7 +319,7 @@ func TestPgCrossJoin(t *testing.T) {
 
 func TestPgUnionWithOrderBy(t *testing.T) {
 	sql := "SELECT id FROM users UNION SELECT id FROM admins ORDER BY 1 DESC"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -347,7 +347,7 @@ func TestPgUnionWithOrderBy(t *testing.T) {
 
 func TestPgUnionWithLimit(t *testing.T) {
 	sql := "SELECT id FROM users UNION ALL SELECT id FROM admins LIMIT 20"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)

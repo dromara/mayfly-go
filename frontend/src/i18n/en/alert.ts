@@ -111,6 +111,8 @@ export default {
         metricDbSessionMaxElapsed: 'Max session elapsed seconds',
         metricDbLockWaitCount: 'Sessions waiting for lock',
         metricDbSchemaDrift: 'Tables differing from the structure baseline',
+        metricDbPitrNotReady: 'Point-in-time recovery not ready (1 = not ready)',
+        metricDbTlsCertDaysLeft: 'Remaining days of the TLS certificate',
         metricStatus: 'Online Status',
         statusOnline: 'Online',
         statusOffline: 'Offline',

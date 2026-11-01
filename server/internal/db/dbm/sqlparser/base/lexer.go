@@ -217,7 +217,9 @@ func (l *Lexer) IsExprEnd() bool {
 	}
 	// 层次子句头部同样是边界：`WHERE x = 1 START WITH ... CONNECT BY ...` 里 start 不是保留字，
 	// 不当边界就会被吞进条件表达式，使层次子句从解析中消失
-	return tok.Value == ";" || tok.Value == ")" || l.isHierarchicHead()
+	// PREWHERE（ClickHouse）是过滤子句而非表，也作为表达式边界
+	return tok.Value == ";" || tok.Value == ")" || l.isHierarchicHead() ||
+		strings.EqualFold(tok.Value, "PREWHERE") || strings.EqualFold(tok.Value, "SETTINGS")
 }
 
 // IsCondEnd 判断条件表达式是否结束：在 IsExprEnd 基础上额外将 JOIN 前缀关键字
@@ -241,14 +243,19 @@ func (l *Lexer) IsFromClauseEnd() bool {
 		return true
 	}
 	// 层次子句头部也作边界：否则 `FROM t START WITH ...` 里的 start 会被当作 FROM 的第二张表
-	return tok.Value == ";" || tok.Value == ")" || l.isHierarchicHead()
+	// PREWHERE（ClickHouse）是过滤子句而非表，同样作为 FROM 的边界
+	return tok.Value == ";" || tok.Value == ")" || l.isHierarchicHead() ||
+		strings.EqualFold(tok.Value, "PREWHERE") || strings.EqualFold(tok.Value, "SETTINGS")
 }
 
 // IsSelectClauseEnd 判断是否到达 SELECT 子句末尾
 func (l *Lexer) IsSelectClauseEnd() bool {
 	tok := l.Current()
+	// PREWHERE 是 ClickHouse 的过滤子句（语义同 WHERE），必须作为边界词，
+	// 否则它会被当成 FROM 的第二张表污染表清单。
 	return tok.IsKeyword("FROM", "WHERE", "GROUP", "HAVING", "ORDER", "LIMIT", "OFFSET", "UNION", "INTO", "FOR") ||
-		tok.Value == ";" || tok.Value == ")"
+		// WITHIN 同属投影侧修饰（LISTAGG ... WITHIN GROUP (...)）：否��� GROUP 会被当子句边界，FROM 丢失
+		tok.Value == ";" || tok.Value == ")" || strings.EqualFold(tok.Value, "PREWHERE") || strings.EqualFold(tok.Value, "WITHIN")
 }
 
 // IsJoinStart 判断是否为 JOIN 起始
@@ -258,7 +265,12 @@ func (l *Lexer) IsJoinStart() bool {
 
 // isJoinStartAt 判断相对当前位置偏移 offset 的 token 是否为 JOIN 前缀
 func (l *Lexer) isJoinStartAt(offset int) bool {
-	return l.Peek(offset).IsKeyword(joinPrefixKeywords...)
+	if l.Peek(offset).IsKeyword(joinPrefixKeywords...) {
+		return true
+	}
+	// ARRAY 不进全局前缀表：它在多数方言里可作表名/列名，只有「ARRAY JOIN」才是
+	// ClickHouse 的连接子句，故按「词值 + 后随 JOIN」的结构判据识别。
+	return l.wordIsAt(offset, "ARRAY") && l.wordIsAt(offset+1, "JOIN")
 }
 
 // joinPrefixKeywords JOIN 前缀词（STRAIGHT_JOIN 只在 mysql 能力表登记，其他方言这里是标识符）
@@ -535,4 +547,32 @@ func TrimTrailingComma(s string) string {
 		return strings.TrimSpace(s[:len(s)-1])
 	}
 	return s
+}
+
+// wordIs 按**词值**（大小写不敏感）判断当前 token 是否为指定词。
+//
+// 与 IsKeyword 的分工：IsKeyword 只认已登记到方言关键字表的保留字；而 APPLY / ARRAY /
+// USE / INDEX 这类位置性词在多数方言里不是保留字（`USE` 还能是库名），登记进关键字表会
+// 污染名称位。这类词只在特定结构位置判定，用词值比较 + 结构上下文，不登记关键字。
+func (l *Lexer) wordIs(words ...string) bool {
+	return l.wordIsAt(0, words...)
+}
+
+// wordIsAt 判断相对当前位置偏移 offset 的 token 词值；仅对标识符/关键字生效。
+func (l *Lexer) wordIsAt(offset int, words ...string) bool {
+	tok := l.Peek(offset)
+	if tok.Type != tokenizer.TokenKeyword && tok.Type != tokenizer.TokenIdentifier {
+		return false
+	}
+	for _, w := range words {
+		if strings.EqualFold(tok.Value, w) {
+			return true
+		}
+	}
+	return false
+}
+
+// isArrayJoin ClickHouse 的 ARRAY JOIN 子句起始（右侧是数组列表达式，不是表）。
+func (l *Lexer) isArrayJoin() bool {
+	return l.wordIs("ARRAY") && l.wordIsAt(1, "JOIN")
 }

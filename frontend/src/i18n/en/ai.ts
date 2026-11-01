@@ -294,6 +294,9 @@ export default {
             toolSearchThresholdPlaceholder: 'When total tools exceed this value, MCP tools are deferred and discovered on demand via tool_search. 0 disables.',
             modelRequired: 'Primary model is required (protocol/model)',
             agentConfig: 'Agent Runtime Config',
+            modelHotReloadTip:
+                'Takes effect right after saving: the next turn, conversation summaries and long-term memory extraction switch to the new config. Turns already running are unaffected.',
+            agentHotReloadTip: 'Takes effect on the next turn (the tool list is re-assembled with the new threshold).',
         },
     },
 };

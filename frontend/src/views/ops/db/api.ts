@@ -10,6 +10,7 @@ import type {
     DbSql,
     DbSqlExec,
     DbTableInfo,
+    DbTableKey,
     DbInstanceServerInfo,
     ColumnMetadata,
     DbInstanceListParam,
@@ -18,10 +19,21 @@ import type {
     DbMaskRule,
     DbMaskColumn,
     DbMaskRuleQuery,
+    DbTableAcl,
+    DbTableAclSaveForm,
+    DbColumnAcl,
+    DbColumnAclSaveForm,
+    SensitiveScanResult,
     DbMaskColumnQuery,
     DbMaskRuleSaveForm,
     DbMaskColumnSaveForm,
     DbSessionInfo,
+    DbSlowQuery,
+    DbLockWait,
+    DbMetricSeries,
+    DbDdlPrecheckResult,
+    DbRecoveryReadiness,
+    DbAccountOverview,
     SqlExplainPlan,
     SqlRollback,
     SchemaDiffResult,
@@ -35,6 +47,7 @@ import type {
     ImportColumn,
     ImportPreviewResult,
     DataImportResult,
+    ConnTestResult,
 } from './types';
 
 export const dbApi = {
@@ -51,6 +64,9 @@ export const dbApi = {
     // 方言能力协商：能力位（features）+ 命名空间层次的单一事实源，前端据此数据驱动渲染、不再各自硬编码
     capabilities: Api.newGet<DbCapabilities, { id: number; db: string }>('/dbs/{id}/capabilities'),
     tableIndex: Api.newGet<Record<string, unknown>[]>('/dbs/{id}/t-index'),
+    // 表的主键/唯一键约束（含约束名）：编辑表撤销主键要引用约束名（pg/mssql 无 DROP PRIMARY KEY），
+    // 索引列表刻意排除了主键索引，故必须单列一个接口
+    tableKeys: Api.newGet<DbTableKey[]>('/dbs/{id}/t-keys'),
     tableDdl: Api.newGet<string>('/dbs/{id}/t-create-ddl'),
     copyTable: Api.newPost<void>('/dbs/{id}/copy-table'),
     // 获取指定表的列元数据（列名/类型/注释/主键等）：SQL 补全按表 fragment 取列与表结构/数据编辑共用
@@ -72,6 +88,17 @@ export const dbApi = {
     dbSessions: Api.newGet<DbSessionInfo[], { dbId: number; db: string }>('/dbs/sessions'),
     // 取消指定会话当前语句
     cancelDbSession: Api.newPost<void, { id: number; db: string; sessionId: string }>('/dbs/sessions/cancel'),
+    // 慢查询聚合与锁等待链：实例级事实，按所选库做可达性校验
+    dbSlowQueries: Api.newGet<DbSlowQuery[], { id: number; db: string; limit?: number }>('/dbs/{id}/slow-queries'),
+    dbLockWaits: Api.newGet<DbLockWait[], { id: number; db: string }>('/dbs/{id}/lock-waits'),
+    // 指标趋势：来自平台采样表（不连目标库），库不可达时历史曲线仍可看
+    dbMetrics: Api.newGet<DbMetricSeries, { id: number; metric: string; minutes: number }>('/dbs/{id}/metrics'),
+    // DDL 预检：只读表规模与主键，给出「会不会丢数据/要不要重建表」的提示（不做放行判定）
+    // 恢复能力：PITR 前提（binlog / WAL 归档）是否具备；不具备时后端给原因
+    // 账号盘点：只读，返回账号事实与高危标记（平台不代改账号）
+    dbAccounts: Api.newGet<DbAccountOverview, { id: number; db: string }>('/dbs/{id}/accounts'),
+    dbRecoveryReadiness: Api.newGet<DbRecoveryReadiness, { id: number; db: string }>('/dbs/{id}/recovery-readiness'),
+    dbDdlPrecheck: Api.newPost<DbDdlPrecheckResult, { id: number; db: string; sql: string }>('/dbs/{id}/ddl-precheck'),
     // 取消自己发起的一次执行（服务端中断，不只是断开 HTTP）
     cancelSqlExec: Api.newPost<void, { execId: string }>('/dbs/cancel-exec'),
     // 取语句的执行计划：与预检同一条切割口径，同样只读（后端不用 ANALYZE，看计划不执行语句）
@@ -92,13 +119,16 @@ export const dbApi = {
     getCompatibleDbVersion: Api.newGet<string>('/dbs/{id}/version'),
     // 采样某列出现过的去重值（编辑器值补全）；方言无分页改写能力时后端报错，调用侧静默降级为无候选
     columnValues: Api.newGet<string[], { id: number; db: string; tableName: string; column: string }>('/dbs/{id}/column-values'),
+    // 敏感列扫描：按列名识别候选，并标出是否已被列保护覆盖
+    scanSensitiveColumns: Api.newGet<SensitiveScanResult, { id: number; db: string }>('/dbs/{id}/sensitive-columns'),
 
     instances: Api.newGet<PageResult<DbInstance>, DbInstanceListParam>('/instances'),
     getInstance: Api.newGet<DbInstance>('/instances/{instanceId}'),
     getAllDatabase: Api.newPost<string[]>('/instances/databases'),
     getDbNamesByAc: Api.newGet<string[]>('/instances/databases/{authCertName}'),
     getInstanceServerInfo: Api.newGet<DbInstanceServerInfo>('/instances/{instanceId}/server-info'),
-    testConn: Api.newPost<void>('/instances/test-conn'),
+    // 测试连接：返回本连接实际协商出的加密状态（available=false 表示读不到，不是未加密）
+    testConn: Api.newPost<ConnTestResult>('/instances/test-conn'),
     saveInstance: Api.newPost<number>('/instances'),
     deleteInstance: Api.newDelete<void>('/instances/{id}'),
 };
@@ -122,6 +152,25 @@ export const dbMaskApi = {
     // 删除脱敏列标签
     deleteMaskColumn: Api.newDelete<void, { id: number }>('/dbs/mask-columns/{id}'),
 };
+export const dbTableAclApi = {
+    // 某库的表访问控制规则
+    list: Api.newGet<DbTableAcl[], { dbId: number }>('/dbs/table-acls'),
+    // 新增规则（同一库同一张表由服务端按表名去重为更新）
+    save: Api.newPost<void, DbTableAclSaveForm>('/dbs/table-acls'),
+    // 更新规则
+    update: Api.newPut<void, DbTableAclSaveForm>('/dbs/table-acls'),
+    // 删除规则
+    remove: Api.newDelete<void, { id: number }>('/dbs/table-acls/{id}'),
+};
+
+export const dbColumnAclApi = {
+    // 某库的列级访问控制规则
+    list: Api.newGet<DbColumnAcl[], { dbId: number }>('/dbs/column-acls'),
+    save: Api.newPost<void, DbColumnAclSaveForm>('/dbs/column-acls'),
+    update: Api.newPut<void, DbColumnAclSaveForm>('/dbs/column-acls'),
+    remove: Api.newDelete<void, { id: number }>('/dbs/column-acls/{id}'),
+};
+
 export const encryptField = async (param: Record<string, unknown>, field: string) => {
     // sql编码处理
     if (!param['_encrypted'] && param[field]) {

@@ -1,10 +1,15 @@
 <template>
     <div class="string-input-container w-full!" v-if="dataType == DataType.String || dataType == DataType.Number">
         <el-input
+            :validate-event="false"
             :ref="
                 (el: unknown) => {
+                    // 只有显式要求 focus 时才聚焦。
+                    // 原写法 `(focus && a) || b` 在 focus=false 时短路到 b，等于「无条件聚焦」：
+                    // 弹窗里每列都聚焦一次，最后一个字段抢到焦点，浏览器为露出它把容器滚到最底部。
+                    if (!focus) return;
                     nextTick(() => {
-                        (focus && (el as InstanceType<typeof ElInput>)?.$el?.querySelector?.('input')?.focus()) || (el as HTMLInputElement)?.focus?.();
+                        (el as InstanceType<typeof ElInput>)?.$el?.querySelector?.('input')?.focus();
                     });
                 }
             "
@@ -31,6 +36,7 @@
     </div>
 
     <el-date-picker
+        :validate-event="false"
         v-else-if="dataType == DataType.Date"
         :ref="
             (el: unknown) => {
@@ -53,6 +59,7 @@
     />
 
     <el-date-picker
+        :validate-event="false"
         v-else-if="dataType == DataType.DateTime"
         :ref="
             (el: unknown) => {
@@ -75,6 +82,7 @@
     />
 
     <el-time-picker
+        :validate-event="false"
         v-else-if="dataType == DataType.Time"
         :ref="
             (el: unknown) => {

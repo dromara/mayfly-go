@@ -5,21 +5,22 @@ import (
 	"errors"
 	"fmt"
 	"mayfly-go/internal/ai/agent/contributor"
+	"mayfly-go/internal/ai/llm"
 	"mayfly-go/internal/ai/session"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/logx"
 	"strings"
 	"sync"
 
-	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 )
 
 // ContextManagerConfig ContextManager 配置
 type ContextManagerConfig struct {
-	SessionManager *session.Manager   // 会话管理器（必需）
-	ChatModel      model.AgenticModel // ChatModel 实例
-	ContextWindow  int                // 模型上下文窗口（token，0 表示未配置）
+	SessionManager *session.Manager // 会话管理器（必需）
+	// ModelProvider 模型访问入口：上下文窗口每轮按当前生效模型读取
+	// （模型配置变更后无需重建 ContextManager）
+	ModelProvider llm.Provider
 	// Registry 贡献者注册中心（可选，nil 时历史降级直读会话管理器）
 	Registry *contributor.Registry
 }
@@ -31,8 +32,7 @@ func DefaultContextManagerConfig() *ContextManagerConfig {
 
 type ContextManager struct {
 	sessionManager *session.Manager      // 会话管理器
-	chatModel      model.AgenticModel    // ChatModel 实例，用于 LLM 调用
-	contextWindow  int                   // 模型上下文窗口（token），供贡献者按窗口调整注入策略
+	modelProvider  llm.Provider          // 模型访问入口（上下文窗口来源）
 	registry       *contributor.Registry // 贡献者注册中心（nil 时历史降级直读会话管理器）
 	mu             sync.RWMutex          // 读写锁，保护并发访问
 }
@@ -48,25 +48,21 @@ func NewContextManager(config *ContextManagerConfig) (*ContextManager, error) {
 		return nil, fmt.Errorf("SessionManager is required")
 	}
 
-	// ChatModel 必须由外部注入（可选）
-	chatModel := config.ChatModel
-
 	cm := &ContextManager{
 		sessionManager: config.SessionManager,
-		chatModel:      chatModel,
-		contextWindow:  config.ContextWindow,
+		modelProvider:  config.ModelProvider,
 		registry:       config.Registry,
 	}
 
 	return cm, nil
 }
 
-// WithChatModel 手动覆盖 ChatModel 实例（可选）
-func (c *ContextManager) WithChatModel(chatModel model.AgenticModel) *ContextManager {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.chatModel = chatModel
-	return c
+// contextWindow 当前模型上下文窗口（token），0 表示未配置
+func (c *ContextManager) contextWindow() int {
+	if c.modelProvider == nil {
+		return 0
+	}
+	return c.modelProvider.ContextWindow()
 }
 
 // GetSessionKey 获取会话Key
@@ -118,10 +114,12 @@ func (c *ContextManager) BuildMessages(ctx context.Context, inputMsgs ...*sessio
 	historyTokens := session.EstimateHistoryTokens(history)
 
 	// 3. mid-turn 紧急压缩（含 preamble 占用口径；逆序单赢家，后注册覆盖内置）
-	if c.contextWindow > 0 && preamble != "" {
+	// 窗口每轮读取当前生效模型（模型配置变更后立即按新窗口计算）
+	contextWindow := c.contextWindow()
+	if contextWindow > 0 && preamble != "" {
 		compacted, info := c.registry.TryMidTurnCompaction(ctx, history, &contributor.MidTurnCompactionParams{
 			SessionKey:     sessionKey,
-			ContextWindow:  c.contextWindow,
+			ContextWindow:  contextWindow,
 			PreambleTokens: preambleTokens,
 			HistoryTokens:  historyTokens,
 		})
@@ -137,10 +135,10 @@ func (c *ContextManager) BuildMessages(ctx context.Context, inputMsgs ...*sessio
 	//（窗口余量提醒等，测量与呈现分离，与压缩决策同口径）
 	footers := c.registry.CollectPreambleFooters(ctx, &contributor.PreambleFooterContext{
 		Budget: &contributor.PreambleBudgetStatus{
-			ContextWindow:        c.contextWindow,
+			ContextWindow:        contextWindow,
 			PreambleTokens:       preambleTokens,
 			HistoryTokens:        historyTokens,
-			ReservedOutputTokens: c.contextWindow / 5,
+			ReservedOutputTokens: contextWindow / 5,
 		},
 	})
 	for _, footer := range footers {

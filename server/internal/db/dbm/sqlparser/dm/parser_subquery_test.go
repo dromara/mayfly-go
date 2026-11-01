@@ -10,7 +10,7 @@ import (
 
 func TestDmSubqueryInFrom(t *testing.T) {
 	sql := "SELECT * FROM (SELECT id, name FROM users WHERE status = 1) AS u WHERE u.id > 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -42,7 +42,7 @@ func TestDmSubqueryInFrom(t *testing.T) {
 
 func TestDmSubqueryInWhere(t *testing.T) {
 	sql := "SELECT * FROM users WHERE id IN (SELECT user_id FROM orders WHERE amount > 100)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -63,7 +63,7 @@ func TestDmSubqueryInWhere(t *testing.T) {
 
 func TestDmSubqueryInSelect(t *testing.T) {
 	sql := "SELECT id, name, (SELECT COUNT(*) FROM orders WHERE orders.user_id = users.id) AS order_count FROM users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -88,7 +88,7 @@ func TestDmSubqueryInSelect(t *testing.T) {
 
 func TestDmNestedSubquery(t *testing.T) {
 	sql := "SELECT * FROM (SELECT * FROM (SELECT id FROM users WHERE status = 1) AS inner_u) AS outer_u WHERE outer_u.id > 5"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -108,7 +108,7 @@ func TestDmNestedSubquery(t *testing.T) {
 
 func TestDmCorrelatedSubquery(t *testing.T) {
 	sql := "SELECT u.id, u.name FROM users u WHERE u.id IN (SELECT o.user_id FROM orders o WHERE o.user_id = u.id AND o.amount > 50)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -129,7 +129,7 @@ func TestDmCorrelatedSubquery(t *testing.T) {
 
 func TestDmSubqueryWithExists(t *testing.T) {
 	sql := "SELECT * FROM users WHERE EXISTS (SELECT 1 FROM orders WHERE orders.user_id = users.id)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -150,7 +150,7 @@ func TestDmSubqueryWithExists(t *testing.T) {
 
 func TestDmMultipleSubqueries(t *testing.T) {
 	sql := "SELECT * FROM users WHERE id IN (SELECT user_id FROM orders) AND department_id IN (SELECT id FROM departments WHERE name = 'IT')"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -171,7 +171,7 @@ func TestDmMultipleSubqueries(t *testing.T) {
 
 func TestDmSubqueryWithLimit(t *testing.T) {
 	sql := "SELECT * FROM (SELECT id, name FROM users ORDER BY created_at DESC LIMIT 10) AS top_users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -201,7 +201,7 @@ func TestDmComplexSubquery(t *testing.T) {
 		AND u.id IN (SELECT user_id FROM user_groups WHERE group_id = 5)
 	ORDER BY u.name`
 
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -237,7 +237,7 @@ func TestDmComplexSubquery(t *testing.T) {
 
 func TestDmMultipleJoins(t *testing.T) {
 	sql := "SELECT u.id, o.amount, p.name FROM users u LEFT JOIN orders o ON u.id = o.user_id INNER JOIN products p ON o.product_id = p.id WHERE u.status = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -268,7 +268,7 @@ func TestDmMultipleJoins(t *testing.T) {
 
 func TestDmRightJoin(t *testing.T) {
 	sql := "SELECT * FROM users u RIGHT JOIN orders o ON u.id = o.user_id"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -283,7 +283,7 @@ func TestDmRightJoin(t *testing.T) {
 
 func TestDmCrossJoin(t *testing.T) {
 	sql := "SELECT * FROM users CROSS JOIN roles"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)

@@ -39,7 +39,12 @@ func (a *configAppImpl) GetPageList(condition *entity.Config, pageParam model.Pa
 
 func (a *configAppImpl) Save(ctx context.Context, config *entity.Config) error {
 	if config.Id == 0 {
-		return a.Insert(ctx, config)
+		if err := a.Insert(ctx, config); err != nil {
+			return err
+		}
+		// 新建即生效：通知订阅者按新值刷新运行时
+		notifyConfigChanged(ctx, config.Key)
+		return nil
 	}
 
 	oldConfig := a.GetConfig(config.Key)
@@ -52,6 +57,8 @@ func (a *configAppImpl) Save(ctx context.Context, config *entity.Config) error {
 	}
 
 	cache.Del(SysConfigKeyPrefix + config.Key)
+	// 缓存已失效 → 钩子内 GetConfig 读到新值；异步执行不阻塞保存
+	notifyConfigChanged(ctx, config.Key)
 	return nil
 }
 

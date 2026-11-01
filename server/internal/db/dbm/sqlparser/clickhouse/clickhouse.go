@@ -19,7 +19,7 @@ func (*ClickhouseParser) Parse(stmt string) (result sqlstmt.Stmt, err error) {
 			err = fmt.Errorf("clickhouse sql parse failed: %v", e)
 		}
 	}()
-	return NewParser(stmt).Parse()
+	return newParser(stmt).Parse()
 }
 
 // RewritePagination ClickHouse 分页改写：LIMIT count OFFSET offset

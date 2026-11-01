@@ -11,8 +11,13 @@ type DbSQLExec struct {
 	DbId  uint64        `json:"dbId" gorm:"not null;"`
 	Db    string        `json:"db" gorm:"size:150;not null;"`
 	Table string        `json:"table" gorm:"size:150;"`
-	Type  DbSQLExecType `json:"type" gorm:"not null;"`                     // 类型
-	SQL   string        `json:"sql" gorm:"column:sql;size:5000;not null;"` // 执行的sql
+	Type  DbSQLExecType `json:"type" gorm:"not null;"` // 类型
+	// SQL 执行的语句原文。
+	//
+	// 必须是 mediumtext：单条语句超过 5000 字符（批量 INSERT、长 DDL）时 varchar(5000) 会让
+	// 整条审计记录写不进去，而失败只落一条 error 日志——表现是「SQL 执行了、审计里查不到」。
+	// 写入侧另有 truncateForAudit 兜住病态长度（见 sqlexec），这里只解决存不下。
+	SQL string `json:"sql" gorm:"column:sql;type:mediumtext;not null;"` // 执行的sql
 	// OldValue 执行前采集的行级旧值（UPDATE=变更列+主键，DELETE=整行），回滚与审计的数据源。
 	// 用 mediumtext 而非 varchar：上限 200 行的行级 JSON 轻易超过 varchar(5000)，
 	// 超限时记录整体写不进去——连审计都会一起丢，而回滚能力本身也依赖它

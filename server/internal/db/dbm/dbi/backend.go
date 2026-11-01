@@ -118,6 +118,23 @@ func UnregisterInstanceConn(instanceId uint64, connId string) {
 	}
 }
 
+// ForgetInstanceConns 摘掉实例到连接的全部映射并返回被摘掉的 connId（调用方据此关池）。
+//
+// 与 UnregisterInstanceConn 的区别是「先摘后关」的顺序保证：关闭连接池前就要把索引清干净，
+// 否则一旦关闭过程中出错（或调用方走的是「取到连接才注销」的老路），索引里会残留死 connId，
+// 后续每次重建连接都多扫一条永远指不到实体的记录。
+func ForgetInstanceConns(instanceId uint64) []string {
+	if instanceId == 0 {
+		return nil
+	}
+	instanceIndexMu.Lock()
+	connIds := make([]string, len(instanceIndex[instanceId]))
+	copy(connIds, instanceIndex[instanceId])
+	delete(instanceIndex, instanceId)
+	instanceIndexMu.Unlock()
+	return connIds
+}
+
 // GetConnIdsByInstance 获取实例ID关联的所有连接ID
 func GetConnIdsByInstance(instanceId uint64) []string {
 	instanceIndexMu.RLock()

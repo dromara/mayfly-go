@@ -87,3 +87,39 @@ func (m *MetadataReader) CancelSession(ctx context.Context, id string) error {
 	}
 	return si.CancelSession(ctx, id)
 }
+
+// SlowQueries 代理方言的慢查询聚合能力；方言未实现则返回 ErrUnsupportedKind。
+func (m *MetadataReader) SlowQueries(ctx context.Context, limit int) ([]*SlowQuery, error) {
+	si, ok := m.provider.(SlowQueryInspector)
+	if !ok {
+		return nil, fmt.Errorf("%w: slow_query", ErrUnsupportedKind)
+	}
+	return si.SlowQueries(ctx, limit)
+}
+
+// LockWaits 代理方言的锁等待链能力；方言未实现则返回 ErrUnsupportedKind。
+func (m *MetadataReader) LockWaits(ctx context.Context) ([]*LockWait, error) {
+	li, ok := m.provider.(LockWaitInspector)
+	if !ok {
+		return nil, fmt.Errorf("%w: lock_wait", ErrUnsupportedKind)
+	}
+	return li.LockWaits(ctx)
+}
+
+// RecoveryReadiness 代理到方言的恢复能力探测（未声明 FeatRecovery 的方言返回不支持）
+func (m *MetadataReader) RecoveryReadiness(ctx context.Context) (*RecoveryReadiness, error) {
+	inspector, ok := m.provider.(RecoveryInspector)
+	if !ok {
+		return nil, ErrUnsupportedKind
+	}
+	return inspector.RecoveryReadiness(ctx)
+}
+
+// Accounts 代理到方言的账号盘点（未声明 FeatAccounts 的方言返回不支持）
+func (m *MetadataReader) Accounts(ctx context.Context) ([]*AccountInfo, error) {
+	inspector, ok := m.provider.(AccountInspector)
+	if !ok {
+		return nil, ErrUnsupportedKind
+	}
+	return inspector.Accounts(ctx)
+}

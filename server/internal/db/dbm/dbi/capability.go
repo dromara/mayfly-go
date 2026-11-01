@@ -1,6 +1,10 @@
 package dbi
 
-import "sort"
+import (
+	"sort"
+
+	"mayfly-go/internal/pkg/tlsx"
+)
 
 // MetadataFeature 方言的静态能力维度。
 //
@@ -37,6 +41,35 @@ const (
 	// FeatExplain 执行计划分析能力（实现了 ExplainAnalyzer 才声明）。
 	// 同为非对象类能力，不参与 ObjectKindFeatures，由 boundary_test.go 的探测表将「声明」钉到「实现」
 	FeatExplain
+	// FeatTLS 连接加密能力：仅当方言真实支持至少一个 TLS 档位时声明，
+	// 支持的档位由 MetadataCapabilities.TLSModes 列出（声明⟺档位非空，由 dbm 护栏测试把守）。
+	//
+	// 与其它扩展能力一样默认不支持：TLS 的证书传递方式在各方言差异极大
+	// （内存 tls.Config / 只接受文件路径 / 仅客户端证书），默认声明为「支持」必然谎报
+	FeatTLS
+	// FeatSlowQuery 慢查询聚合能力（实现了 SlowQueryInspector 才声明）。
+	//
+	// 与 FeatSessions 分开：会话内省普遍可得，而慢查询依赖 performance_schema 的
+	// statements_summary / pg_stat_statements 扩展——「能看会话」不代表「能看到历史慢查询」
+	FeatSlowQuery
+	// FeatLockWait 锁等待链能力（实现了 LockWaitInspector 才声明）。
+	// 单独成能力：有的方言能给等锁计数却拼不出「等待方 → 阻塞方」的关系
+	FeatLockWait
+	// FeatRecovery 能探测「这台库能否做时间点恢复、能回溯到哪」（实现了 RecoveryInspector 才声明）。
+	//
+	// 与 FeatSessions 等运行态能力分开：PITR 的前提是数据库侧归档开关（binlog / WAL archive），
+	// 那是部署形态的事实，读不到时只能给「不可用 + 原因」，不能退化成「没有备份」
+	FeatRecovery
+	// FeatAccounts 能盘点实例上的账号与高危标志（实现了 AccountInspector 才声明）。
+	//
+	// 与 FeatSessions 分开：会话是运行态、多数账号可读；账号表属系统库，
+	// 普通账号常被拒绝（MySQL 的 mysql.user 尤其如此），读不到要能明确说出来
+	FeatAccounts
+	// FeatTLSStatus 能读取「本连接实际协商出的加密状态」（实现了 TLSStatusInspector 才声明）。
+	//
+	// 与 FeatTLS 相互独立：能建 TLS 连接不等于能证明当下这条连接确实加密了
+	// （配置写 verify-full、库侧回落明文仍可能接通），验收要的是后者。
+	FeatTLSStatus
 )
 
 // allStaticFeatures 核心静态能力集合。DefaultBackend 默认视为「全支持」，能力不足的方言经 Without 删减。
@@ -64,7 +97,13 @@ var featureNames = map[MetadataFeature]string{
 	FeatTriggers:           string(KindTrigger),
 	FeatTableRelations:     "relation",
 	FeatSessions:           "sessions",
+	FeatSlowQuery:          "slow_query",
+	FeatLockWait:           "lock_wait",
+	FeatRecovery:           "recovery",
+	FeatAccounts:           "accounts",
 	FeatExplain:            "explain",
+	FeatTLS:                "tls",
+	FeatTLSStatus:          "tls_status",
 }
 
 // featureByName 由 featureNames 反向构建，避免手写两份映射而漂移。
@@ -109,6 +148,13 @@ type MetadataCapabilities struct {
 	features map[MetadataFeature]bool
 
 	NamespaceHierarchy NamespaceHierarchy
+
+	// TLSModes 该方言真实支持的连接加密档位（空表示不支持 TLS）。
+	//
+	// 与 FeatTLS 是同一事实的两种表达：Has(FeatTLS) 供前端/护栏做布尔判定，
+	// TLSModes 供保存期校验与表单渲染档位下拉。二者必须同时成立，
+	// 由 dbm 的护栏测试把守「声明了 FeatTLS 就必须至少有一个档位」。
+	TLSModes []tlsx.Mode
 }
 
 // NewCapabilities 以「支持的能力列表」构造：列出的即支持，未列即不支持。
@@ -134,7 +180,7 @@ func (c MetadataCapabilities) Without(fs ...MetadataFeature) MetadataCapabilitie
 	for _, f := range fs {
 		m[f] = false
 	}
-	return MetadataCapabilities{features: m, NamespaceHierarchy: c.NamespaceHierarchy}
+	return MetadataCapabilities{features: m, NamespaceHierarchy: c.NamespaceHierarchy, TLSModes: c.TLSModes}
 }
 
 // With 返回追加指定能力后的副本（方言声明「我真实支持这些扩展对象能力」，须已实现对应内省接口）。
@@ -147,7 +193,34 @@ func (c MetadataCapabilities) With(fs ...MetadataFeature) MetadataCapabilities {
 	for _, f := range fs {
 		m[f] = true
 	}
-	return MetadataCapabilities{features: m, NamespaceHierarchy: c.NamespaceHierarchy}
+	return MetadataCapabilities{features: m, NamespaceHierarchy: c.NamespaceHierarchy, TLSModes: c.TLSModes}
+}
+
+// WithTLSModes 声明该方言支持的连接加密档位，并同步置上 FeatTLS。
+//
+// 两个事实必须一起写：只给档位不给能力位，前端不会渲染 TLS 入口；
+// 只给能力位不给档位，保存期校验就没有合法集合可依据（护栏测试会直接判红）。
+// 与其它建造者一样返回新值；Without/With 都透传 TLSModes，故调用顺序不影响结果。
+func (c MetadataCapabilities) WithTLSModes(modes ...tlsx.Mode) MetadataCapabilities {
+	c.TLSModes = append([]tlsx.Mode(nil), modes...)
+	if len(c.TLSModes) > 0 {
+		c = c.With(FeatTLS)
+	}
+	return c
+}
+
+// SupportsTLSMode 该方言是否声明支持指定档位。
+// disable（含空值）恒定可用——明文是每个方言都具备的能力，不需要声明。
+func (c MetadataCapabilities) SupportsTLSMode(mode tlsx.Mode) bool {
+	if !mode.Encrypted() {
+		return true
+	}
+	for _, m := range c.TLSModes {
+		if m == mode {
+			return true
+		}
+	}
+	return false
 }
 
 // WithNamespace 返回补充命名空间层次声明后的副本。

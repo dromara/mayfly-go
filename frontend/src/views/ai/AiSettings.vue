@@ -14,6 +14,8 @@
             <el-form label-position="top" v-loading="state.loading">
                 <!-- 主模型（AiModelConfig.value 顶层字段） -->
                 <el-divider content-position="left">{{ $t('ai.settings.modelSection') }}</el-divider>
+                <!-- 热生效口径：保存即刷新运行时，正在跑的轮次不受影响 -->
+                <div class="section-tip">{{ $t('ai.settings.modelHotReloadTip') }}</div>
                 <el-row :gutter="16">
                     <el-col :xs="24" :md="12">
                         <el-form-item :label="$t('system.sysconf.aiModel')" required>
@@ -123,6 +125,7 @@
 
                 <!-- Agent 运行时（AiAgentConfig.value.toolSearchThreshold） -->
                 <el-divider content-position="left">{{ $t('ai.settings.agentSection') }}</el-divider>
+                <div class="section-tip">{{ $t('ai.settings.agentHotReloadTip') }}</div>
                 <el-row :gutter="16">
                     <el-col :xs="24" :sm="12" :lg="8">
                         <el-form-item :label="$t('ai.settings.toolSearchThreshold')">
@@ -218,7 +221,7 @@ const load = async () => {
         state.modelRow = modelRes.list?.[0] ?? null;
         state.agentRow = agentRes.list?.[0] ?? null;
 
-        // value 解析失败按空配置处理（与 sysconfig.ts getAiModelConfig 容错一致）
+        // value 解析失败按空配置处理（与后端 config.GetModel 的容错口径一致）
         const parseValue = (row: SysConfig | null): Record<string, unknown> => {
             try {
                 return row?.value ? JSON.parse(row.value) : {};
@@ -263,8 +266,17 @@ const load = async () => {
     }
 };
 
+/**
+ * 保存一行系统配置。
+ *
+ * permission 固定为 admin,（与 Oauth2Login / DbmsConfig 等管理类配置同口径）：
+ * ① 这两行只由本页维护，权限里不含管理员的配置行会被管理页的权限过滤挡掉；
+ * ② 行权限为空时本页回显不到它，于是每次保存都走新增分支再插一行，后端按 key
+ *    取首行永远读到最旧值 —— Agent 配置的修改会静默不生效；
+ * ③ 模型配置含 apiKey，不能用 all，否则免鉴权的公开 value 接口会原样下发密钥。
+ */
 const saveConfig = async (row: SysConfig | null, key: string, name: string, value: Record<string, unknown>) => {
-    const payload: Record<string, unknown> = { key, name, value: JSON.stringify(value) };
+    const payload: Record<string, unknown> = { key, name, permission: 'admin,', value: JSON.stringify(value) };
     if (row?.id) {
         payload.id = row.id;
     }
@@ -359,6 +371,14 @@ onMounted(load);
 :deep(.el-form-item__content) .form-tip {
     width: 100%;
     margin-top: 2px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--el-text-color-secondary);
+}
+
+/* 分组级说明（如热生效口径）：贴在分组标题下方，不占用表单项宽度 */
+.section-tip {
+    margin: -4px 0 12px;
     font-size: 12px;
     line-height: 1.6;
     color: var(--el-text-color-secondary);

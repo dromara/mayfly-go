@@ -300,6 +300,8 @@ export default {
             toolSearchThresholdPlaceholder: '工具总量超过该值时 MCP 工具转按需发现加载（tool_search），0 禁用',
             modelRequired: '主模型不能为空（协议/模型名）',
             agentConfig: 'Agent 运行时配置',
+            modelHotReloadTip: '保存后立即生效：下一轮对话、会话摘要与长期记忆提取都会切换到新配置，正在进行的对话不受影响',
+            agentHotReloadTip: '保存后下一轮对话生效（工具清单在下一轮按新阈值重新装配）',
         },
     },
 };

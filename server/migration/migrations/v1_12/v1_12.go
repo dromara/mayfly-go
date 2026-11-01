@@ -23,7 +23,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// Migrations v1.12 全版本迁移链，按领域分节组织；v1.12.2 批次在同目录 v1_12_2.go。
+// Migrations v1.12 全版本迁移链，按领域分节组织；v1.12.2 批次在同目录 v1_12_2.go，
+// v1.12.3 批次在同目录 v1_12_3.go。
 // 应用版本未升级时，新增迁移收口在对应版本的批次文件（沿用当前版本前缀），不另建批次或大版本目录。
 // 所有迁移均幂等设计：重复执行安全（按 id / code / column 查重后跳过）。
 // 原生 SQL 只能用 MySQL 与 SQLite 的方言交集：时间一律 Go 侧传参，禁止 NOW()/CONCAT() 等单方言函数。
@@ -757,9 +758,9 @@ func Migrations() []*gormigrate.Migration {
 		},
 	}
 
-	// v1.12.2 批次（AgentOps 模块与配套 AI 会话隔离）接在本版本条目之后，
-	// 与发布顺序一致；已发布的 v1.12.0/v1.12.1 条目不得改动顺序与 ID
-	return append(ms, v1122()...)
+	// v1.12.2 批次（AgentOps 模块与配套 AI 会话隔离）与 v1.12.3 批次（DB 实例 TLS 证书列）
+	// 依次接在本版本条目之后，与发布顺序一致；已发布的 v1.12.0/v1.12.1 条目不得改动顺序与 ID
+	return append(append(ms, v1122()...), v1123()...)
 }
 
 // flowRuleSegmentResources 可复用条件组的菜单与按钮权限资源

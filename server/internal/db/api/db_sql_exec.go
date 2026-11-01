@@ -4,13 +4,17 @@ import (
 	"fmt"
 	"io"
 	"mayfly-go/internal/db/api/form"
+	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/application/sqlexec"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/imsg"
+	tagapp "mayfly-go/internal/tag/application"
+	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/writerx"
@@ -23,6 +27,9 @@ import (
 
 type DbSQLExec struct {
 	dbSQLExecApp sqlexec.DbSQLExec `inject:"T"`
+	// 执行记录含 SQL 原文与行级旧/新值，读取面必须按账号可达的库收敛
+	tagApp tagapp.TagTreeReader `inject:"T"`
+	dbApp  application.Db       `inject:"T"`
 }
 
 func (d *DbSQLExec) ReqConfs() *req.Confs {
@@ -118,6 +125,19 @@ func (d *DbSQLExec) DbSQLExecs(rc *req.Ctx) {
 			return cast.ToInt8(val)
 		})
 	}
+
+	// 资源范围收敛：先按账号可达的库解析出 dbId 集合，再交给仓储层过滤。
+	// 此前本接口只校验「已登录」，任何人传个 dbId（甚至不传）就能分页拉全平台的
+	// SQL 原文与行级旧值/新值——这是本模块最直接的数据外泄面。
+	codes := d.tagApp.GetAccountResourceCodes(rc.GetLoginAccount().Id, "", tagentity.TagTypeDb)
+	if len(codes) == 0 {
+		rc.ResData = model.NewEmptyPageResult[*entity.DbSQLExec]()
+		return
+	}
+	dbs, err := d.dbApp.ListByCond(model.NewCond().In("code", codes), "id")
+	biz.ErrIsNil(err)
+	queryCond.ScopeDbIds = collx.ArrayMap(dbs, func(db *entity.Db) uint64 { return db.Id })
+
 	res, err := d.dbSQLExecApp.GetPageList(queryCond)
 	biz.ErrIsNil(err)
 	rc.ResData = res

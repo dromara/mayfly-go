@@ -89,7 +89,7 @@ func exportQuery(ctx context.Context, app *DbSQLExecAppImpl, conn *dbi.DbConn, r
 	}
 	stmtType := sqlparser.Classify(parser, splitter, sql, stmt, parseErr)
 	switch stmtType {
-	case sqlstmt.StmtTypeSelect, sqlstmt.StmtTypeOther:
+	case sqlstmt.StmtTypeSelect, sqlstmt.StmtTypeOtherRead:
 		// 只读语句允许导出；其余（写语句、DDL）在下面被拒
 	default:
 		return errorx.NewBizI(ctx, imsg.ErrQueryExportReadOnlyOnly, "type", string(stmtType))
@@ -98,6 +98,14 @@ func exportQuery(ctx context.Context, app *DbSQLExecAppImpl, conn *dbi.DbConn, r
 	// 与交互执行同一道策略闸门：导出用的也是这条 SELECT，策略既然管住了执行就必须管住导出
 	if _, err := app.checkSqlsWithoutTicket(ctx, conn, conn.Info.CodePath, conn.GetDialect(), []string{sql}); err != nil {
 		return err
+	}
+
+	// 列级权限：导出产物不允许静默缺列，显式列按列判，星号要求整表可读
+	if app.tableAcl != nil {
+		tables, _ := sqlTriggerFacts(sql, stmt)[dbFieldTargetTables].([]string)
+		if err := app.tableAcl.AssertExportAllowed(ctx, conn.Info.Id, tables, stmt); err != nil {
+			return err
+		}
 	}
 
 	// 到这里才认为这次导出真的会写产物：校验失败一律在上面返回
@@ -115,6 +123,9 @@ func exportQuery(ctx context.Context, app *DbSQLExecAppImpl, conn *dbi.DbConn, r
 
 	tableName := conn.Info.Database
 	batch := make([][]any, 0, exportBatchRows)
+	// 与 dbm/export 同口径的字节预算：只按行数截断时，「500 行大 blob/text」会把
+	// 整批原始值同时留在内存里（dbm/export 走 8MB 双预算，此处此前只有行数）
+	pendingBytes := 0
 	columns := make([]dbi.Column, 0, 16)
 	keyNames := make([]string, 0, 16)
 	// begun 标记格式头部是否已写出：Begin 需要列信息，而列信息要等第一行
@@ -131,6 +142,7 @@ func exportQuery(ctx context.Context, app *DbSQLExecAppImpl, conn *dbi.DbConn, r
 		}
 		written += int64(len(batch))
 		batch = batch[:0]
+		pendingBytes = 0
 		if progress != nil {
 			progress(written)
 		}
@@ -164,8 +176,9 @@ func exportQuery(ctx context.Context, app *DbSQLExecAppImpl, conn *dbi.DbConn, r
 		for _, key := range keyNames {
 			values = append(values, row[key])
 		}
+		pendingBytes += estimateRowBytes(values)
 		batch = append(batch, values)
-		if len(batch) >= exportBatchRows {
+		if len(batch) >= exportBatchRows || pendingBytes >= export.DefaultBatchBytes {
 			return flush()
 		}
 		return nil
@@ -227,4 +240,25 @@ func queryColumnKey(column *dbi.QueryColumn) string {
 		return column.Key
 	}
 	return column.Name
+}
+
+// estimateRowBytes 估算一行原始值占用的字节量（只用于批预算，不追求精确）。
+//
+// 与 dbm/export 的 rowBytes 同口径：字符串按字节长度、二进制按长度、其它按固定开销，
+// 目的只是让「单行超大的结果集」也能按字节而不是行数切批。
+func estimateRowBytes(values []any) int {
+	total := 0
+	for _, v := range values {
+		switch x := v.(type) {
+		case nil:
+			total += 4
+		case string:
+			total += len(x)
+		case []byte:
+			total += len(x)
+		default:
+			total += 16
+		}
+	}
+	return total
 }

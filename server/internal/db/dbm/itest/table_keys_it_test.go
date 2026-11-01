@@ -96,6 +96,40 @@ func TestITPgTableKeys(t *testing.T) {
 	assertKeyColumnOrder(t, keys, dbi.KeyTypeUnique, []string{"x", "y"})
 }
 
+// SQL Server：主键/唯一键内省（表编辑撤销主键要依赖这里返回的约束名）。
+//
+// 建表列顺序 (b,a,y,x) 与键声明顺序 (a,b)/(x,y) 相反，可验出「按表内位置排序」的退化实现；
+// 约束名必须原样返回——pg/mssql 没有 DROP PRIMARY KEY，撤销主键只能按名字 DROP CONSTRAINT。
+func TestITMssqlTableKeys(t *testing.T) {
+	conn := gcMssqlConn(t)
+	defer conn.Close()
+	table := "it_t_keys"
+	q := conn.GetDialect().Quoter().QuoteIdent
+	defer func() { _, _ = conn.Exec("DROP TABLE IF EXISTS " + q(table)) }()
+	mustExec(t, conn, "DROP TABLE IF EXISTS "+q(table))
+	mustExec(t, conn, "CREATE TABLE "+q(table)+
+		" ([b] int, [a] int, [y] int, [x] int, CONSTRAINT [pk_ab] PRIMARY KEY ([a],[b]), CONSTRAINT [uk_xy] UNIQUE ([x],[y]))")
+
+	keys, err := conn.Metadata().GetKeys(context.Background(), "dbo", table)
+	require.NoError(t, err)
+
+	var pk *dbi.KeyConstraint
+	for i := range keys {
+		if keys[i].Type == dbi.KeyTypePrimary {
+			pk = &keys[i]
+		}
+	}
+	require.NotNil(t, pk, "应存在主键，实际=%+v", keys)
+	assert.Equal(t, "pk_ab", pk.Name, "约束名必须原样返回，表编辑靠它 DROP CONSTRAINT")
+	require.Len(t, pk.Columns, 2)
+	assert.Equal(t, "a", pk.Columns[0].Name)
+	assert.Equal(t, "b", pk.Columns[1].Name)
+	assert.Equal(t, 1, pk.Columns[0].Ordinal)
+	assert.Equal(t, 2, pk.Columns[1].Ordinal)
+
+	assertKeyColumnOrder(t, keys, dbi.KeyTypeUnique, []string{"x", "y"})
+}
+
 // 无主键表：GetKeys 应返回不含主键的结果（不报错、不虚构）。
 func TestITMysqlTableKeysNoPk(t *testing.T) {
 	conn := mysqlConn(t)

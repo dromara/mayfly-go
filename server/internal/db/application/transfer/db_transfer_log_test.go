@@ -9,6 +9,8 @@ package transfer
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -214,4 +216,35 @@ func TestCreateLogPurposeDistinguishesRunKind(t *testing.T) {
 	assert.Equal(t, entity.DbTransferLogPurposeVerify, vlog.Purpose)
 	assert.Equal(t, 2, vlog.TableCount, "校验表数未落库")
 	assert.Equal(t, int64(12), vlog.TotalRows, "校验涉及行数未落库")
+}
+
+// TestLogConcurrentAppendsDoNotLoseLines 并发追加运行日志不得丢行。
+//
+// 多表并发迁移时 Log() 会被多个协程同时调用，而缓存里的 RunLog 是「整串读—追加—写回」：
+// 不加锁会后写覆盖前写，丢行不可恢复（且任务状态仍显示成功）。
+func TestLogConcurrentAppendsDoNotLoseLines(t *testing.T) {
+	db := setupTransferLogDb(t)
+	app := newLogTestApp()
+	ctx := context.TODO()
+
+	task := newTestTask(t, db)
+	logId := insertRunningLog(t, db, task.Id)
+	app.setTransferLog(logId, getLog(t, db, logId))
+
+	const n = 200
+	var wg sync.WaitGroup
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			app.Log(ctx, logId, fmt.Sprintf("line-%d", i))
+		}(i)
+	}
+	wg.Wait()
+
+	final := app.getTransferLog(logId)
+	require.NotNil(t, final)
+	for i := 0; i < n; i++ {
+		require.Contains(t, final.RunLog, fmt.Sprintf("line-%d", i), "并发追加丢行：line-%d 缺失", i)
+	}
 }

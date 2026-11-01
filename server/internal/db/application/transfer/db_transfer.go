@@ -4,9 +4,11 @@ import (
 	"archive/zip"
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"mayfly-go/internal/db/application/dto"
+	"mayfly-go/internal/db/application/transfer/backupenc"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/export"
 	"mayfly-go/internal/db/domain/entity"
@@ -97,8 +99,9 @@ type DbTransferAppImpl struct {
 	// cpStore 检查点存储：默认为gorm实现，测试可替换为内存实现
 	cpStore checkpointStore
 
-	// pipeline 迁移流水线（惰性初始化，策略注册表模式）
-	pipeline *TransferPipeline
+	// pipeline 迁移流水线（惰性初始化，策略注册表模式）；pipelineOnce 保证并发初始化安全
+	pipeline     *TransferPipeline
+	pipelineOnce sync.Once
 }
 
 // getCheckpointStore 获取检查点存储（惰性构建gorm实现）
@@ -111,11 +114,12 @@ func (app *DbTransferAppImpl) getCheckpointStore() checkpointStore {
 
 // getPipeline 获取迁移流水线（惰性初始化，注册所有内置策略）
 func (app *DbTransferAppImpl) getPipeline() *TransferPipeline {
-	if app.pipeline != nil {
-		return app.pipeline
-	}
-	registry := DefaultTransferStrategyRegistry(app)
-	app.pipeline = NewTransferPipeline(registry)
+	// 用 sync.Once 而非裸判空：并发守卫是 per-taskId 的，两个不同任务同时启动时
+	// 会并发进入这里，裸写 app.pipeline 是数据竞争（-race 可复现），
+	// 且可能让其中一个 goroutine 读到半初始化的 pipeline（策略注册表为空 → 误报"模式不支持"）。
+	app.pipelineOnce.Do(func() {
+		app.pipeline = NewTransferPipeline(DefaultTransferStrategyRegistry(app))
+	})
 	return app.pipeline
 }
 
@@ -216,7 +220,10 @@ func (app *DbTransferAppImpl) Run(ctx context.Context, taskId uint64) (uint64, e
 	task.LogId = logId
 	task.RunningState = entity.DbTransferTaskRunStateRunning
 	if err = app.UpdateById(ctx, task); err != nil {
-		app.runGuard.Release(taskId)
+		// 日志行已创建（Status=Running）：这里直接 return 会让它永久停在"执行中"，
+		// 前端一直显示运行中、也收不到失败通知（只有进程重启的 ResetStaleRunningLogs 才兜底）。
+		// EndTransfer 负责把日志落成失败终态并释放守卫。
+		app.EndTransfer(ctx, logId, taskId, "start transfer task failed", err, nil)
 		return logId, err
 	}
 
@@ -268,7 +275,18 @@ func (app *DbTransferAppImpl) Run(ctx context.Context, taskId uint64) (uint64, e
 			Tables:  tables,
 		}
 		if err := app.getPipeline().Execute(ctx, pctx); err != nil {
-			app.EndTransfer(ctx, logId, taskId, "unsupported transfer mode", err, nil)
+			// 只有「模式未注册」才是真正的 unsupported；其余 error 是策略自己失败返回的。
+			// 原实现对所有 error 都按"不支持的模式"收尾，会把真实原因覆盖成误导性文案。
+			var unsupported *UnsupportedModeError
+			if errors.As(err, &unsupported) {
+				app.EndTransfer(ctx, logId, taskId, "unsupported transfer mode", err, nil)
+				return
+			}
+			// 现有策略都是「void + 内部 EndTransfer」：这里再收尾一次会重复写终态、重复发通知。
+			// 仅当策略改为「只返回 error、内部不收尾」（日志仍停在 Running）时才补收尾 —— 两种实现都安全。
+			if log := app.getTransferLog(logId); log == nil || log.Status == entity.DbTransferLogStatusRunning {
+				app.EndTransfer(ctx, logId, taskId, "transfer failed", err, nil)
+			}
 			return
 		}
 	}, func(panicErr error) {
@@ -356,12 +374,11 @@ func (app *DbTransferAppImpl) transfer2Db(ctx context.Context, logId uint64, tas
 		progressMu.Lock()
 		rows := totalRows
 		progressMu.Unlock()
-		log := app.getTransferLog(logId)
-		if log != nil {
+		// 与 Log 共用同一把按 logId 的锁：否则并发时后写会覆盖刚追加的运行日志行
+		app.mutateTransferLog(logId, func(log *entity.DbTransferLog) {
 			log.TableCount = len(tableNames)
 			log.TotalRows = rows
-			app.setTransferLog(logId, log)
-		}
+		})
 	}
 	updateProgress()
 
@@ -613,7 +630,6 @@ func (app *DbTransferAppImpl) transfer2File(ctx context.Context, logId uint64, t
 		app.EndTransfer(ctx, logId, taskId, "create file error", err, nil)
 		return
 	}
-
 	// 从tables提取表名
 	tableNames := collx.ArrayMap(tables, func(t dbi.Table) string { return t.TableName })
 	// 2、把源库数据迁移到文件
@@ -625,7 +641,8 @@ func (app *DbTransferAppImpl) transfer2File(ctx context.Context, logId uint64, t
 		// transfer2File的行数统计：DumpDbScript每表dataCount从0重新计数，
 		// 用lastStmtCount差值法跨表累加（与transfer2Db同理）
 		var fileTotalRows int64
-		lastStmtCount := 0
+		// 按表记录最新累计行数（并发安全、幂等），替代共享 lastStmtCount 差值法
+		rowCounter := newTableRowCounter()
 
 		// defer LIFO下注册越靠后执行越早，以下注册顺序确保实际执行顺序为：
 		// panic捕获 → 关闭/保存文件 → 任务与文件状态收尾
@@ -655,10 +672,38 @@ func (app *DbTransferAppImpl) transfer2File(ctx context.Context, logId uint64, t
 			}
 		}()
 
+		// 关闭并保存物理文件的 defer 必须最先注册（LIFO 下最后执行）：
+		// 它同时负责失败路径上删除孤儿文件。若放在加密器创建之后，NewWriter 失败（如未配置 aes.key）
+		// 会直接 return，已打开的文件句柄与空文件就无人回收。
 		// closeFunc自身失败（关闭/上传/保存新文件失败并已删除物理文件）也必须并入err
 		defer func() {
 			if closeErr := closeFunc(&err); closeErr != nil && err == nil {
 				err = fmt.Errorf("failed to close and save the transfer file: %w", closeErr)
+			}
+		}()
+
+		// 落盘加密必须在本协程内创建并收尾。
+		//
+		// 加密器包在压缩器外层：磁盘上是「密文（含压缩后的数据）」，下载与恢复侧透明解密；
+		// 未配置 aes.key 时直接失败——宁可不产出备份，也不落一份「看起来加密了」的明文。
+		//
+		// 作用域是关键：此前在外层函数创建并 defer Close，而写数据在 gox.Go 协程里。
+		// 外层函数返回时先执行 Close（写出 0 长度终止块），协程随后写入的数据排在终止块之后，
+		// 恢复端读到 size==0 即 EOF —— 备份文件恢复出来是空库，状态却标成功。
+		// 现在按 LIFO 注册顺序保证执行顺序为：zip 收尾 → 加密终止块 → 关闭保存文件 → 落状态。
+		encWriter, encErr := backupenc.NewWriter(writer)
+		if encErr != nil {
+			err = fmt.Errorf("initialize backup encryption: %w", encErr)
+			return
+		}
+		writer = encWriter
+
+		// 加密器收尾必须在此注册（晚于 closeFunc → LIFO 下先执行）：
+		// 顺序是 zip 收尾 → 写加密终止块 → 关闭保存物理文件。若反过来，文件先被关闭保存，
+		// 终止块写不进去，恢复端读不到结束标记（表现为备份不可恢复）。
+		defer func() {
+			if closeErr := encWriter.Close(); closeErr != nil && err == nil {
+				err = fmt.Errorf("failed to finalize backup encryption: %w", closeErr)
 			}
 		}()
 		defer gox.Recover(func(e error) {
@@ -698,16 +743,11 @@ func (app *DbTransferAppImpl) transfer2File(ctx context.Context, logId uint64, t
 			Log: func(msg string) { // 记录日志
 				app.Log(ctx, logId, msg)
 			},
-			Progress: func(currentTable string, stmtType dbi.DumpKind, stmtCount int, currentStmtTypeEnd bool) {
-				if stmtType == dbi.DumpKindInsert {
-					if stmtCount < lastStmtCount {
-						lastStmtCount = 0
-					}
-					if stmtCount > lastStmtCount {
-						atomic.AddInt64(&fileTotalRows, int64(stmtCount-lastStmtCount))
-						lastStmtCount = stmtCount
-					}
+			Progress: func(currentTable string, stmtType dbi.DumpKind, stmtCount int, _ bool) {
+				if stmtType != dbi.DumpKindInsert {
+					return
 				}
+				atomic.StoreInt64(&fileTotalRows, rowCounter.observe(currentTable, stmtCount))
 			},
 		})
 		if err != nil {

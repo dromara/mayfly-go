@@ -3,6 +3,8 @@ import type { Conversation, RunningTurnVO, TurnGroupVO } from './protocol/types'
 import type { SkillItem } from './input/types';
 
 export const aiApi = {
+    // AI 可用状态（入口可见性探测：只回布尔与模型标识，不回配置原文）
+    getStatus: Api.newGet<{ enabled: boolean; model: string }>('/ai/status'),
     // 会话管理
     listConversations: Api.newGet<Conversation[]>('/ai/chat/conversations'),
     createConversation: Api.newPost<Conversation, { title?: string }>('/ai/chat/conversations'),

@@ -6,12 +6,32 @@
 
 /**
  * 引号转义（用于 SQL 注释中的单引号）
- * 如：comment xx is '注''释' → 最终注释文本为：注'释
+ * 如：comment xx is '注''释' → 最终注释文本为 ：注'释
  */
 export function QuoteEscape(str: string): string {
     if (!str) {
         return '';
     }
+    return str.replace(/'/g, "''");
+}
+
+/**
+ * SQL 字符串字面量的转义（值包装的唯一真源）。
+ *
+ * 单引号必须双写，否则值本身带 `'` 时（人名 O'Brien、文本 can't）拼出的字面量
+ * 会提前闭合，轻则整条语句被判为「未闭合区域」直接拒绝执行，重则拼接进别的子句。
+ *
+ * `escapeBackslash` 只对把反斜杠当转义符的方言（MySQL 族、ClickHouse）开启：
+ * 它们会把裸 `\` 连同后一个字符一起解释，不加倍会静默丢字符（`a\b` 写成 `ab`）。
+ * PostgreSQL / SQL Server / Oracle 的标准字符串里 `\` 是普通字符，加倍反而会多出字符。
+ */
+export function escapeSqlStringLiteral(value: unknown, opts: { escapeBackslash?: boolean } = {}): string {
+    let str = String(value);
+    if (opts.escapeBackslash) {
+        // 先处理反斜杠，再加倍换行，避免把「换行替换出来的 \n」也一起加倍
+        str = str.replace(/\\/g, '\\\\');
+    }
+    str = str.replace(/[\r\n]/g, '\\n');
     return str.replace(/'/g, "''");
 }
 
@@ -103,7 +123,7 @@ export function getDefaultDataType(columnType: string): 'string' | 'number' | 'd
  * 通用值包装（适用于大多数关系型数据库）
  * 多数方言逻辑一致，收敛为共用实现
  */
-export function wrapValueDefault(columnType: string, value: unknown): string | number | boolean | null {
+export function wrapValueDefault(columnType: string, value: unknown, opts: { escapeBackslash?: boolean } = {}): string | number | boolean | null {
     if (value == null) {
         return 'NULL';
     }
@@ -116,9 +136,8 @@ export function wrapValueDefault(columnType: string, value: unknown): string | n
     if (/^bool/i.test(lower)) {
         return value as boolean;
     }
-    // 其余加单引号
-    const strVal = String(value).replace(/[\r\n]/g, '\\n');
-    return `'${strVal}'`;
+    // 其余加单引号（转义见 escapeSqlStringLiteral）
+    return `'${escapeSqlStringLiteral(value, opts)}'`;
 }
 
 /**
@@ -135,8 +154,7 @@ export function wrapValueMssql(columnType: string, value: unknown): string | num
     if (/^bit$/i.test(lower)) {
         return value as boolean;
     }
-    const strVal = String(value).replace(/[\r\n]/g, '\\n');
-    return `N'${strVal}'`;
+    return `N'${escapeSqlStringLiteral(value)}'`;
 }
 
 /**
@@ -153,6 +171,5 @@ export function wrapValueOracle(columnType: string, value: unknown): string | nu
     if (/^(NUMBER|INTEGER|FLOAT|BINARY_FLOAT|BINARY_DOUBLE)$/i.test(upper)) {
         return value as number;
     }
-    const strVal = String(value).replace(/[\r\n]/g, '\\n');
-    return `'${strVal}'`;
+    return `'${escapeSqlStringLiteral(value)}'`;
 }

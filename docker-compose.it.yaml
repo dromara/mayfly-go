@@ -26,12 +26,47 @@ services:
       timeout: 5s
       retries: 12
 
+  # mysql 8.0 首次初始化会自动生成自签服务端证书（have_ssl=YES），无需额外配置即可跑 TLS 用例：
+  #   docker exec mayfly-it-mysql cat /var/lib/mysql/ca.pem > /tmp/mysql-ca.pem
+  #   MAYFLY_IT_MYSQL_TLS_CA_FILE=/tmp/mysql-ca.pem go test ./internal/db/dbm/itest -run TestMySQLTLSHandshake
+  # 该证书只有 CN 没有 SAN，因此真握手用例覆盖 require 与 verify-ca（verify-full 对这类证书必然失败）。
   it-postgres:
     image: postgres:16
     container_name: mayfly-it-pg
     environment:
       POSTGRES_PASSWORD: "postgres"
     ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # 带自签 TLS 的 postgres（端口 15432）：用于验证 require / verify-ca / verify-full 三档真握手。
+  # 证书在容器启动时生成，SAN 含 DNS:localhost 与 IP:127.0.0.1——这样 verify-full 才可能通过
+  # （MySQL 自签证书只有 CN 没有 SAN，verify-full 对它必然失败，两套用例覆盖不同档位）。
+  # 取 CA：
+  #   docker exec mayfly-it-pg-tls cat /tmp/pgtls/ca.crt > /tmp/pg-ca.pem
+  #   MAYFLY_IT_PG_TLS_CA_FILE=/tmp/pg-ca.pem go test ./internal/db/dbm/itest -run TestPostgresTLSHandshake
+  it-pg-tls:
+    image: postgres:16
+    container_name: mayfly-it-pg-tls
+    environment:
+      POSTGRES_PASSWORD: "postgres"
+    ports: ["15432:5432"]
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        mkdir -p /tmp/pgtls && cd /tmp/pgtls
+        openssl req -x509 -newkey rsa:2048 -nodes -keyout ca.key -out ca.crt -days 3650 -subj "/CN=mayfly-it-pg-ca"
+        openssl req -newkey rsa:2048 -nodes -keyout server.key -out server.csr -subj "/CN=localhost"
+        openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 3650 \
+          -extfile <(printf "subjectAltName=DNS:localhost,IP:127.0.0.1")
+        chmod 600 server.key
+        chown -R postgres:postgres /tmp/pgtls
+        exec docker-entrypoint.sh postgres -c ssl=on -c ssl_cert_file=/tmp/pgtls/server.crt -c ssl_key_file=/tmp/pgtls/server.key
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s

@@ -7,6 +7,9 @@ package sqlstmt
 // 而非被当作 OtherStmt（只读通道）绕过治理。
 type MergeStmt struct {
 	Base
+	// Target 是 MERGE INTO 之后的目标表名（不含引号，可能带 schema 限定）。
+	// 表级策略/访问控制据此覆盖 MERGE，而不是只能按语句类型整体判定。
+	Target string
 }
 
 func (*MergeStmt) StmtKind() Kind { return KindMerge }

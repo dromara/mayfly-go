@@ -33,6 +33,20 @@ export interface ColumnDefinition {
     autoIncrement: boolean;
     /** 列注释（对齐 SQL COMMENT 与后端 columnComment；旧名 remark 语义含糊，已统一为 comment） */
     comment: string;
+    /**
+     * 默认值是否为「表达式」（函数调用/运算式，如 MySQL 的 `uuid()`、PG 的 `now()`）。
+     *
+     * 为真时生成 DDL 不得加引号：写成 `DEFAULT 'uuid()'` 会把函数名降级成字符串字面量，
+     * 语义被静默改写。取值来自后端元数据（dbi.Column.IsExprDefault），前端不自行猜测。
+     */
+    valueIsExpression?: boolean;
+    /**
+     * 源库的「自动更新」子句原文（当前仅 MySQL 有：`ON UPDATE CURRENT_TIMESTAMP`）。
+     *
+     * MySQL 的 MODIFY COLUMN 会重置未显式写出的列属性，故重写列时必须带回该子句，
+     * 否则一次「只改注释」的编辑就会让时间列不再自动更新。取值来自后端元数据（extra.onUpdate）。
+     */
+    onUpdate?: string;
 }
 
 export interface IndexDefinition {
@@ -65,6 +79,13 @@ export interface TableEditContext {
     oldTableComment: string;
     /** 数据库名（含 schema，如 "db/schema"） */
     db: string;
+    /**
+     * 现状主键的约束名（元数据 t-keys 下发）。
+     *
+     * pg/mssql 没有 DROP PRIMARY KEY 语法，撤销主键必须按约束名 DROP CONSTRAINT；
+     * 缺省时方言只能退回各自默认命名（pg 的 `<table>_pkey`、mssql 的 `PK_<table>`）。
+     */
+    primaryKeyName?: string;
     /** 列定义（res=当前，oldFields=原始，用于差异对比） */
     fields: {
         res: ColumnDefinition[];
@@ -237,6 +258,14 @@ export interface DialectCapabilities {
     // ==================== 表编辑器交互约束 ====================
 
     /**
+     * 编辑已有表时能否修改主键（勾选/取消「主键」）。
+     *
+     * 为 false 的方言在表编辑器里禁用该勾选框：这些方言撤销主键需要**约束名**
+     * （pg/mssql 无 DROP PRIMARY KEY 语法，元数据里也没带约束名），
+     * 勾了却生成不出正确 DDL，只会变成「保存成功但主键没变」的静默假成功。
+     */
+    supportsPrimaryKeyEdit: boolean;
+    /**
      * 新建表时能否直接编辑自增列。
      * postgres 系为 false：自增由 serial/identity 列类型表达，非独立列属性
      */
@@ -261,6 +290,14 @@ export interface DialectCapabilities {
      * - sid_service: 需先选择 SID / Service Name（oracle 系），库名列表为空时回落到实例 SID
      */
     connectDescriptor: 'none' | 'sid_service';
+    /**
+     * 支持的连接加密档位。空数组表示该方言不声明 TLS 能力，实例表单不渲染「安全连接」分组。
+     *
+     * 取值与后端 tlsx.Mode 一一对应（后端是校验真源）：这里只决定表单展示哪些选项，
+     * 最终仍由后端按方言能力位拒绝不支持的档位。刻意没有 prefer/allow——
+     * 「能加密就加密、失败回落明文」在合规语境下等于没有 TLS，也无法在界面上说清是否真的加密了。
+     */
+    tlsModes: TlsMode[];
 
     // ==================== 词法特征 ====================
 
@@ -283,6 +320,11 @@ export interface DialectCapabilities {
      */
     queryStatementKeywords: readonly string[];
 }
+
+/**
+ * 连接加密档位（与后端 internal/pkg/tlsx.Mode 的加密档取值一致）
+ */
+export type TlsMode = 'require' | 'verify-ca' | 'verify-full';
 
 /**
  * 标识符引用符对，如 mysql 的 ` 与 mssql 的 [ ]

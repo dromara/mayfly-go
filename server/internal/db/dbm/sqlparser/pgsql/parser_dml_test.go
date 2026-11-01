@@ -10,7 +10,7 @@ import (
 
 func TestPgInsertBasic(t *testing.T) {
 	sql := "INSERT INTO users (name, age) VALUES ('John', 30)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -45,7 +45,7 @@ func TestPgInsertBasic(t *testing.T) {
 
 func TestPgInsertMultipleRows(t *testing.T) {
 	sql := "INSERT INTO users (name, age) VALUES ('John', 30), ('Jane', 25), ('Bob', 35)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -59,7 +59,7 @@ func TestPgInsertMultipleRows(t *testing.T) {
 
 func TestPgInsertReturning(t *testing.T) {
 	sql := "INSERT INTO users (name, age) VALUES ('John', 30) RETURNING id, name"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -73,7 +73,7 @@ func TestPgInsertReturning(t *testing.T) {
 
 func TestPgInsertFromSelect(t *testing.T) {
 	sql := "INSERT INTO users_backup SELECT * FROM users WHERE status = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -89,7 +89,7 @@ func TestPgInsertFromSelect(t *testing.T) {
 
 func TestPgUpdateBasic(t *testing.T) {
 	sql := "UPDATE users SET name = 'John' WHERE id = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -132,7 +132,7 @@ func TestPgUpdateBasic(t *testing.T) {
 
 func TestPgUpdateMultipleColumns(t *testing.T) {
 	sql := "UPDATE users SET name = 'John', age = 30, email = 'john@example.com' WHERE id = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -203,7 +203,7 @@ func TestPgUpdateMultipleColumns(t *testing.T) {
 func TestPgUpdateFromJoin(t *testing.T) {
 	// PostgreSQL UPDATE FROM 语法
 	sql := "UPDATE orders SET status = 'shipped' FROM users WHERE orders.user_id = users.id AND users.status = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -226,7 +226,7 @@ func TestPgUpdateFromJoin(t *testing.T) {
 
 func TestPgDeleteBasic(t *testing.T) {
 	sql := "DELETE FROM users WHERE id = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -258,7 +258,7 @@ func TestPgDeleteBasic(t *testing.T) {
 
 func TestPgDeleteUsing(t *testing.T) {
 	sql := "DELETE FROM orders o USING users u WHERE o.user_id = u.id AND u.status = 0"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -287,7 +287,7 @@ func TestPgDeleteUsing(t *testing.T) {
 
 func TestPgInsertWithSchema(t *testing.T) {
 	sql := `INSERT INTO "public"."users" ("name", "age") VALUES ('John', 30)`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -304,7 +304,7 @@ func TestPgInsertWithSchema(t *testing.T) {
 
 func TestPgUpdateWithSchema(t *testing.T) {
 	sql := `UPDATE "public"."t_db" SET "name" = 'fsdfds3' WHERE "id" = 5`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -343,7 +343,7 @@ func TestPgUpdateWithSchema(t *testing.T) {
 
 func TestPgDeleteWithSchema(t *testing.T) {
 	sql := `DELETE FROM "public"."logs" WHERE "created_at" < '2024-01-01'`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -368,7 +368,7 @@ func TestPgDeleteWithSchema(t *testing.T) {
 
 func TestPgDDLCreate(t *testing.T) {
 	sql := "CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50), age INT)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -386,7 +386,7 @@ func TestPgDDLCreate(t *testing.T) {
 
 func TestPgDDLDrop(t *testing.T) {
 	sql := "DROP TABLE users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -401,7 +401,7 @@ func TestPgDDLDrop(t *testing.T) {
 
 func TestPgDDLAlter(t *testing.T) {
 	sql := "ALTER TABLE users ADD COLUMN email VARCHAR(255)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -416,7 +416,7 @@ func TestPgDDLAlter(t *testing.T) {
 
 func TestPgDDLTruncate(t *testing.T) {
 	sql := "TRUNCATE TABLE users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -433,7 +433,7 @@ func TestPgDDLTruncate(t *testing.T) {
 
 func TestPgComplexUpdateWithSubquery(t *testing.T) {
 	sql := "UPDATE users SET total_orders = (SELECT COUNT(*) FROM orders WHERE orders.user_id = users.id) WHERE EXISTS (SELECT 1 FROM orders WHERE orders.user_id = users.id)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -447,7 +447,7 @@ func TestPgComplexUpdateWithSubquery(t *testing.T) {
 
 func TestPgComplexDeleteWithSubquery(t *testing.T) {
 	sql := "DELETE FROM users WHERE id NOT IN (SELECT DISTINCT user_id FROM orders)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -461,7 +461,7 @@ func TestPgComplexDeleteWithSubquery(t *testing.T) {
 
 func TestPgInsertOnConflict(t *testing.T) {
 	sql := "INSERT INTO users (id, name) VALUES (1, 'John') ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -479,7 +479,7 @@ func TestPgInsertOnConflict(t *testing.T) {
 func TestPgInsertWithDoubleQuotes(t *testing.T) {
 	// PostgreSQL 双引号标识符
 	sql := `INSERT INTO "users" ("name", "age", "email") VALUES ('John', 30, 'john@example.com')`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -494,7 +494,7 @@ func TestPgInsertWithDoubleQuotes(t *testing.T) {
 func TestPgInsertWithSpecialChars(t *testing.T) {
 	// 包含特殊字符
 	sql := `INSERT INTO "logs" ("message", "level") VALUES ('Error: connection failed!', 'ERROR')`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -507,7 +507,7 @@ func TestPgInsertWithSpecialChars(t *testing.T) {
 func TestPgInsertReturningMultiple(t *testing.T) {
 	// RETURNING 多个字段
 	sql := `INSERT INTO "users" ("name", "email") VALUES ('John', 'john@example.com') RETURNING "id", "name", "created_at"`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -520,7 +520,7 @@ func TestPgInsertReturningMultiple(t *testing.T) {
 func TestPgInsertFromSelectComplex(t *testing.T) {
 	// INSERT FROM SELECT 复杂查询
 	sql := `INSERT INTO "users_backup" SELECT * FROM "users" WHERE "status" = 1 AND "created_at" > '2024-01-01'`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -533,7 +533,7 @@ func TestPgInsertFromSelectComplex(t *testing.T) {
 func TestPgInsertOnConflictDoNothing(t *testing.T) {
 	// ON CONFLICT DO NOTHING
 	sql := `INSERT INTO "users" ("id", "name") VALUES (1, 'John') ON CONFLICT ("id") DO NOTHING`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -547,7 +547,7 @@ func TestPgInsertOnConflictDoNothing(t *testing.T) {
 
 func TestPgUpdateWithDoubleQuotes(t *testing.T) {
 	sql := `UPDATE "users" SET "name" = 'John', "age" = 30 WHERE "id" = 1`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -564,7 +564,7 @@ func TestPgUpdateWithDoubleQuotes(t *testing.T) {
 
 func TestPgUpdateWithComplexWhere(t *testing.T) {
 	sql := `UPDATE "orders" SET "status" = 'cancelled' WHERE "status" = 'pending' AND "created_at" < '2024-01-01' AND ("amount" < 100 OR "user_id" IS NULL)`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -579,7 +579,7 @@ func TestPgUpdateWithComplexWhere(t *testing.T) {
 
 func TestPgUpdateWithFunctions(t *testing.T) {
 	sql := `UPDATE "users" SET "updated_at" = NOW(), "login_count" = "login_count" + 1 WHERE "id" = 1`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -591,7 +591,7 @@ func TestPgUpdateWithFunctions(t *testing.T) {
 
 func TestPgUpdateReturningComplex(t *testing.T) {
 	sql := `UPDATE "users" SET "status" = 0 WHERE "status" = 1 RETURNING "id", "name", "old_status"`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -605,7 +605,7 @@ func TestPgUpdateReturningComplex(t *testing.T) {
 
 func TestPgUpdateWithSubquery(t *testing.T) {
 	sql := `UPDATE "users" SET "total" = (SELECT SUM("amount") FROM "orders" WHERE "user_id" = "users"."id") WHERE "status" = 'active'`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -620,7 +620,7 @@ func TestPgUpdateWithSubquery(t *testing.T) {
 func TestPgUpdateFromComplex(t *testing.T) {
 	// PostgreSQL UPDATE FROM 复杂场景
 	sql := `UPDATE "orders" o SET "status" = 'shipped' FROM "users" u WHERE o."user_id" = u."id" AND u."status" = 1 AND o."created_at" > '2024-01-01'`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -634,7 +634,7 @@ func TestPgUpdateFromComplex(t *testing.T) {
 
 func TestPgDeleteWithDoubleQuotes(t *testing.T) {
 	sql := `DELETE FROM "users" WHERE "id" = 1`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -648,7 +648,7 @@ func TestPgDeleteWithDoubleQuotes(t *testing.T) {
 
 func TestPgDeleteWithComplexWhere(t *testing.T) {
 	sql := `DELETE FROM "logs" WHERE "created_at" < '2024-01-01' AND ("level" = 'DEBUG' OR "level" = 'INFO')`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -663,7 +663,7 @@ func TestPgDeleteWithComplexWhere(t *testing.T) {
 
 func TestPgDeleteReturningComplex(t *testing.T) {
 	sql := `DELETE FROM "users" WHERE "status" = 0 RETURNING "id", "name", "deleted_at"`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -677,7 +677,7 @@ func TestPgDeleteReturningComplex(t *testing.T) {
 
 func TestPgDeleteWithSubquery(t *testing.T) {
 	sql := `DELETE FROM "users" WHERE "id" NOT IN (SELECT DISTINCT "user_id" FROM "orders")`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -692,7 +692,7 @@ func TestPgDeleteWithSubquery(t *testing.T) {
 func TestPgDeleteUsingComplex(t *testing.T) {
 	// PostgreSQL DELETE USING 复杂场景
 	sql := `DELETE FROM "orders" o USING "users" u WHERE o."user_id" = u."id" AND u."status" = 0 AND o."created_at" < '2024-01-01'`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -706,7 +706,7 @@ func TestPgDeleteUsingComplex(t *testing.T) {
 
 func TestPgDDLCreateTableWithQuotes(t *testing.T) {
 	sql := `CREATE TABLE "users" ("id" INT PRIMARY KEY, "name" VARCHAR(50) NOT NULL, "email" VARCHAR(255) UNIQUE)`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -720,7 +720,7 @@ func TestPgDDLCreateTableWithQuotes(t *testing.T) {
 
 func TestPgDDLCreateTableWithSerial(t *testing.T) {
 	sql := `CREATE TABLE "orders" ("id" SERIAL PRIMARY KEY, "amount" DECIMAL(10,2), "created_at" TIMESTAMP DEFAULT NOW())`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -732,7 +732,7 @@ func TestPgDDLCreateTableWithSerial(t *testing.T) {
 
 func TestPgDDLAlterTableAddColumn(t *testing.T) {
 	sql := `ALTER TABLE "users" ADD COLUMN "email" VARCHAR(255)`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -746,7 +746,7 @@ func TestPgDDLAlterTableAddColumn(t *testing.T) {
 
 func TestPgDDLDropIfExists(t *testing.T) {
 	sql := `DROP TABLE IF EXISTS "users"`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -763,7 +763,7 @@ func TestPgDDLDropIfExists(t *testing.T) {
 func TestPgDMLWithSingleLineComment(t *testing.T) {
 	// PostgreSQL 单行注释 --
 	sql := "-- 更新用户信息\nUPDATE \"users\" SET \"name\" = 'John' WHERE \"id\" = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -779,7 +779,7 @@ func TestPgDMLWithSingleLineComment(t *testing.T) {
 func TestPgDMLWithMultiLineComment(t *testing.T) {
 	// 多行注释 /* */
 	sql := "/* 删除过期订单 */ DELETE FROM \"orders\" WHERE \"created_at\" < '2024-01-01'"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -795,7 +795,7 @@ func TestPgDMLWithMultiLineComment(t *testing.T) {
 func TestPgDMLWithInlineComment(t *testing.T) {
 	// 行内注释
 	sql := `SELECT "id", "name" /* 用户名 */ FROM "users" WHERE "status" = 1`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -815,7 +815,7 @@ func TestPgDMLWithMultipleComments(t *testing.T) {
 SELECT "id", "name" FROM "users" 
 WHERE "status" = 1 AND "created_at" > '2024-01-01'
 ORDER BY "created_at" DESC`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -830,7 +830,7 @@ ORDER BY "created_at" DESC`
 
 func TestPgInsertWithComment(t *testing.T) {
 	sql := "-- 插入新用户\nINSERT INTO \"users\" (\"name\", \"email\") VALUES ('John', 'john@example.com')"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -845,7 +845,7 @@ func TestPgUpdateWithComment(t *testing.T) {
 UPDATE "orders" SET "status" = 'cancelled' 
 WHERE "status" = 'pending' -- 只更新待处理的订单
 AND "created_at" < '2024-01-01'`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -877,7 +877,7 @@ func TestPgInsertConflictClause(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			stmt, err := NewParser(c.sql).Parse()
+			stmt, err := newParser(c.sql).Parse()
 			if err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
@@ -897,7 +897,7 @@ func TestPgInsertConflictClause(t *testing.T) {
 // IsKeyword("LIMIT")||IsKeyword("OFFSET") 守卫，会让所有普通 UPDATE/DELETE 都被误判为带行限制而 fail-closed。
 func TestPgUpdateDeleteLimitCapture(t *testing.T) {
 	// 带 LIMIT（sqlite 启用 UPDATE_DELETE_LIMIT 时的形态）
-	u, err := NewParser("UPDATE users SET name = 'a' WHERE id = 1 LIMIT 10").Parse()
+	u, err := newParser("UPDATE users SET name = 'a' WHERE id = 1 LIMIT 10").Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -909,7 +909,7 @@ func TestPgUpdateDeleteLimitCapture(t *testing.T) {
 		t.Errorf("WHERE.Text polluted by LIMIT: %+v", us.Where)
 	}
 
-	d, err := NewParser("DELETE FROM users WHERE id = 1 LIMIT 5 OFFSET 2").Parse()
+	d, err := newParser("DELETE FROM users WHERE id = 1 LIMIT 5 OFFSET 2").Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -919,16 +919,16 @@ func TestPgUpdateDeleteLimitCapture(t *testing.T) {
 	}
 
 	// 无 LIMIT：必须为 nil（否则普通语句会被误 fail-closed）
-	u2, _ := NewParser("UPDATE users SET name = 'a' WHERE id = 1").Parse()
+	u2, _ := newParser("UPDATE users SET name = 'a' WHERE id = 1").Parse()
 	if l := u2.(*sqlstmt.UpdateStmt).Limit; l != nil {
 		t.Errorf("expected nil Limit for UPDATE without LIMIT, got %+v", l)
 	}
-	d2, _ := NewParser("DELETE FROM users WHERE id = 1").Parse()
+	d2, _ := newParser("DELETE FROM users WHERE id = 1").Parse()
 	if l := d2.(*sqlstmt.DeleteStmt).Limit; l != nil {
 		t.Errorf("expected nil Limit for DELETE without LIMIT, got %+v", l)
 	}
 	// RETURNING 不得被误判为 LIMIT
-	u3, _ := NewParser("UPDATE users SET name = 'a' WHERE id = 1 RETURNING id").Parse()
+	u3, _ := newParser("UPDATE users SET name = 'a' WHERE id = 1 RETURNING id").Parse()
 	if l := u3.(*sqlstmt.UpdateStmt).Limit; l != nil {
 		t.Errorf("expected nil Limit for UPDATE … RETURNING, got %+v", l)
 	}

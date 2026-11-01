@@ -17,7 +17,7 @@ import (
 // valueParsers 在 allParsers（mysql/pgsql/dm/oracle）基础上补 mssql，凑齐全部方言的 INSERT 解析路径
 func valueParsers() map[string]sqlparserParser {
 	parsers := allParsers()
-	parsers["mssql"] = mssql.NewParser()
+	parsers["mssql"] = new(mssql.MssqlParser)
 	return parsers
 }
 

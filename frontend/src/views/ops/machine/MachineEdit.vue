@@ -46,6 +46,7 @@ import { computed, useTemplateRef, type PropType } from 'vue';
 import ResourceAuthCertTableEdit from '../component/ResourceAuthCertTableEdit.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
+import { relateTagItem } from '../component/relateTagItem';
 import { machineApi } from './api';
 import { getProtocolDefaultPort, MACHINE_DEFAULT_PORT, MachineProtocolEnum, MachineProxyTypeEnum } from './enums';
 import type { MachineVO, MachineForm, MachineAuthCert } from './types';
@@ -70,7 +71,7 @@ const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>(
 /** 表单声明（defineFormItems<MachineForm>：渲染 + 校验唯一数据源，回调形参直接是业务表单；group 三段分组，tagCodePaths/authCerts/sshTunnel 走插槽） */
 const items = defineFormItems<MachineForm>([
     { type: 'group', label: 'common.basic' },
-    { prop: 'tagCodePaths', label: 'tag.relateTag' },
+    relateTagItem<MachineForm>(),
     { prop: 'name', label: 'common.name', required: true },
     {
         prop: 'protocol',

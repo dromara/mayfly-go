@@ -101,4 +101,6 @@ var Zh_CN = map[i18n.MsgId]string{
 	MetricDbSessionMaxElapsed: "最长会话已执行秒数",
 	MetricDbLockWaitCount:     "等锁会话数",
 	MetricDbSchemaDrift:       "与结构基线不一致的表数",
+	MetricDbPitrNotReady:      "不具备时间点恢复前提（1=未就绪）",
+	MetricDbTlsCertDaysLeft:   "TLS 证书剩余有效天数",
 }

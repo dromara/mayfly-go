@@ -14,6 +14,7 @@
                         >
                         </el-button>
 
+
                         <template v-if="!dbConfig.locationTreeNode">
                             <el-divider direction="vertical" border-style="dashed" />
                             <el-button @click="locationNowTreeNode(null)" :title="$t('db.locationTagTree')" icon="Location" link></el-button>
@@ -103,6 +104,7 @@
 
                     <db-tables-op
                         v-if="dt.type == TabType.TablesOp"
+                        @open-diagnostics="openSessionTab(dbInfo, dt.params.db ?? '')"
                         :db-id="dt.params.id"
                         :db="dt.params.db ?? ''"
                         :db-type="dt.params.type"

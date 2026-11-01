@@ -243,6 +243,6 @@ func (app *DataSyncAppImpl) StopTask(ctx context.Context, taskId uint64) error {
 	if err := app.UpdateById(ctx, task); err != nil {
 		return err
 	}
-	app.runGuard.Release(taskId)
+	app.runGuard.RequestStop(taskId)
 	return nil
 }

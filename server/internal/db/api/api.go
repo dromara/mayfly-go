@@ -4,6 +4,8 @@ import "mayfly-go/pkg/ioc"
 
 func InitIoc() {
 	ioc.Register(new(Db))
+	ioc.Register(new(DbTableAcl))
+	ioc.Register(new(DbColumnAcl))
 	ioc.Register(new(Instance))
 	ioc.Register(new(DbSQLExec))
 	ioc.Register(new(DbSQL))

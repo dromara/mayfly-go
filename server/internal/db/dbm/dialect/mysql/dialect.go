@@ -66,3 +66,8 @@ func (md *MysqlDialect) GetSQLSplitter() sqlparser.SQLSplitter {
 func (md *MysqlDialect) GetSQLGenerator() dbi.SQLGenerator {
 	return &SQLGenerator{DefaultSQLGenerator: dbi.DefaultSQLGenerator{QuoterFn: md.Quoter}, Dialect: md}
 }
+
+// 编译期契约：解析 / 分页改写 / 语句分类三者缺一不可。
+// 历史实现把它们做成「可选能力 + 类型断言 + 默认 LIMIT 回退」，漏实现时运行期会静默
+// 生成非法 SQL（Oracle/MSSQL 不支持 LIMIT）；现收敛为必需方法，缺实现直接编译失败。
+var _ sqlparser.SQLParser = (*mysql.MysqlParser)(nil)

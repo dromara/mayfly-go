@@ -10,7 +10,15 @@
             @run-all="onRunAllSql()"
             @format="onFormatSql()"
             @review="onReviewSql()"
+            @precheck="onPrecheckDdl()"
             @save="saveSql()"
+        />
+
+        <DdlPrecheckDialog
+            v-model="state.precheckVisible"
+            :db-id="dbId"
+            :db-name="dbName"
+            :sql="state.precheckSql"
         />
 
         <el-splitter ref="splitterRef" class="flex-1 min-h-0" layout="vertical" @resize-end="onResizeTableHeight">
@@ -79,6 +87,7 @@ import { useI18n } from 'vue-i18n';
 import { FlowBizType } from '@/views/flow/enums';
 import SqlEditorToolbar from './SqlEditorToolbar.vue';
 import SqlExecResultTabs from './SqlExecResultTabs.vue';
+import DdlPrecheckDialog from './DdlPrecheckDialog.vue';
 import WorkTicketSubmit from '@/views/flow/components/WorkTicketSubmit.vue';
 import { formatSql } from './utils/formatSql';
 import { useSqlExec, type ExecResTab, type ExecResTabState } from './composables/useSqlExec';
@@ -146,6 +155,9 @@ const state = reactive({
     editorHeight: '500',
     tableDataHeight: '250px',
     tableDataEmptyText: t('db.tableDataEmptyTextTips'),
+    // DDL 预检框：sql 单独存一份，避免执行后再打开时拿到已变的编辑器内容
+    precheckVisible: false,
+    precheckSql: '',
 });
 
 const { tableDataHeight } = toRefs(state);
@@ -299,6 +311,17 @@ const onReviewSql = () => {
     }
     // 执行计划走全局单例对话框（layout 挂载），多条可在框内逐条选中
     openSqlPlan(props.dbId, props.dbName, sql);
+};
+
+/** DDL 预检：把当前编辑器整段脚本交给后端切分与判定，只读、不执行 */
+const onPrecheckDdl = () => {
+    const sql = state.sql?.trim();
+    if (!sql) {
+        Msg.error(t('db.noSqlToRunMsg'));
+        return;
+    }
+    state.precheckSql = sql;
+    state.precheckVisible = true;
 };
 
 /**

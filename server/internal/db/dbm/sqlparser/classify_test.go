@@ -35,13 +35,13 @@ func TestAstStmtType(t *testing.T) {
 		"with-delete": {&sqlstmt.WithStmt{MainType: sqlstmt.StmtTypeDelete}, sqlstmt.StmtTypeDelete},
 		"merge":       {&sqlstmt.MergeStmt{}, sqlstmt.StmtTypeMerge},
 		// EXPLAIN：仅计划/读→Other；EXPLAIN ANALYZE 命中内层写→判为该写类型（ExplainStmt.Inner）
-		"explain-plan":          {&sqlstmt.ExplainStmt{}, sqlstmt.StmtTypeOther},
+		"explain-plan":          {&sqlstmt.ExplainStmt{}, sqlstmt.StmtTypeOtherRead},
 		"explain-analyze-write": {&sqlstmt.ExplainStmt{Inner: sqlstmt.StmtTypeDelete}, sqlstmt.StmtTypeDelete},
 		"update":                {&sqlstmt.UpdateStmt{}, sqlstmt.StmtTypeUpdate},
 		"delete":                {&sqlstmt.DeleteStmt{}, sqlstmt.StmtTypeDelete},
 		"insert":                {&sqlstmt.InsertStmt{}, sqlstmt.StmtTypeInsert},
 		"ddl":                   {&sqlstmt.DdlStmt{}, sqlstmt.StmtTypeDDL},
-		"other":                 {&sqlstmt.OtherStmt{}, sqlstmt.StmtTypeOther},
+		"other":                 {&sqlstmt.OtherStmt{}, sqlstmt.StmtTypeOtherWrite},
 	}
 	for name, c := range cases {
 		got, ok := astStmtType(c.stmt)
@@ -56,11 +56,13 @@ func TestStmtTypeFromKeyword(t *testing.T) {
 	assert.Equal(t, sqlstmt.StmtTypeSelect, stmtTypeFromKeyword("with"))
 	assert.Equal(t, sqlstmt.StmtTypeDDL, stmtTypeFromKeyword("create"))
 	assert.Equal(t, sqlstmt.StmtTypeDDL, stmtTypeFromKeyword("grant"))
-	assert.Equal(t, sqlstmt.StmtTypeOther, stmtTypeFromKeyword("show"))
+	assert.Equal(t, sqlstmt.StmtTypeOtherRead, stmtTypeFromKeyword("show"))
 	// MERGE（upsert）归写类型 merge，不再落到未识别
 	assert.Equal(t, sqlstmt.StmtTypeMerge, stmtTypeFromKeyword("merge"))
-	// 未识别动词返回空串，交调用方兜底
-	assert.Equal(t, sqlstmt.StmtType(""), stmtTypeFromKeyword("call"))
+	// 已知写动词（过程调用/批量装载）归 other-write，不再落"空串"由调用方猜
+	assert.Equal(t, sqlstmt.StmtTypeOtherWrite, stmtTypeFromKeyword("call"))
+	assert.Equal(t, sqlstmt.StmtTypeOtherWrite, stmtTypeFromKeyword("load"))
+	// 完全未知动词才返回空串，由执行层按可能写处理
 	assert.Equal(t, sqlstmt.StmtType(""), stmtTypeFromKeyword(""))
 }
 

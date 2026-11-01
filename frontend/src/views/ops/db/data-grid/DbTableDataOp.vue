@@ -220,6 +220,7 @@
         </el-row>
 
         <DbTableDataForm
+            mode="create"
             :db-inst="getNowDbInst()"
             :db-name="dbName"
             :columns="columns"
@@ -587,6 +588,8 @@ const cancelUpdateFields = () => {
 
 const onShowAddDataDialog = async () => {
     state.addDataDialog.title = t('db.addDataDialogTitle', { tableName: props.tableName });
+    // 每次打开都是全新一行：清掉上一次可能残留的表单值
+    state.addDataDialog.data = {};
     state.addDataDialog.visible = true;
 };
 

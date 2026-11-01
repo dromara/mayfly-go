@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"fmt"
+	"mayfly-go/internal/ai/llm"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/collx"
@@ -31,7 +32,8 @@ type Manager struct {
 	store         Store          // 底层存储
 	summaryConfig *SummaryConfig // 摘要配置（可选）
 	summarizing   sync.Map       // sessionKey -> struct{}，防止同一会话并发摘要
-	contextWindow int            // 模型上下文窗口（token），0 表示未配置（跳过窗口检查）
+	// modelProvider 模型访问入口：上下文窗口按当前生效模型读取（0 表示未配置，跳过窗口检查）
+	modelProvider llm.Provider
 }
 
 // NewManager 创建会话管理器

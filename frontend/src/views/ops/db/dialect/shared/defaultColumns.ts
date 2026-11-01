@@ -24,6 +24,12 @@ export interface DefaultColumnConfig {
     datetimeType: string;
     /** 时间字段默认值（如 CURRENT_TIMESTAMP） */
     datetimeDefault: string;
+    /**
+     * update_time 列的「自动更新」子句（如 `ON UPDATE CURRENT_TIMESTAMP`）。
+     * 仅 MySQL 需要：它的 MODIFY COLUMN 会重置未写出的列属性，新建表时就把子句带上，
+     * 后续任何一次改列都能原样带回。
+     */
+    updateTimeOnUpdate?: string;
     /** 字段名大小写风格 */
     nameCase: 'lower' | 'upper' | 'camel';
 }
@@ -127,6 +133,7 @@ export function createDefaultColumns(config: DefaultColumnConfig): ColumnDefinit
             isPrimaryKey: false,
             autoIncrement: false,
             comment: '修改时间',
+            onUpdate: config.updateTimeOnUpdate,
         },
     ];
 }
@@ -142,6 +149,7 @@ export const defaultColumnConfigs: Record<string, DefaultColumnConfig> = {
         stringLength: '100',
         datetimeType: 'datetime',
         datetimeDefault: 'CURRENT_TIMESTAMP',
+        updateTimeOnUpdate: 'ON UPDATE CURRENT_TIMESTAMP',
         nameCase: 'lower',
     },
     postgres: {

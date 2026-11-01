@@ -135,7 +135,7 @@ func execDispatched(t *testing.T, conn *dbi.DbConn, script string) {
 		// （Select/Other→Query；insert/update/delete/merge/ddl→Exec）。
 		// 不再按 AST 节点类型硬编码，以免 ExplainStmt/MergeStmt 等新节点被误路由
 		switch sqlparser.Classify(parser, splitter, oneSQL, stmt, parseErr) {
-		case sqlstmt.StmtTypeSelect, sqlstmt.StmtTypeOther:
+		case sqlstmt.StmtTypeSelect, sqlstmt.StmtTypeOtherRead:
 			_, _, err := conn.Query(oneSQL)
 			return err
 		default:

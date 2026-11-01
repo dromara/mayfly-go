@@ -2,7 +2,7 @@
     <!-- append-to-body: 抽屉默认渲染在页面 DOM 内, 会被 layout 铬层(tagsview z-index)与祖先堆叠上下文压住
          (页签栏浮在抽屉之上); 挂到 body 彻底脱离页面祖先链, popup z-index 保证盖住一切页面内容 -->
     <el-drawer v-model="visible" :title="title" size="75%" append-to-body>
-        <div class="table-editor">
+        <div class="table-editor" ref="editorRef">
             <!-- 表名/注释行 -->
             <el-row :gutter="16" class="mb-4">
                 <el-col :span="dialectCapabilities.supportsTableComment ? 12 : 24">
@@ -52,9 +52,22 @@
 
                                 <el-input v-else-if="item.prop === 'numScale'" type="number" size="small" v-model.number="scope.row.numScale" />
 
-                                <el-checkbox v-else-if="item.prop === 'nullable'" size="small" v-model="scope.row.nullable" />
+                                <el-checkbox
+                                    v-else-if="item.prop === 'nullable'"
+                                    size="small"
+                                    v-model="scope.row.nullable"
+                                    :disabled="scope.row.isPrimaryKey"
+                                    :title="scope.row.isPrimaryKey ? $t('db.primaryKeyNotNull') : ''"
+                                />
 
-                                <el-checkbox v-else-if="item.prop === 'isPrimaryKey'" size="small" v-model="scope.row.isPrimaryKey" />
+                                <el-checkbox
+                                    v-else-if="item.prop === 'isPrimaryKey'"
+                                    size="small"
+                                    v-model="scope.row.isPrimaryKey"
+                                    :disabled="!dialectCapabilities.supportsPrimaryKeyEdit"
+                                    :title="dialectCapabilities.supportsPrimaryKeyEdit ? '' : $t('db.primaryKeyEditUnsupported')"
+                                    @change="onPrimaryKeyChange(scope.row)"
+                                />
 
                                 <el-checkbox
                                     v-else-if="item.prop === 'autoIncrement'"
@@ -170,12 +183,13 @@
 
 <script lang="ts" setup>
 import { Msg } from '@/hooks/useI18n';
-import { computed, nextTick, reactive, ref, Ref, toRef, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, reactive, ref, Ref, toRef, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { MagicStick } from '@element-plus/icons-vue';
-import { DbInst } from '../db';
+import { buildColumnDefinitions } from '../core/columnDefinition';
 import { getDbDialect, getDialectCapabilities } from '../dialect/index';
-import type { ChangeDiff, DbDialect, IndexDefinition, ColumnDefinition, TableEditContext } from '../dialect/index';
+import type { DbDialect, IndexDefinition, ColumnDefinition, TableEditContext } from '../dialect/index';
+import { buildTableEditSql } from './tableChange';
 import SqlExecBox from '../sql-editor/SqlExecBox';
 import type { DbTableIndex, TableOpData } from '../types';
 import type { TableColumnDefinition, TableDefinition, TableIndexDefinition, SchemaSnapshot } from '../types/schema';
@@ -227,7 +241,75 @@ type ColName = {
     width?: number;
 };
 
-const tableHeight = 'calc(100vh - 320px)';
+/**
+ * 表格高度 = 抽屉实际可用高度 − 表名行/页签头/底部按钮行。
+ *
+ * 为什么必须用测量而不是纯 CSS：高度要传到表格，必须穿过 el-tabs 自己渲染的
+ * 内容区容器；对它设 flex/height 就是在改 EP 内部布局。既然不改 EP，就由脚本
+ * 把实测值直接给表格 :height，EP 侧一行样式都不碰（本文件样式段只剩 padding）。
+ *
+ * 为什么不用 calc(100vh - N)：抽屉里还有表名行、页签头、底部按钮行与抽屉
+ * header/footer，固定扣减必然差几十像素，多出来的部分把 el-drawer 的 body
+ * 顶成滚动容器，于是出现「表格内一条 + 抽屉外一条」，外层那条还会带走页签头。
+ */
+const tableHeight = ref('400px');
+
+const editorRef = useTemplateRef<HTMLElement>('editorRef');
+
+/** 当前可见的页签面板（Element Plus 非激活页签是 display:none） */
+const activePane = (editor: HTMLElement) => Array.from(editor.querySelectorAll<HTMLElement>('.el-tab-pane')).find((p) => p.offsetParent !== null);
+
+/**
+ * 量算并写回表格高度。
+ *
+ * 取抽屉 body 内容区下边界，减去页签头下边界（含 margin）与当前页签底部动作行高度，
+ * 再留 8px 余量：宁可少几像素（表格下方留白），也绝不 多一像素——多一像素就会把
+ * 抽屉 body 顶出滚动条，页签头又会被那条滚动带走。
+ */
+function computeTableHeight() {
+    const editor = editorRef.value;
+    if (!editor) return;
+    const body = editor.closest('.el-drawer__body') as HTMLElement | null;
+    const header = editor.querySelector<HTMLElement>('.el-tabs__header');
+    if (!body || !header) return;
+
+    const bodyStyle = getComputedStyle(body);
+    const contentBottom = body.getBoundingClientRect().bottom - (parseFloat(bodyStyle.paddingBottom) || 0);
+    const headerBottom = header.getBoundingClientRect().bottom + (parseFloat(getComputedStyle(header).marginBottom) || 0);
+
+    // 底部「添加列/添加索引」行只有列/索引页签才有，其余页签不占这块
+    const actionRow = activePane(editor)?.querySelector<HTMLElement>(':scope > .el-row');
+    const reserved = actionRow ? actionRow.offsetHeight + (parseFloat(getComputedStyle(actionRow).marginTop) || 0) : 0;
+
+    tableHeight.value = `${Math.max(160, Math.floor(contentBottom - headerBottom - reserved - 8))}px`;
+    nextTick(() => tableRef.value?.doLayout?.());
+}
+
+/** 抽屉尺寸变化（窗口缩放、侧栏收起）时重算；抽屉关闭即解绑 */
+let bodyResizeObserver: ResizeObserver | null = null;
+function watchDrawerSize() {
+    const body = editorRef.value?.closest('.el-drawer__body');
+    if (!body || bodyResizeObserver) return;
+    bodyResizeObserver = new ResizeObserver(() => computeTableHeight());
+    bodyResizeObserver.observe(body);
+}
+
+onBeforeUnmount(() => {
+    bodyResizeObserver?.disconnect();
+    bodyResizeObserver = null;
+});
+
+// 抽屉打开后量算（此时才有真实尺寸），关闭时解绑观察
+watch(visible, async (open) => {
+    if (!open) {
+        bodyResizeObserver?.disconnect();
+        bodyResizeObserver = null;
+        return;
+    }
+    await nextTick();
+    computeTableHeight();
+    watchDrawerSize();
+});
 
 const tableRef = useTemplateRef<{ $el: HTMLElement; doLayout: () => void }>('tableRef');
 
@@ -316,6 +398,12 @@ const state = reactive({
 
 const activeName = toRef(state, 'activeName');
 
+// 切换页签后底部动作行是否存在会变（列/索引有「添加…」行，其余没有），重新量算表格高度
+watch(activeName, async () => {
+    await nextTick();
+    computeTableHeight();
+});
+
 /** 列编辑表头：列注释按方言能力剔除（sqlite 不支持列注释） */
 const visibleFieldColNames = computed(() => state.fieldColNames.filter((c) => c.prop !== 'comment' || dialectCapabilities.value.supportsColumnComment));
 
@@ -329,6 +417,8 @@ interface TableFormData {
     oldTableName: string;
     oldTableComment: string;
     db?: string;
+    /** 现状主键的约束名（pg/mssql 撤销主键要按名字 DROP CONSTRAINT） */
+    primaryKeyName?: string;
     fields: { res: ColumnDefinition[]; oldFields: ColumnDefinition[] };
     indexes: { res: IndexDefinition[]; oldIndexes: IndexDefinition[]; columns: { name: string; comment: string }[] };
 }
@@ -357,37 +447,11 @@ watch(visible, async (val) => {
         const tableName = (row.tableName as string) || '';
         const tableComment = (row.tableComment as string) || '';
 
-        const fieldsRes: ColumnDefinition[] = [];
-        const fieldsOld: ColumnDefinition[] = [];
-        const indexColumns: { name: string; comment: string }[] = [];
+        const fieldsRes: ColumnDefinition[] = buildColumnDefinitions(columns && Array.isArray(columns) ? columns : []);
+        const fieldsOld: ColumnDefinition[] = fieldsRes.map((field) => structuredClone(field));
+        const indexColumns: { name: string; comment: string }[] = fieldsRes.map((field) => ({ name: field.name, comment: field.comment }));
         const indexesRes: IndexDefinition[] = [];
         const indexesOld: IndexDefinition[] = [];
-
-        // 回显列
-        if (columns && Array.isArray(columns) && columns.length > 0) {
-            columns.forEach((a) => {
-                let defaultValue = '';
-                if (a.columnDefault) {
-                    defaultValue = a.columnDefault.trim().replace(/^'|'$/g, '');
-                    defaultValue = defaultValue.replace("'::character varying", '');
-                }
-                let field: ColumnDefinition = {
-                    name: a.columnName,
-                    oldName: a.columnName,
-                    type: a.dataType,
-                    value: defaultValue,
-                    length: a.showLength ?? '',
-                    numScale: a.showScale ?? '',
-                    nullable: a.nullable ?? false,
-                    isPrimaryKey: a.isPrimaryKey ?? false,
-                    autoIncrement: a.autoIncrement ?? false,
-                    comment: a.columnComment ?? '',
-                };
-                fieldsRes.push(field);
-                fieldsOld.push(structuredClone(field));
-                indexColumns.push({ name: a.columnName, comment: a.columnComment ?? '' });
-            });
-        }
 
         // 回显索引
         if (indexes && Array.isArray(indexes) && indexes.length > 0) {
@@ -416,8 +480,6 @@ watch(visible, async (val) => {
             fields: { res: fieldsRes, oldFields: fieldsOld },
             indexes: { res: indexesRes, oldIndexes: indexesOld, columns: indexColumns },
         };
-
-        DbInst.initColumns(props.data?.columns ?? []);
     }
 
     activeName.value = '1';
@@ -481,6 +543,16 @@ const deleteIndex = (index: number) => {
     formData.value.indexes.res.splice(index, 1);
 };
 
+/**
+ * 勾选主键即强制取消可空：主键列必须 NOT NULL，否则 ADD PRIMARY KEY 会被库拒绝
+ * （MySQL 1171 / PG 含空值失败），用户只会看到「保存成功、执行报错」的错位体验。
+ */
+const onPrimaryKeyChange = (row: ColumnDefinition) => {
+    if (row.isPrimaryKey) {
+        row.nullable = false;
+    }
+};
+
 const submit = async () => {
     let sql = genSql();
     if (!sql) {
@@ -499,95 +571,12 @@ const submit = async () => {
 };
 
 /**
- * 对比两个数组，取出被修改过的对象数组
- * @param oldArr 原对象数组
- * @param nowArr 修改后的对象数组
- * @param key 标志对象唯一属性
+ * 生成待执行的表编辑 SQL。
+ *
+ * 变更求值与拼装由 tableChange.ts 单一持有（纯函数、可单测）：
+ * 组件这里只负责把当前表单当作编辑上下文交给方言。
  */
-const filterChangedData = <T extends object>(oldArr: T[], nowArr: T[], key: string): ChangeDiff<T> => {
-    let data: ChangeDiff<T> = {
-        del: [] as T[],
-        add: [] as T[],
-        upd: [] as T[],
-        changed: false,
-    };
-
-    if (oldArr && Array.isArray(oldArr) && oldArr.length === 0 && nowArr && Array.isArray(nowArr) && nowArr.length > 0) {
-        data.add = nowArr;
-        data.changed = true;
-        return data;
-    }
-
-    if (nowArr && Array.isArray(nowArr) && nowArr.length === 0 && oldArr && Array.isArray(oldArr) && oldArr.length > 0) {
-        data.del = oldArr;
-        data.changed = true;
-        return data;
-    }
-
-    let oldMap: Record<string, T> = {},
-        newMap: Record<string, T> = {};
-    oldArr.forEach((a) => (oldMap[(a as Record<string, unknown>)[key] as string] = a));
-
-    nowArr.forEach((a) => {
-        const rec = a as Record<string, unknown>;
-        let k = rec[key] as string;
-        newMap[k] = a;
-        let oldName = rec['oldName'] as string | undefined;
-        oldName && (newMap[oldName] = a);
-        if (!oldMap.hasOwnProperty(k) && (!oldName || (oldName && !oldMap.hasOwnProperty(oldName)))) {
-            data.changed = true;
-            data.add.push(a);
-        }
-    });
-
-    oldArr.forEach((a) => {
-        const rec = a as Record<string, unknown>;
-        let k = rec[key] as string;
-        let newData = newMap[k];
-        if (!newData) {
-            data.changed = true;
-            data.del.push(a);
-        } else {
-            const newRec = newData as Record<string, unknown>;
-            for (let f in rec) {
-                let oldV = rec[f] as { toString(): string } | null | undefined;
-                let newV = newRec[f] as { toString(): string } | null | undefined;
-                if (oldV?.toString() !== newV?.toString()) {
-                    data.changed = true;
-                    data.upd.push(newData);
-                    break;
-                }
-            }
-        }
-    });
-    return data;
-};
-
-const genSql = () => {
-    let data = formData.value as TableEditContext;
-    if (!props.data?.edit) {
-        let createTable = dbDialect.value.getCreateTableSql(data);
-        let createIndex = '';
-        if (data.indexes.res.length > 0) {
-            createIndex = dbDialect.value.getCreateIndexSql(data);
-        }
-        return createTable + ';' + createIndex;
-    } else {
-        let changeColData = filterChangedData(data.fields.oldFields, data.fields.res, 'name');
-        let colSql = changeColData.changed ? dbDialect.value.getModifyColumnSql(data, data.tableName, changeColData) : '';
-        let changeIdxData = filterChangedData(data.indexes.oldIndexes, data.indexes.res, 'indexName');
-        let idxSql = changeIdxData.changed ? dbDialect.value.getModifyIndexSql(data, data.tableName, changeIdxData) : '';
-        let tableInfoSql =
-            data.tableName !== data.oldTableName || data.tableComment !== data.oldTableComment ? dbDialect.value.getModifyTableInfoSql(data) : '';
-
-        let sqlArr = [];
-        colSql && sqlArr.push(colSql);
-        idxSql && sqlArr.push(idxSql);
-        tableInfoSql && sqlArr.push(tableInfoSql);
-
-        return sqlArr.join(';');
-    }
-};
+const genSql = () => buildTableEditSql(dbDialect.value, formData.value as TableEditContext, props.data?.edit === true);
 
 const indexChanges = (row: IndexDefinition) => {
     let name = '';
@@ -760,6 +749,11 @@ const handleApplyTemplate = (table: TableDefinition) => {
 </script>
 
 <style lang="scss" scoped>
+/*
+ * 这里只有组件自己的内边距——el-drawer / el-tabs / el-table 一行样式都不碰。
+ * 表格高度由 computeTableHeight() 实测后写给 :height（见脚本），
+ * 这样既不改 EP 内部布局，也不会把抽屉 body 顶出第二条滚动条。
+ */
 .table-editor {
     padding: 0 4px;
 }

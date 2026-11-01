@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/pkg/tlsx"
+	"mayfly-go/pkg/errorx"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -131,9 +133,12 @@ type Backend struct {
 func (mm *Backend) GetCapabilities() dbi.MetadataCapabilities {
 	// mysql：database 即 schema、无独立 schema 层；已实现视图导航、外键内省与会话内省，显式声明对应扩展能力
 	// （声明与实现的一致性由 dbm 的护栏测试把守）
+	// TLS：go-sql-driver 支持按名注册内存 tls.Config，故四个档位都可兑现
+	// （verify-ca 由 tlsx 用 VerifyPeerCertificate 只校链实现）
 	return dbi.NewAllCapabilities().
 		Without(dbi.FeatSchemas).
-		With(dbi.FeatViews, dbi.FeatTableRelations, dbi.FeatSessions, dbi.FeatExplain).
+		With(dbi.FeatViews, dbi.FeatTableRelations, dbi.FeatSessions, dbi.FeatExplain, dbi.FeatTLSStatus, dbi.FeatSlowQuery, dbi.FeatLockWait, dbi.FeatRecovery, dbi.FeatAccounts).
+		WithTLSModes(tlsx.ModeRequire, tlsx.ModeVerifyCA, tlsx.ModeVerifyFull).
 		WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true})
 }
 
@@ -148,10 +153,28 @@ func (mm *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error)
 	cfg.DBName = d.Database
 	cfg.Params = map[string]string{"parseTime": "true"}
 	cfg.Timeout = 8 * time.Second
+
+	params := d.Params
+	if tlsCfg := d.EffectiveTLS(); tlsCfg != nil {
+		built, err := tlsCfg.Build()
+		if err != nil {
+			return nil, err
+		}
+		// 注册名取完整配置指纹：同名注册会覆盖，只按材料取指纹时
+		// 「同一套证书、不同档位」的两个实例会互相顶掉对方的校验强度
+		name := "mayfly-" + tlsCfg.Key()
+		if err := mysql.RegisterTLSConfig(name, built); err != nil {
+			return nil, errorx.NewBizf("register mysql tls config failed: %s", err.Error())
+		}
+		cfg.TLSConfig = name
+		// 结构化配置优先：用户手写在「其他连接参数」里的 tls 会让两处真源由驱动解析顺序决定
+		params = tlsx.StripKV(params, "tls")
+	}
+
 	// FormatDSN会自动转义用户名密码等特殊字符，自定义参数以&拼接在其后
 	dsn := cfg.FormatDSN()
-	if d.Params != "" {
-		dsn = fmt.Sprintf("%s&%s", dsn, d.Params)
+	if params != "" {
+		dsn = fmt.Sprintf("%s&%s", dsn, params)
 	}
 
 	return sql.Open("mysql", dsn)

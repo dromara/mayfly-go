@@ -10,7 +10,7 @@ import (
 
 func TestOracleSelectBasic(t *testing.T) {
 	sql := "SELECT id, name FROM users WHERE status = 1 ORDER BY id DESC"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -64,7 +64,7 @@ func TestOracleSelectBasic(t *testing.T) {
 
 func TestOracleSelectDistinct(t *testing.T) {
 	sql := "SELECT DISTINCT department_id FROM users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -78,7 +78,7 @@ func TestOracleSelectDistinct(t *testing.T) {
 
 func TestOracleSelectWithJoin(t *testing.T) {
 	sql := "SELECT u.id, o.amount FROM users u LEFT JOIN orders o ON u.id = o.user_id WHERE u.status = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -97,7 +97,7 @@ func TestOracleSelectWithJoin(t *testing.T) {
 
 func TestOracleFetchFirst(t *testing.T) {
 	sql := "SELECT id, name FROM users ORDER BY id FETCH FIRST 10 ROWS ONLY"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -113,7 +113,7 @@ func TestOracleFetchFirst(t *testing.T) {
 
 func TestOracleRowNum(t *testing.T) {
 	sql := "SELECT id, name FROM users WHERE status = 1 AND ROWNUM <= 10 ORDER BY id"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -133,7 +133,7 @@ func TestOracleRowNum(t *testing.T) {
 
 func TestOracleForUpdate(t *testing.T) {
 	sql := "SELECT id, name FROM users WHERE id = 1 FOR UPDATE"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -147,7 +147,7 @@ func TestOracleForUpdate(t *testing.T) {
 
 func TestOracleForUpdateNowait(t *testing.T) {
 	sql := "SELECT id FROM users WHERE status = 1 FOR UPDATE NOWAIT"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -163,7 +163,7 @@ func TestOracleForUpdateNowait(t *testing.T) {
 
 func TestOracleConnectBy(t *testing.T) {
 	sql := "SELECT id, name, level FROM employees CONNECT BY PRIOR id = manager_id START WITH manager_id IS NULL"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -179,7 +179,7 @@ func TestOracleConnectBy(t *testing.T) {
 
 func TestOracleUnion(t *testing.T) {
 	sql := "SELECT id FROM users UNION SELECT id FROM admins ORDER BY 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -198,7 +198,7 @@ func TestOracleUnion(t *testing.T) {
 
 func TestOracleWithClause(t *testing.T) {
 	sql := "WITH temp_users AS (SELECT * FROM users WHERE status = 1) SELECT * FROM temp_users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -220,7 +220,7 @@ func TestOracleDDL(t *testing.T) {
 
 	for _, sql := range sqls {
 		t.Run(sql[:10], func(t *testing.T) {
-			parser := NewParser(sql)
+			parser := newParser(sql)
 			stmt, err := parser.Parse()
 			if err != nil {
 				t.Fatalf("parse error: %v", err)

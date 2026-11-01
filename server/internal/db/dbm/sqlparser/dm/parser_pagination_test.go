@@ -10,7 +10,7 @@ import (
 
 func TestDmPaginationSimple(t *testing.T) {
 	sql := "SELECT * FROM users LIMIT 0, 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -34,7 +34,7 @@ func TestDmPaginationSimple(t *testing.T) {
 
 func TestDmPaginationWithOffset(t *testing.T) {
 	sql := "SELECT id, name FROM users LIMIT 20, 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -56,7 +56,7 @@ func TestDmPaginationWithOffset(t *testing.T) {
 func TestDmPaginationKeywordOffset(t *testing.T) {
 	// DM 也支持 LIMIT count OFFSET offset
 	sql := "SELECT * FROM products LIMIT 15 OFFSET 30"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -80,7 +80,7 @@ func TestDmPaginationKeywordOffset(t *testing.T) {
 
 func TestDmPaginationOnlyLimit(t *testing.T) {
 	sql := "SELECT * FROM orders LIMIT 50"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -104,7 +104,7 @@ func TestDmPaginationOnlyLimit(t *testing.T) {
 func TestDmPaginationTopN(t *testing.T) {
 	// DM 支持 SELECT TOP n
 	sql := "SELECT TOP 10 id, name FROM users ORDER BY id"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -120,7 +120,7 @@ func TestDmPaginationTopN(t *testing.T) {
 
 func TestDmPaginationTopWithWhere(t *testing.T) {
 	sql := "SELECT TOP 20 id, name FROM users WHERE status = 1 ORDER BY created_at DESC"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -138,7 +138,7 @@ func TestDmPaginationTopWithWhere(t *testing.T) {
 
 func TestDmPaginationWithWhere(t *testing.T) {
 	sql := "SELECT id, name, email FROM users WHERE status = 1 AND age > 18 LIMIT 10, 20"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -162,7 +162,7 @@ func TestDmPaginationWithWhere(t *testing.T) {
 
 func TestDmPaginationWithOrderBy(t *testing.T) {
 	sql := "SELECT * FROM users ORDER BY created_at DESC, id ASC LIMIT 0, 100"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -186,7 +186,7 @@ func TestDmPaginationWithOrderBy(t *testing.T) {
 
 func TestDmPaginationWithWhereOrderBy(t *testing.T) {
 	sql := "SELECT id, name FROM users WHERE status = 'active' ORDER BY score DESC LIMIT 50, 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -213,7 +213,7 @@ func TestDmPaginationWithWhereOrderBy(t *testing.T) {
 
 func TestDmPaginationWithJoin(t *testing.T) {
 	sql := "SELECT u.id, u.name, o.amount FROM users u LEFT JOIN orders o ON u.id = o.user_id WHERE u.status = 1 ORDER BY o.created_at DESC LIMIT 100, 20"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -237,7 +237,7 @@ func TestDmPaginationWithJoin(t *testing.T) {
 
 func TestDmPaginationWithGroupBy(t *testing.T) {
 	sql := "SELECT user_id, COUNT(*) as order_count FROM orders GROUP BY user_id ORDER BY order_count DESC LIMIT 0, 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -260,7 +260,7 @@ func TestDmPaginationWithGroupBy(t *testing.T) {
 
 func TestDmPaginationWithUnion(t *testing.T) {
 	sql := "SELECT id FROM users UNION SELECT id FROM admins ORDER BY 1 DESC LIMIT 0, 50"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -284,7 +284,7 @@ func TestDmPaginationWithUnion(t *testing.T) {
 
 func TestDmPaginationUnionAll(t *testing.T) {
 	sql := "SELECT name FROM products UNION ALL SELECT name FROM services LIMIT 10, 30"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -308,7 +308,7 @@ func TestDmPaginationUnionAll(t *testing.T) {
 
 func TestDmMultipleUnionsPagination(t *testing.T) {
 	sql := "SELECT id FROM t1 UNION SELECT id FROM t2 UNION SELECT id FROM t3 ORDER BY 1 LIMIT 50, 100"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -334,7 +334,7 @@ func TestDmMultipleUnionsPagination(t *testing.T) {
 
 func TestDmPaginationWithSubquery(t *testing.T) {
 	sql := "SELECT * FROM (SELECT id, name FROM users WHERE status = 1 ORDER BY id LIMIT 0, 100) AS tmp LIMIT 20, 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -359,7 +359,7 @@ func TestDmPaginationWithSubquery(t *testing.T) {
 func TestDmNestedPagination(t *testing.T) {
 	// 嵌套分页查询
 	sql := "SELECT * FROM (SELECT * FROM users LIMIT 0, 100) AS tmp LIMIT 10, 5"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -380,7 +380,7 @@ func TestDmNestedPagination(t *testing.T) {
 
 func TestDmPaginationWithExists(t *testing.T) {
 	sql := "SELECT * FROM users u WHERE EXISTS (SELECT 1 FROM orders o WHERE o.user_id = u.id LIMIT 1) LIMIT 20, 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -406,7 +406,7 @@ func TestDmPaginationWithExists(t *testing.T) {
 
 func TestDmLargeOffsetPagination(t *testing.T) {
 	sql := "SELECT * FROM logs ORDER BY id LIMIT 1000000, 100"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -429,7 +429,7 @@ func TestDmLargeOffsetPagination(t *testing.T) {
 
 func TestDmPaginationForUpdate(t *testing.T) {
 	sql := "SELECT * FROM users WHERE status = 0 ORDER BY id LIMIT 10 OFFSET 0 FOR UPDATE"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -452,7 +452,7 @@ func TestDmPaginationForUpdate(t *testing.T) {
 
 func TestDmPaginationDoubleQuote(t *testing.T) {
 	sql := `SELECT "id", "name" FROM "users" WHERE "status" = 1 ORDER BY "id" DESC LIMIT 20, 10`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)

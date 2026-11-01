@@ -9,8 +9,10 @@ import (
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/application/sqlexec"
+	"mayfly-go/internal/db/application/sqlutil"
 	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/imsg"
 	msgdto "mayfly-go/internal/msg/application/dto"
@@ -19,6 +21,7 @@ import (
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
@@ -33,11 +36,12 @@ import (
 )
 
 type Db struct {
-	instanceApp     application.Instance     `inject:"T"`
-	dbApp           application.Db           `inject:"T"`
-	dbSQLExecApp    sqlexec.DbSQLExec        `inject:"T"`
-	dbDataImportApp application.DbDataImport `inject:"T"`
-	tagApp          tagapp.TagTreeService    `inject:"T"`
+	instanceApp     application.Instance          `inject:"T"`
+	dbApp           application.Db                `inject:"T"`
+	dbSQLExecApp    sqlexec.DbSQLExec             `inject:"T"`
+	dbDataImportApp application.DbDataImport      `inject:"T"`
+	tagApp          tagapp.TagTreeService         `inject:"T"`
+	exportTicketApp application.DbExportTicketApp `inject:"T"`
 }
 
 func (d *Db) ReqConfs() *req.Confs {
@@ -59,9 +63,16 @@ func (d *Db) ReqConfs() *req.Confs {
 
 		req.NewPost(":dbId/exec-sql", d.ExecSQL).Log(req.NewLogI(imsg.LogDbRunSQL)),
 
+		// DDL 预检：只读，不参与放行判定（策略管「要不要批」，它管「批的是什么」）
+		req.NewPost(":dbId/ddl-precheck", d.DdlPrecheck).RequiredPermissionCode("db:sqlscript:run"),
 		req.NewPost(":dbId/exec-sql-file", d.ExecSQLFile).Log(req.NewLogSaveI(imsg.LogDbRunSQLFile)).RequiredPermissionCode("db:sqlscript:run"),
 
 		req.NewGet(":dbId/dump", d.DumpSQL).Log(req.NewLogSaveI(imsg.LogDbDump)).RequiredPermissionCode("db:data:export").NoRes(),
+
+		// 凭已批准的导出工单下载：权限码与即席导出同档（能导出的人才能用凭据），
+		// 但不再过触发策略——工单本身就是那道审批
+		req.NewGet(":dbId/export-tickets/:procinstId/download", d.DownloadExportTicket).
+			Log(req.NewLogSaveI(imsg.LogDbDump)).RequiredPermissionCode("db:data:export").NoRes(),
 
 		// 表格文件（CSV/Excel）导入数据：先预览解析结果构建列映射，再按映射批量写入目标表
 		// 预览会解析上传文件，与导入同级授权，避免仅凭实例 id 就能让服务端解析任意文件
@@ -76,11 +87,21 @@ func (d *Db) ReqConfs() *req.Confs {
 
 		req.NewGet(":dbId/t-index", d.TableIndex),
 
+		// 表的主键/唯一键约束（含约束名与键内列序）：表编辑撤销主键时要引用约束名（pg/mssql 无 DROP PRIMARY KEY）
+		req.NewGet(":dbId/t-keys", d.TableKeys),
+
 		req.NewGet(":dbId/c-metadata", d.ColumnMetadata),
+		req.NewPost(":dbId/classify", d.ClassifySQL),
+
+		// 数据字典导出：只导出结构事实（表/列/索引/注释），不含数据；格式 csv|md
+		req.NewGet(":dbId/data-dict", d.DataDict).Log(req.NewLogSaveI(imsg.LogDbDump)).NoRes(),
 
 		// 列值采样（编辑器值补全）：与其余元数据读取同档（靠 GetDbConn 里的资源可达校验），
 		// 不另开权限码：开了一个库里没建行的码，功能上线即除 admin 外全体 403
 		req.NewGet(":dbId/column-values", d.ColumnValues),
+
+		// 敏感列扫描：读的是列元信息而非数据，与其余元数据读取同档
+		req.NewGet(":dbId/sensitive-columns", d.ScanSensitiveColumns),
 
 		req.NewPost(":dbId/copy-table", d.CopyTable),
 	}
@@ -221,42 +242,141 @@ func (d *Db) ExecSQLFile(rc *req.Ctx) {
 	}))
 }
 
+// dumpRequest 一次导出的全部输入。
+//
+// 抽成结构体是为了让两条入口（即席导出 / 导出工单下载）共用同一段流式实现：
+// 响应头、脱敏、行数统计与失败通知都不能有第二份实现，否则两条通道的产物形态会漂移。
+type dumpRequest struct {
+	DbConn   *dbi.DbConn
+	DbName   string
+	DumpType string
+	Tables   []string
+	ExtName  string
+	// SkipPolicy 跳过触发策略：只有「导出工单已批准」这一条通道会置 true——
+	// 策略那关已经由人工审批替代，再判一次会把工单通道直接堵死。
+	// 表级/列级权限不在此列：那是硬边界，任何通道都必须判
+	SkipPolicy bool
+	// ReqParam 需要写进操作日志的原始入参（工单通道记录工单 id）
+	AuditExtra collx.M
+}
+
 // 数据库dump
 func (d *Db) DumpSQL(rc *req.Ctx) {
 	dbId := getDbId(rc)
 	dbName := rc.Query("db")
-	dumpType := rc.Query("type")
-	tablesStr := rc.Query("tables")
-	extName := rc.Query("extName")
-	switch extName {
-	case ".gz", ".gzip", "gz", "gzip":
-		extName = ".gz"
-	default:
-		extName = ""
-	}
-
-	// 是否需要导出表结构
-	needStruct := dumpType == "1" || dumpType == "3"
-	// 是否需要导出数据
-	needData := dumpType == "2" || dumpType == "3"
-
-	la := rc.GetLoginAccount()
 	dbConn, err := d.dbApp.GetDbConn(rc.MetaCtx, dbId, dbName)
 	biz.ErrIsNil(err)
+	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
 
-	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(la.Id, dbConn.Info.CodePath...), "%s")
+	d.streamDump(rc, &dumpRequest{
+		DbConn:   dbConn,
+		DbName:   dbName,
+		DumpType: rc.Query("type"),
+		Tables:   splitTables(rc.Query("tables")),
+		ExtName:  normalizeDumpExt(rc.Query("extName")),
+	})
+}
+
+// DownloadExportTicket 凭已批准的导出工单下载它授权的那一次导出。
+//
+// 与 DumpSQL 的区别只有一处：**不再过触发策略**（工单就是那道审批）。
+// 表/列权限、资源可达性、脱敏、审计全部照旧——工单只能解决「要不要人批」，
+// 不能解决「这个人有没有权看这张表」。
+// @router /api/dbs/:dbId/export-tickets/:procinstId/download [get]
+func (d *Db) DownloadExportTicket(rc *req.Ctx) {
+	dbId := getDbId(rc)
+	ticket, err := d.exportTicketApp.ValidateForDownload(rc.MetaCtx, cast.ToUint64(rc.PathParam("procinstId")))
+	biz.ErrIsNil(err)
+
+	// 导出范围以工单为准：请求方不能用一张小范围工单去导整库
+	if ticket.DbId != dbId {
+		biz.ErrIsNil(errorx.NewBizI(rc.MetaCtx, imsg.ErrExportTicketScopeMismatch))
+	}
+	dbName := ticket.DbName
+	dbConn, err := d.dbApp.GetDbConn(rc.MetaCtx, dbId, dbName)
+	biz.ErrIsNil(err)
+	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
+
+	d.streamDump(rc, &dumpRequest{
+		DbConn:     dbConn,
+		DbName:     dbName,
+		DumpType:   ticket.DumpType,
+		Tables:     ticket.Tables,
+		SkipPolicy: true,
+		AuditExtra: collx.Kvs("procinstId", cast.ToUint64(rc.PathParam("procinstId"))),
+	})
+}
+
+// splitTables 逗号分隔的表清单；空串表示整库
+func splitTables(tablesStr string) []string {
+	if tablesStr == "" {
+		return nil
+	}
+	return strings.Split(tablesStr, ",")
+}
+
+// normalizeDumpExt 只接受 .gz 这一种额外封装（其余一律按原生 SQL 处理）
+func normalizeDumpExt(extName string) string {
+	switch extName {
+	case ".gz", ".gzip", "gz", "gzip":
+		return ".gz"
+	default:
+		return ""
+	}
+}
+
+// streamDump 流式导出：先判定（权限 → 策略），再写响应头与产物。
+//
+// 判定必须早于设置响应头：被拦时要返回 JSON 错误，而不是一个已经写了头、解压即坏的文件。
+func (d *Db) streamDump(rc *req.Ctx, req *dumpRequest) {
+	la := rc.GetLoginAccount()
+	dbConn, dbName := req.DbConn, req.DbName
+	dbId := dbConn.Info.Id
+
+	// 是否需要导出表结构 / 数据
+	needStruct := req.DumpType == "1" || req.DumpType == "3"
+	needData := req.DumpType == "2" || req.DumpType == "3"
+
+	// 表/列权限是硬边界：任何导出形态（含只导结构）都必须先判。
+	//
+	// 只导结构时若跳过判定，受保护表的表名、列名、列类型、默认值、注释会被完整取走——
+	// 这与本函数"权限不因通道而异"的约定冲突，也与 SQL 编辑器/查询导出的行为不一致。
+	exportTables := req.Tables
+	if len(exportTables) == 0 {
+		// 整库导出：表清单取库侧元数据（与导出本体同一来源），逐表等价于一次 SELECT *
+		ts, listErr := dbConn.Metadata().GetTables()
+		biz.ErrIsNilAppendErr(listErr, "list tables for the export policy check failed: %s")
+		exportTables = collx.ArrayMap(ts, func(t dbi.Table) string { return t.TableName })
+	}
+	// 列级权限：整表导出会把无权列一起写进文件，且文件看不出缺列，只能整条拒绝。
+	// 工单通道同样要过——权限是硬边界，审批不能替数据所有者做主
+	biz.ErrIsNil(sqlexec.AssertDumpTablesAllowed(rc.MetaCtx, sqlexec.GetTableAclApp(), dbId, exportTables))
+
+	if needData {
+
+		if !req.SkipPolicy {
+			// 数据导出是一次大范围读取，与执行 / 导入 / 查询导出同一道闸门
+			checks := sqlutil.ExportSelects(dbConn.GetDialect().Quoter(), exportTables)
+			if len(checks) > 0 {
+				notices, checkErr := d.dbSQLExecApp.CheckSqlsWithoutTicket(rc.MetaCtx, dbConn, checks)
+				biz.ErrIsNil(checkErr)
+				for _, notice := range notices {
+					if notice != "" {
+						// 下载通道没有能回显提醒的界面：落日志，避免「仅提醒」级别静默消失
+						logx.WarnfContext(rc.MetaCtx, "db dump policy notice: %s", notice)
+					}
+				}
+			}
+		}
+	}
 
 	now := time.Now()
+	extName := req.ExtName
 	filename := fmt.Sprintf("%s-%s.%s.sql%s", dbConn.Info.Name, dbName, now.Format("20060102150405"), extName)
 	rc.Header("Content-Type", "application/octet-stream")
 	rc.Header("Content-Disposition", contentDisposition(filename))
 	if extName != ".gz" {
 		rc.Header("Content-Encoding", "gzip")
-	}
-
-	var tables []string
-	if len(tablesStr) > 0 {
-		tables = strings.Split(tablesStr, ",")
 	}
 
 	defer func() {
@@ -291,7 +411,7 @@ func (d *Db) DumpSQL(rc *req.Ctx) {
 	biz.ErrIsNil(d.dbApp.DumpDb(rc.MetaCtx, &dto.DumpDb{
 		DbId:     dbId,
 		DbName:   dbName,
-		Tables:   tables,
+		Tables:   req.Tables,
 		DumpDDL:  needStruct,
 		DumpData: needData,
 		// 即席导出是给人看的数据副本，必须过与交互式查询同一套脱敏规则：
@@ -304,7 +424,11 @@ func (d *Db) DumpSQL(rc *req.Ctx) {
 	for _, cnt := range rowCounts {
 		exportRows += cnt
 	}
-	rc.ReqParam = collx.Kvs("db", dbConn.Info, "database", dbName, "tables", tablesStr, "dumpType", dumpType, "exportRows", exportRows)
+	params := collx.Kvs("db", dbConn.Info, "database", dbName, "tables", strings.Join(req.Tables, ","), "dumpType", req.DumpType, "exportRows", exportRows)
+	for key, value := range req.AuditExtra {
+		params[key] = value
+	}
+	rc.ReqParam = params
 }
 
 func (d *Db) TableInfos(rc *req.Ctx) {
@@ -313,6 +437,30 @@ func (d *Db) TableInfos(rc *req.Ctx) {
 	// ?limit=/?offset= 为分页续载参数：首屏与「加载更多」各取一页，不重拉前缀。
 	res, err := d.getDbConn(rc).Metadata().SearchTables(rc.Query("like"), cast.ToInt(rc.Query("limit")), cast.ToInt(rc.Query("offset")))
 	biz.ErrIsNilAppendErr(err, "get table error: %s")
+
+	// 表级保护是「拒绝访问」：表名若照常出现在清单与补全里，用户会写出必然被拒的语句。
+	// 与列级口径保持一致（c-metadata 已过滤无权列）。
+	if tableAcl := sqlexec.GetTableAclApp(); tableAcl != nil && len(res) > 0 {
+		names := make([]string, 0, len(res))
+		for _, table := range res {
+			names = append(names, table.TableName)
+		}
+		visible, aclErr := tableAcl.VisibleTables(rc.MetaCtx, getDbId(rc), names)
+		biz.ErrIsNil(aclErr)
+		if len(visible) != len(names) {
+			allowed := make(map[string]bool, len(visible))
+			for _, name := range visible {
+				allowed[strings.ToLower(name)] = true
+			}
+			kept := make([]dbi.Table, 0, len(visible))
+			for _, table := range res {
+				if allowed[strings.ToLower(table.TableName)] {
+					kept = append(kept, table)
+				}
+			}
+			res = kept
+		}
+	}
 	rc.ResData = res
 }
 
@@ -328,7 +476,53 @@ func (d *Db) MetaObjects(rc *req.Ctx) {
 		return
 	}
 	biz.ErrIsNilAppendErr(err, "list metadata objects error: %s")
+	// 视图同样可能被加入保护名单：名字继续列出来，用户点开会拿到「无权访问」
+	if tableAcl := sqlexec.GetTableAclApp(); tableAcl != nil && len(objects) > 0 {
+		names := make([]string, 0, len(objects))
+		for _, object := range objects {
+			names = append(names, object.Name)
+		}
+		visible, aclErr := tableAcl.VisibleTables(rc.MetaCtx, getDbId(rc), names)
+		biz.ErrIsNil(aclErr)
+		if len(visible) != len(names) {
+			allowed := make(map[string]bool, len(visible))
+			for _, name := range visible {
+				allowed[strings.ToLower(name)] = true
+			}
+			kept := make([]dbi.MetadataObject, 0, len(visible))
+			for _, object := range objects {
+				if allowed[strings.ToLower(object.Name)] {
+					kept = append(kept, object)
+				}
+			}
+			objects = kept
+		}
+	}
 	rc.ResData = objects
+}
+
+// classifySQLForm 服务端分类请求体
+type classifySQLForm struct {
+	SQL string `json:"sql"`
+}
+
+// ClassifySQL 用服务端解析器判定单条 SQL 的语句类型（分类权威）。
+//
+// 存在意义：前端为了即时交互保留了一份 TS 解析（只读/写入判定），两份实现靠
+// testdata/classify_cases.json 契约锁对齐；当业务需要更强判定（新语法、方言特性）时，
+// 前端可调用本接口取服务端结论，避免再扩一份 TS 解析器（第三套实现）。本接口只解析不执行。
+//
+// @router /api/dbs/:dbId/classify [post]
+func (d *Db) ClassifySQL(rc *req.Ctx) {
+	form := rc.BindJson[classifySQLForm]()
+	biz.NotEmpty(form.SQL, "sql cannot be empty")
+
+	conn := d.getDbConn(rc)
+	parser := conn.GetDialect().GetSQLParser()
+	splitter := conn.GetDialect().GetSQLSplitter()
+	stmt, parseErr := parser.Parse(form.SQL)
+	stmtType := sqlparser.Classify(parser, splitter, form.SQL, stmt, parseErr)
+	rc.ResData = map[string]any{"stmtType": string(stmtType)}
 }
 
 // MetaObjectDDL 返回单个扩展元数据对象（视图/序列…）的重建 DDL 原文，供点开对象节点时展示。
@@ -351,6 +545,21 @@ func (d *Db) TableIndex(rc *req.Ctx) {
 	rc.ResData = res
 }
 
+// TableKeys 返回表的主键/唯一键约束（含约束名与键内列序）。
+//
+// 为什么不复用 t-index：索引与键不是一回事——pg/mssql 撤销主键必须引用**约束名**
+// （两家都没有 DROP PRIMARY KEY 语法），而索引列表刻意把主键索引排除在外。
+// 表编辑据此生成 DROP CONSTRAINT 语句，缺了名字就只能靠猜。
+//
+// @router /api/dbs/:dbId/t-keys [get]
+func (d *Db) TableKeys(rc *req.Ctx) {
+	tn := rc.Query("tableName")
+	biz.NotEmpty(tn, "tableName cannot be empty")
+	res, err := d.getDbConn(rc).Metadata().GetKeys(rc.MetaCtx, rc.Query("schema"), tn)
+	biz.ErrIsNilAppendErr(err, "get table keys error: %s")
+	rc.ResData = res
+}
+
 // ColumnMetadata 返回指定表的列元数据（列名/类型/注释/主键/默认值/可空等），供表结构与数据编辑使用。
 //
 // @router /api/dbs/:dbId/c-metadata [get]
@@ -361,12 +570,40 @@ func (d *Db) ColumnMetadata(rc *req.Ctx) {
 	dbConn := d.getDbConn(rc)
 	res, err := dbConn.Metadata().GetColumns(tn)
 	biz.ErrIsNilAppendErr(err, "get column metadata error: %s")
+
+	// 列级权限也要管元数据：列被保护时，结果集里已经没有它的值，若还从元数据把列名
+	// 下发出去，界面上会留下一个永远空白的列、编辑器补全也会继续提示它——
+	// 两者都会让人以为「只是暂时没数据」，而这层保护的本意是「这一列不存在」。
+	denied, aclErr := sqlexec.GetTableAclApp().DeniedColumns(rc.MetaCtx, getDbId(rc), []string{tn})
+	if aclErr != nil {
+		biz.ErrIsNil(aclErr)
+	}
+	if len(denied) > 0 {
+		kept := make([]dbi.Column, 0, len(res))
+		for _, column := range res {
+			if _, blocked := denied[strings.ToLower(column.ColumnName)]; blocked {
+				continue
+			}
+			kept = append(kept, column)
+		}
+		res = kept
+	}
 	rc.ResData = res
 }
 
 // ColumnValues 返回某列出现过的去重值，供编辑器在「列 = 」上下文里补全值。
 //
 // 可达性校验在应用层的 GetDbConn 里做（与其余元数据读取同源），这里不再另取一次连接
+// ScanSensitiveColumns 扫描敏感列候选
+// @router /api/dbs/:dbId/sensitive-columns [get]
+func (d *Db) ScanSensitiveColumns(rc *req.Ctx) {
+	dbId := getDbId(rc)
+	dbName := rc.Query("db")
+	res, err := d.dbApp.ScanSensitiveColumns(rc.MetaCtx, dbId, dbName)
+	biz.ErrIsNil(err)
+	rc.ResData = res
+}
+
 func (d *Db) ColumnValues(rc *req.Ctx) {
 	table := rc.Query("tableName")
 	biz.NotEmpty(table, "tableName cannot be empty")
@@ -417,6 +654,15 @@ func (d *Db) CopyTable(rc *req.Ctx) {
 
 	conn, err := d.dbApp.GetDbConn(rc.MetaCtx, form.Id, form.Db)
 	biz.ErrIsNilAppendErr(err, "copy table error: %s")
+
+	// 带数据复制会把源表整表搬进一张不受保护的新表（INSERT ... SELECT *），
+	// 是表级权限的旁路；只复制结构时不读行数据，不必拦
+	if copy.CopyData {
+		tableAcl := sqlexec.GetTableAclApp()
+		biz.ErrIsNil(tableAcl.AssertTablesAllowed(rc.MetaCtx, form.Id, []string{copy.TableName}))
+		// 复制的是整行：表上存在无权列时同样会绕过列保护
+		biz.ErrIsNil(tableAcl.AssertWholeTableAllowed(rc.MetaCtx, form.Id, []string{copy.TableName}))
+	}
 
 	err = conn.GetDialect().CopyTable(copy)
 	if err != nil {
@@ -488,4 +734,53 @@ func (d *Db) getDbConn(rc *req.Ctx) *dbi.DbConn {
 	dc, err := d.dbApp.GetDbConn(rc.MetaCtx, getDbId(rc), getDbName(rc))
 	biz.ErrIsNil(err)
 	return dc
+}
+
+// DdlPrecheck DDL 预检：读表规模与主键，给出「会不会丢数据/要不要重建表/能不能回滚」的提示。
+// 只读、可重复调用，不做放行判定。
+// @router /api/dbs/:dbId/ddl-precheck [post]
+func (d *Db) DdlPrecheck(rc *req.Ctx) {
+	param := rc.BindJson[form.DdlPrecheck]()
+	result, err := application.GetDdlPrecheckApp().Precheck(rc.MetaCtx, getDbId(rc), param.Db, param.Sql)
+	biz.ErrIsNil(err)
+	rc.ResData = result
+}
+
+// DataDict 数据字典导出（CSV / Markdown）。
+//
+// 只导出结构事实，不含任何数据行；权限沿用 c-metadata 同档（GetDbConn 里的资源可达校验），
+// 不新开权限码——开一个库里没建行的码，功能上线即除 admin 外全体 403。
+// @router /api/dbs/:dbId/data-dict [get]
+func (d *Db) DataDict(rc *req.Ctx) {
+	dbId := getDbId(rc)
+	dbName := rc.Query("db")
+	format := strings.ToLower(rc.Query("format"))
+	if format == "" {
+		format = "csv"
+	}
+	var tables []string
+	for _, table := range strings.Split(rc.Query("tables"), ",") {
+		if trimmed := strings.TrimSpace(table); trimmed != "" {
+			tables = append(tables, trimmed)
+		}
+	}
+
+	app := application.GetDataDictApp()
+	dict, err := app.Build(rc.MetaCtx, dbId, dbName, tables)
+	biz.ErrIsNil(err)
+
+	now := time.Now().Format("20060102150405")
+	filename := fmt.Sprintf("data-dict-%s-%s.%s", dbName, now, format)
+	var payload []byte
+	switch format {
+	case "md", "markdown":
+		rc.Header("Content-Type", "text/markdown; charset=utf-8")
+		payload = app.RenderMarkdown(dict)
+	default:
+		filename = fmt.Sprintf("data-dict-%s-%s.csv", dbName, now)
+		rc.Header("Content-Type", "text/csv; charset=utf-8")
+		payload = app.RenderCSV(dict)
+	}
+	rc.Header("Content-Disposition", contentDisposition(filename))
+	_, _ = rc.GetWriter().Write(payload)
 }

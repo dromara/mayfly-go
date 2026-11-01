@@ -59,6 +59,15 @@ type Db interface {
 	// 表/列先过库侧元数据校验再拼 SQL；方言没有分页改写能力时返回业务错误而不是猜一个限行语法
 	ColumnValues(ctx context.Context, dbId uint64, dbName, table, column string, limit int) ([]string, error)
 
+	// ScanSensitiveColumns 扫描指定库的敏感列候选（按列名识别，标注是否已被列保护覆盖）
+	ScanSensitiveColumns(ctx context.Context, dbId uint64, dbName string) (*SensitiveScanResult, error)
+
+	// SlowQueries 实例级慢查询聚合（按累计耗时降序）
+	SlowQueries(ctx context.Context, dbId uint64, dbName string, limit int) ([]*dbi.SlowQuery, error)
+
+	// LockWaits 实例级锁等待链（等待方 → 阻塞方）
+	LockWaits(ctx context.Context, dbId uint64, dbName string) ([]*dbi.LockWait, error)
+
 	// ListSessions 返回该库所属实例当前的活动会话。
 	//
 	// 方言未实现会话内省能力时透传 dbi.ErrUnsupportedKind，调用方据此判定「不支持」而非「没有会话」

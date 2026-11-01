@@ -18,7 +18,7 @@ func (*MysqlParser) Parse(stmt string) (result sqlstmt.Stmt, err error) {
 			err = fmt.Errorf("mysql sql parse failed: %v", e)
 		}
 	}()
-	return NewParser(stmt).Parse()
+	return newParser(stmt).Parse()
 }
 
 // RewritePagination MySQL 分页改写：LIMIT offset, count

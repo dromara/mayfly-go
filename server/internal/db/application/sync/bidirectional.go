@@ -72,7 +72,10 @@ func (m *BidirectionalSyncManager) buildReverseTask(forward *entity.DataSyncTask
 		SrcDbId:    forward.TargetDbId,
 		SrcDbName:  forward.TargetDbName,
 		SrcTagPath: forward.TargetTagPath,
-		// 反向任务 DataSQL：从正向的目标表全量查询（用户可按需调整）
+		// 反向任务 DataSQL：从正向的目标表全量查询（用户可按需调整）。
+		// 已知边界：表名未做方言引用 —— 保存期拿不到目标库方言（sync 任务只存 TargetDbId/Name，
+		// 无方言类型），此时若表名是保留字（order/key）或大小写敏感（PG "Order"），
+		// 反向任务会在运行期报错，需用户手工调整本条 SQL。
 		DataSQL: fmt.Sprintf("SELECT * FROM %s", forward.TargetTableName),
 
 		TargetDbId:    forward.SrcDbId,
@@ -308,7 +311,7 @@ func escapeFnForDialect(dbType dbi.DbType) func(any) string {
 // buildPKWhereClause 根据源行数据和字段映射构建目标表主键 WHERE 子句。
 // 用于冲突检测时按主键查询目标行。
 // target2Src 为目标列→源列的反向映射；escapeFn 按目标方言转义字符串值（MySQL用反斜杠转义，其余标准SQL）。
-func buildPKWhereClause(srcRow map[string]any, target2Src map[string]string, targetTableMeta *dbi.TargetTableMeta, escapeFn func(any) string) string {
+func buildPKWhereClause(srcRow map[string]any, target2Src map[string]string, targetTableMeta *dbi.TargetTableMeta, escapeFn func(any) string, quote func(string) string) string {
 	if len(targetTableMeta.UniqueColumns) == 0 {
 		return ""
 	}
@@ -325,7 +328,7 @@ func buildPKWhereClause(srcRow map[string]any, target2Src map[string]string, tar
 		}
 		// 安全格式化值：根据 Go 类型与目标方言选择正确的 SQL 字面量表示
 		sqlVal := formatSQLLiteral(val, escapeFn)
-		conditions = append(conditions, fmt.Sprintf("%s = %s", pkCol, sqlVal))
+		conditions = append(conditions, fmt.Sprintf("%s = %s", quote(pkCol), sqlVal))
 	}
 	return strings.Join(conditions, " AND ")
 }
@@ -465,7 +468,7 @@ func (app *DataSyncAppImpl) batchLoadConflictTargetRows(
 		if pkKey == "" {
 			continue
 		}
-		pkWhere := buildPKWhereClause(srcData, target2Src, targetTableMeta, escapeFnForDialect(targetDbConn.Info.Type))
+		pkWhere := buildPKWhereClause(srcData, target2Src, targetTableMeta, escapeFnForDialect(targetDbConn.Info.Type), targetDbConn.GetDialect().Quoter().QuoteIdent)
 		if pkWhere == "" {
 			continue
 		}
@@ -477,9 +480,10 @@ func (app *DataSyncAppImpl) batchLoadConflictTargetRows(
 	}
 
 	// 构建 SELECT 列：时间戳字段 + 主键列
-	selectCols := task.BiDirTimestampField
+	quoteIdent := targetDbConn.GetDialect().Quoter().QuoteIdent
+	selectCols := quoteIdent(task.BiDirTimestampField)
 	for _, pkCol := range targetTableMeta.UniqueColumns {
-		selectCols += ", " + pkCol
+		selectCols += ", " + quoteIdent(pkCol)
 	}
 
 	result := make(map[string]map[string]any, len(entries))

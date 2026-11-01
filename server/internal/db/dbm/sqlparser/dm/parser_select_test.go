@@ -10,7 +10,7 @@ import (
 
 func TestDmSelectBasic(t *testing.T) {
 	sql := "SELECT id, name FROM users WHERE status = 1 ORDER BY id DESC LIMIT 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -34,7 +34,7 @@ func TestDmSelectBasic(t *testing.T) {
 
 func TestDmSelectTop(t *testing.T) {
 	sql := "SELECT TOP 10 id, name FROM users ORDER BY id"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -48,7 +48,7 @@ func TestDmSelectTop(t *testing.T) {
 
 func TestDmSelectDistinct(t *testing.T) {
 	sql := "SELECT DISTINCT department_id FROM users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -62,7 +62,7 @@ func TestDmSelectDistinct(t *testing.T) {
 
 func TestDmSelectStar(t *testing.T) {
 	sql := "SELECT * FROM users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -76,7 +76,7 @@ func TestDmSelectStar(t *testing.T) {
 
 func TestDmSelectWithJoin(t *testing.T) {
 	sql := "SELECT u.id, o.amount FROM users u LEFT JOIN orders o ON u.id = o.user_id WHERE u.status = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -93,7 +93,7 @@ func TestDmSelectWithJoin(t *testing.T) {
 
 func TestDmSelectMultipleJoins(t *testing.T) {
 	sql := "SELECT u.id, o.amount, p.name FROM users u LEFT JOIN orders o ON u.id = o.user_id INNER JOIN products p ON o.product_id = p.id WHERE u.status = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -107,7 +107,7 @@ func TestDmSelectMultipleJoins(t *testing.T) {
 
 func TestDmSelectComplexWhere(t *testing.T) {
 	sql := "SELECT * FROM users WHERE status = 1 AND (age > 18 OR role = 'admin') ORDER BY name"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -127,7 +127,7 @@ func TestDmSelectComplexWhere(t *testing.T) {
 
 func TestDmLimitOffset(t *testing.T) {
 	sql := "SELECT id FROM users ORDER BY id LIMIT 20, 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -141,7 +141,7 @@ func TestDmLimitOffset(t *testing.T) {
 
 func TestDmLimitOnly(t *testing.T) {
 	sql := "SELECT * FROM users LIMIT 5"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -157,7 +157,7 @@ func TestDmLimitOnly(t *testing.T) {
 
 func TestDmUnion(t *testing.T) {
 	sql := "SELECT id FROM users UNION SELECT id FROM admins ORDER BY 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -174,7 +174,7 @@ func TestDmUnion(t *testing.T) {
 
 func TestDmUnionWithOrderBy(t *testing.T) {
 	sql := "SELECT id FROM users UNION SELECT id FROM admins ORDER BY 1 DESC"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -191,7 +191,7 @@ func TestDmUnionWithOrderBy(t *testing.T) {
 
 func TestDmUnionWithLimit(t *testing.T) {
 	sql := "SELECT id FROM users UNION ALL SELECT id FROM admins LIMIT 20"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -207,7 +207,7 @@ func TestDmUnionWithLimit(t *testing.T) {
 
 func TestDmForUpdate(t *testing.T) {
 	sql := "SELECT id, name FROM users WHERE id = 1 FOR UPDATE"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -223,7 +223,7 @@ func TestDmForUpdate(t *testing.T) {
 
 func TestDmWithClause(t *testing.T) {
 	sql := "WITH temp_users AS (SELECT * FROM users WHERE status = 1) SELECT * FROM temp_users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -240,7 +240,7 @@ func TestDmMultipleWith(t *testing.T) {
 		recent_orders AS (SELECT * FROM orders WHERE created_at > NOW())
 	SELECT * FROM active_users u JOIN recent_orders o ON u.id = o.user_id`
 
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -262,7 +262,7 @@ func TestDmDDL(t *testing.T) {
 
 	for _, sql := range sqls {
 		t.Run(sql[:10], func(t *testing.T) {
-			parser := NewParser(sql)
+			parser := newParser(sql)
 			stmt, err := parser.Parse()
 			if err != nil {
 				t.Fatalf("parse error: %v", err)

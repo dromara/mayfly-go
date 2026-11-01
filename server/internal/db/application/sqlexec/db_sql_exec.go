@@ -23,12 +23,15 @@ import (
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/taskx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/jsonx"
 	"mayfly-go/pkg/utils/stringx"
 	"strings"
+	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 type sqlExecParam struct {
@@ -100,6 +103,9 @@ type DbSQLExec interface {
 
 	// 分页获取
 	GetPageList(condition *entity.DbSQLExecQuery, orderBy ...string) (*model.PageResult[*entity.DbSQLExec], error)
+
+	// TimerDeleteExpired 按保留期清理执行记录（未配置保留期则永久保留）
+	TimerDeleteExpired()
 }
 
 var _ (DbSQLExec) = (*DbSQLExecAppImpl)(nil)
@@ -110,15 +116,54 @@ type DbSQLExecAppImpl struct {
 	maskEngine    mask.MaskEngine      `inject:"T"`
 
 	flowProcdefApp flowapp.Procdef `inject:"T"`
+	tableAcl       TableAcl        `inject:"T"`
+
+	// viewCache 视图名清单的短 TTL 缓存：ACL 判定每条语句都要知道「目标表是不是视图」，
+	// 每次都查 information_schema 会给新查询（网格翻页）叠加额外的系统表开销。
+	// 只缓存「名字集合」，规则本身仍走 TableAcl 的快照缓存。
+	viewCacheMu sync.Mutex
+	viewCache   map[uint64]viewNamesEntry
+}
+
+// viewNamesEntry 某库的视图名集合与取数时间
+type viewNamesEntry struct {
+	names map[string]bool
+	at    time.Time
 }
 
 var _ DbSQLExec = (*DbSQLExecAppImpl)(nil)
+
+// 审计文本的字节上限。
+//
+// 列已是 mediumtext（16MB），这里再设上限是为了挡住病态长度（如用几百 KB 的批量 INSERT
+// 反复刷记录）把表撑爆或拖慢审计查询；取值以「够取证」为准，不追求存全。
+const (
+	maxAuditSQLBytes = 256 << 10
+	// Res 列是 varchar(1000)，留出标记篇幅后按 900 字节截断
+	maxAuditResBytes = 900
+)
+
+// truncateForAudit 按字节上限截断并追加「已截断」标记。
+//
+// 关键在标记里带原始长度：审计看到的必须是「这条记录不完整」，而不是一条看起来正常的短 SQL。
+// 截断点回退到 UTF-8 字符边界，避免产生半个汉字导致落库报错或显示乱码。
+func truncateForAudit(text string, maxBytes int) string {
+	if len(text) <= maxBytes {
+		return text
+	}
+	cut := maxBytes
+	for cut > 0 && !utf8.RuneStart(text[cut]) {
+		cut--
+	}
+	return text[:cut] + fmt.Sprintf("\n/* [audit] truncated: kept %d of %d bytes */", cut, len(text))
+}
 
 func createSQLExecRecord(ctx context.Context, execSQLReq *dto.DbSQLExecReq, sql string) *entity.DbSQLExec {
 	dbSQLExecRecord := new(entity.DbSQLExec)
 	dbSQLExecRecord.DbId = execSQLReq.DbId
 	dbSQLExecRecord.Db = execSQLReq.Db
-	dbSQLExecRecord.SQL = sql
+	// 截断放在记录构造点：执行、回滚生成、工单回放读到的都是同一份「已落库文本」
+	dbSQLExecRecord.SQL = truncateForAudit(sql, maxAuditSQLBytes)
 	dbSQLExecRecord.Remark = execSQLReq.Remark
 	dbSQLExecRecord.Status = entity.DbSQLExecStatusSuccess
 	return dbSQLExecRecord
@@ -218,24 +263,12 @@ func (d *DbSQLExecAppImpl) exec(ctx context.Context, execSQLReq *dto.DbSQLExecRe
 			tx:               atomicTx,
 		}
 
-		switch plan.class {
-		case sqlstmt.StmtTypeSelect:
-			execRes, err = d.doSelect(ctx, sqlExec)
-		case sqlstmt.StmtTypeUpdate:
-			execRes, err = d.doUpdate(ctx, sqlExec)
-		case sqlstmt.StmtTypeDelete:
-			execRes, err = d.doDelete(ctx, sqlExec)
-		case sqlstmt.StmtTypeInsert:
-			execRes, err = d.doInsert(ctx, sqlExec)
-		case sqlstmt.StmtTypeMerge:
-			execRes, err = d.doMerge(ctx, sqlExec)
-		case sqlstmt.StmtTypeDDL:
-			// 改结构后的元数据缓存失效由 dbi 执行层按语句类型统一负责（见 DbInfo.invalidateIfDDL）
-			execRes, err = d.doExecDDL(ctx, sqlExec)
-		case sqlstmt.StmtTypeOther:
-			execRes, err = d.doOtherRead(ctx, sqlExec)
-		default:
-			execRes, err = d.doExec(ctx, sqlExec)
+		if route, ok := stmtExecRoutes[plan.class]; ok {
+			execRes, err = route(d, ctx, sqlExec)
+		} else {
+			// 类型完全未知（首词无法识别）：按「可能写」处理，绝不落进只读通道。
+			// 这里曾经直接 doExec，既不审批也不把审计记成写，属 fail-open。
+			execRes, err = d.doOtherWrite(ctx, sqlExec)
 		}
 
 		// 执行错误
@@ -317,13 +350,22 @@ func CanAtomicBatch(class sqlstmt.StmtType) bool { return atomicClasses[class] }
 //
 // procdef 为空表示该库没有绑定流程定义，此时不付任何解析开销
 func (d *DbSQLExecAppImpl) checkImportedSQL(ctx context.Context, procdef *flowentity.Procdef, dbConn *dbi.DbConn, sql string) error {
-	if procdef == nil {
+	// 表级权限不依赖流程定义：没绑定工单的库上，脚本执行同样要判，
+	// 否则「只配了保护名单」的部署就等于没配
+	aclEnabled, err := d.tableAclEnabled(ctx, dbConn)
+	if err != nil {
+		return err
+	}
+	if procdef == nil && !aclEnabled {
 		return nil
 	}
 	sp := dbConn.GetDialect().GetSQLParser()
 	stmt, parseErr := sp.Parse(sql)
 	// 分类口径与执行、审计同源（见 Exec），否则同一条语句在导入与交互执行下会得到不同结论
 	sqlExec := &sqlExecParam{DbConn: dbConn, SQL: sql, Stmt: stmt, Procdef: procdef}
+	if procdef == nil {
+		return d.assertTableAcl(ctx, sqlExec)
+	}
 	stmtType := string(sqlparser.Classify(sp, dbConn.GetDialect().GetSQLSplitter(), sql, stmt, parseErr))
 	if err := d.checkSQLTrigger(ctx, sqlExec, stmtType); err != nil {
 		return err
@@ -541,10 +583,33 @@ func (d *DbSQLExecAppImpl) GetPageList(condition *entity.DbSQLExecQuery, orderBy
 	return d.dbSQLExecRepo.GetPageList(condition, orderBy...)
 }
 
+// TimerDeleteExpired 注册执行记录的保留期清理任务。
+//
+// 默认（sqlExecSaveDays<=0）不清理：到期自动删除审计记录在合规语境里是「销毁证据」，
+// 必须由管理员显式配置天数后才会发生。多实例部署靠分布式锁保证同一时刻只有一个实例在删。
+func (d *DbSQLExecAppImpl) TimerDeleteExpired() {
+	_ = taskx.BindCronTaskWithLock("db-sql-exec-cleanup", "@every 6h", 30*time.Minute, true, func() {
+		days := config.GetDbms().SQLExecSaveDays
+		if days <= 0 {
+			return
+		}
+		cutoff := time.Now().AddDate(0, 0, -days)
+		removed, err := d.dbSQLExecRepo.DeleteBefore(context.Background(), cutoff)
+		if err != nil {
+			logx.Errorf("db sql exec audit cleanup failed (cutoff %s): %s", cutoff.Format(time.RFC3339), err.Error())
+			return
+		}
+		if removed > 0 {
+			logx.Infof("db sql exec audit cleanup: removed %d records older than %s", removed, cutoff.Format(time.RFC3339))
+		}
+	})
+}
+
 // 保存sql执行记录，如果是查询类则根据系统配置判断是否保存
 func (d *DbSQLExecAppImpl) saveSQLExecLog(ctx context.Context, dbSQLExecRecord *entity.DbSQLExec, res any) {
 	if dbSQLExecRecord.Type != entity.DbSQLExecTypeQuery {
-		dbSQLExecRecord.Res = jsonx.ToStr(res)
+		// 结果列是 varchar(1000)：不截断时一次 SHOW/SET 的大结果就能让整条审计记录写不进去
+		dbSQLExecRecord.Res = truncateForAudit(jsonx.ToStr(res), maxAuditResBytes)
 		if err := d.dbSQLExecRepo.Insert(ctx, dbSQLExecRecord); err != nil {
 			logx.Errorf("save sql exec record failed: %s", err.Error())
 		}
@@ -582,6 +647,20 @@ func (d *DbSQLExecAppImpl) doOtherRead(ctx context.Context, sqlExecParam *sqlExe
 	// 与 doSelect 同受 maxResultSet 约束：SHOW/PROCESSLIST 等 Other 类只读语句同样可能返回大量行，
 	// 固定 0（不限制）会让结果集上限只对 SELECT 生效，形成一处静默的无界内存入口
 	return d.doQuery(ctx, sqlExecParam, config.GetDbms().MaxResultSet)
+}
+
+// doOtherWrite 执行「未结构化建模但可能写数据」的语句（CALL/LOAD DATA/COPY FROM/未知动词）。
+//
+// 与 doOtherRead 的分野是安全边界：这些语句过程体或批量装载可写任意表，必须走写通道
+// （可被 DML 类策略拦下、审计记为 Other 而非 Query），不允许以只读之名绕过治理。
+func (d *DbSQLExecAppImpl) doOtherWrite(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSQLExecRes, error) {
+	sqlExecParam.SQLExecRecord.Type = entity.DbSQLExecTypeOther
+
+	if err := d.checkSQLTrigger(ctx, sqlExecParam, "other-write"); err != nil {
+		return nil, err
+	}
+
+	return d.doExec(ctx, sqlExecParam)
 }
 
 func (d *DbSQLExecAppImpl) doExecDDL(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSQLExecRes, error) {
@@ -909,6 +988,22 @@ func (d *DbSQLExecAppImpl) doQuery(ctx context.Context, sqlExecParam *sqlExecPar
 		return nil, err
 	}
 
+	// 列级权限的结果集兜底：`SELECT *` 会把无权列一并取回，这里在交给前端之前裁掉。
+	// 显式写出无权列的语句在 checkSQLTrigger 已被拒绝，走到这里只剩星号那一种形态
+	if d.tableAcl != nil && dbConn != nil && dbConn.Info != nil {
+		// 与断言同一份作用域（含视图展开）：否则查询视图时这里的表清单里只有视图名，
+		// 被保护列不会被裁掉
+		tables, resolvable := d.aclScopeFor(ctx, dbConn, sql, sqlExecParam.Stmt)
+		if !resolvable {
+			return nil, errorx.NewBizI(ctx, imsg.ErrAclUnresolvable)
+		}
+		trimmed, rows, trimErr := d.tableAcl.TrimDeniedColumns(ctx, dbConn.Info.Id, tables, cols, res)
+		if trimErr != nil {
+			return nil, trimErr
+		}
+		cols, res = trimmed, rows
+	}
+
 	return &dto.DbSQLExecRes{
 		SQL:       sql,
 		Columns:   cols,
@@ -935,4 +1030,22 @@ func (d *DbSQLExecAppImpl) doExec(ctx context.Context, p *sqlExecParam) (*dto.Db
 		Res: res,
 		SQL: p.SQL,
 	}, err
+}
+
+// execRouteFunc 语句类型 → 执行入口。
+type execRouteFunc func(*DbSQLExecAppImpl, context.Context, *sqlExecParam) (*dto.DbSQLExecRes, error)
+
+// stmtExecRoutes 语句类型到执行入口的注册表：新增语句类型只需在此加一行
+// （解析侧在 base/sharedStatementSpecs 注册，执行侧在这里登记通道）。
+//
+// 未登记的语句类型一律走 doOtherWrite（写通道），这是 fail-closed 的兜底。
+var stmtExecRoutes = map[sqlstmt.StmtType]execRouteFunc{
+	sqlstmt.StmtTypeSelect:     (*DbSQLExecAppImpl).doSelect,
+	sqlstmt.StmtTypeInsert:     (*DbSQLExecAppImpl).doInsert,
+	sqlstmt.StmtTypeUpdate:     (*DbSQLExecAppImpl).doUpdate,
+	sqlstmt.StmtTypeDelete:     (*DbSQLExecAppImpl).doDelete,
+	sqlstmt.StmtTypeMerge:      (*DbSQLExecAppImpl).doMerge,
+	sqlstmt.StmtTypeDDL:        (*DbSQLExecAppImpl).doExecDDL,
+	sqlstmt.StmtTypeOtherRead:  (*DbSQLExecAppImpl).doOtherRead,
+	sqlstmt.StmtTypeOtherWrite: (*DbSQLExecAppImpl).doOtherWrite,
 }

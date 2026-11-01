@@ -29,4 +29,13 @@ func TestDataImportIsGoverned(t *testing.T) {
 	require.Contains(t, source, "values[:1]", "判定语句必须与批次大小无关")
 	// 提醒不阻断，但要回传给操作者
 	require.Contains(t, source, "Warnings: warnings")
+
+	// 表/列访问控制同样必须早于写库：导入是「写」入口，只过触发策略等于给保护名单开了后门
+	// 列级必须带上映射列：AssertColumnsAllowed 对空 refs 直接放行，
+	// 传 nil 等于只判表级、列级保护被整条绕过（可覆盖敏感列取值）。
+	// 列引用由 buildImportColumnRefs 统一构造（传 nil 等于只判表级，列保护会被绕过）
+	aclJudge := strings.Index(source, "d.tableAcl.AssertStatementAllowed(ctx, conn.Info.Id, []string{req.TableName}, true, buildImportColumnRefs(")
+	require.Greater(t, aclJudge, -1, "数据导入没过表/列访问控制")
+	require.Less(t, aclJudge, begin, "表/列访问控制必须在开事务前判定")
+	require.Contains(t, source, "sqlexec.ColumnRef{Table: tableName, Column: column.ColumnName}", "列级访问控制必须按映射列判定，不能传 nil")
 }

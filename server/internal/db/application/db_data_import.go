@@ -2,12 +2,14 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
 	"time"
 
 	"mayfly-go/internal/db/application/dto"
+	"mayfly-go/internal/db/application/sqlexec"
 	dbsync "mayfly-go/internal/db/application/sync"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/importer"
@@ -31,6 +33,7 @@ type DbDataImport interface {
 }
 
 type dbDataImportAppImpl struct {
+	tableAcl sqlexec.TableAcl `inject:"T"`
 }
 
 var _ DbDataImport = (*dbDataImportAppImpl)(nil)
@@ -264,6 +267,14 @@ func (d *dbDataImportAppImpl) Import(ctx context.Context, req *dto.DataImportReq
 		}
 	}
 
+	// 表/列访问控制先于写库：它判的是「这张表能不能碰」，与触发策略（要不要人批）是两件事。
+	// 缺了这一步，被保护的表虽然编辑器读不到，却可以用 CSV/Excel 导入直接写进去。
+	if d.tableAcl != nil && conn.Info != nil {
+		if aclErr := d.tableAcl.AssertStatementAllowed(ctx, conn.Info.Id, []string{req.TableName}, true, buildImportColumnRefs(req.TableName, insertColumns)); aclErr != nil {
+			return nil, aclErr
+		}
+	}
+
 	tx, err := conn.Begin()
 	if err != nil {
 		return nil, errorx.NewBizf("begin import transaction failed: %s", err.Error())
@@ -365,7 +376,25 @@ func (d *dbDataImportAppImpl) Import(ctx context.Context, req *dto.DataImportReq
 		return nil
 	}
 
+	// 日期序列数还原的目标列：只处理映射到日期/时间列的文件列，其余列完全跳过
+	dateSerialCols := make([]int, 0, len(insertColumns))
+	for i, col := range insertColumns {
+		if isTemporalCategory(conn, col.DataType) {
+			dateSerialCols = append(dateSerialCols, keptSources[i])
+		}
+	}
+	fullOpts.DateSerialColumns = dateSerialCols
+
 	if err := imp.Stream(reader, &fullOpts, &importer.StreamHandler{
+		// 行级告警（目前是 CSV 字段数与首行不一致）：不阻断，但必须让操作者知道
+		// 该行可能因裸引号整体错位。限量以免整表错位时刷爆响应。
+		OnRowWarning: func(rowNum int, msg string) {
+			// 必须直接写 res.Warnings：res 已用当时的 warnings 初始化，之后 append 到局部变量只改 header，
+			// res.Warnings 的 len 不变 —— 行级告警会永远进不了响应（修复前正是这样静默失效的）。
+			if len(res.Warnings) < maxImportRowWarnings {
+				res.Warnings = append(res.Warnings, fmt.Sprintf("row %d: %s", rowNum, msg))
+			}
+		},
 		OnRow: func(row []string) error {
 			if ctx.Err() != nil {
 				return errorx.NewBiz("import cancelled")
@@ -481,10 +510,26 @@ func cellValue(row []string, colIdx int, emptyAsNull, isBinary, isText, nullable
 	return v
 }
 
+// maxImportRowWarnings 行级告警上报上限：整表错位时避免把响应/日志刷爆
+const maxImportRowWarnings = 20
+
 // isBinaryCategory 判定目标列类型是否二进制族（blob/binary/varbinary），其值不得走文本→hex 猜测路径
 func isBinaryCategory(conn *dbi.DbConn, dataType string) bool {
 	switch dbi.GetDbDataType(conn.Info.Type, dataType).Category() {
 	case dbi.TCBinary, dbi.TCVarbinary, dbi.TCBlob, dbi.TCMediumblob, dbi.TCLongblob:
+		return true
+	default:
+		return false
+	}
+}
+
+// isTemporalCategory 判定目标列是否为日期/时间族。
+//
+// 只有这些列需要把 Excel 序列数（如 45293.4375）还原成时间文本；解析层据此决定
+// 对哪些列做还原（不再逐格探测单元格格式，避免 excelize 全量解析整张 sheet）。
+func isTemporalCategory(conn *dbi.DbConn, dataType string) bool {
+	switch dbi.GetDbDataType(conn.Info.Type, dataType).Category() {
+	case dbi.TCDate, dbi.TCTime, dbi.TCDateTime, dbi.TCTimestamp:
 		return true
 	default:
 		return false
@@ -500,4 +545,20 @@ func isTextualCategory(conn *dbi.DbConn, dataType string) bool {
 	default:
 		return false
 	}
+}
+
+// buildImportColumnRefs 把「本次真正写入的目标列」组装成权限判定用的列引用。
+//
+// 为什么单独成函数：AssertColumnsAllowed 对空 refs 直接放行（"无信息=不判"），
+// 所以只要有人在这里传 nil 或空切片，列级保护就被整条绕过，而表级判定仍然绿。
+// 抽成可测单元后，"每个映射列都必须出现在 refs 里"是显式契约。
+func buildImportColumnRefs(tableName string, columns []dbi.Column) []sqlexec.ColumnRef {
+	refs := make([]sqlexec.ColumnRef, 0, len(columns))
+	for _, column := range columns {
+		if column.ColumnName == "" {
+			continue
+		}
+		refs = append(refs, sqlexec.ColumnRef{Table: tableName, Column: column.ColumnName})
+	}
+	return refs
 }

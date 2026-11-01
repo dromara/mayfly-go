@@ -58,8 +58,11 @@ func (a *Ai) Chat(rc *req.Ctx) {
 		wsConn.Close()
 	}()
 
-	ag, err := agent.GetDefaultAgent(rc.MetaCtx)
-	biz.ErrIsNilAppendErr(err, "get agent error: %s")
+	// 连接建立即探测一次：模型未配置 / Agent 装配失败在连接阶段就反馈给客户端，
+	// 避免用户直到点击发送才发现不可用（每轮还会按当前配置重新解析，见 send 分支）
+	if _, err := agent.GetDefaultAgent(rc.MetaCtx); err != nil {
+		biz.ErrIsNilAppendErr(err, "get agent error: %s")
+	}
 
 	// turn 的 baseCtx 与 WS 连接生命周期解耦：连接断开（刷新页面）不取消运行中 turn，
 	// 仅显式 stop 取消；登录身份/链路 ID 显式透传（hijacked 连接的请求 ctx 不可依赖）
@@ -189,6 +192,16 @@ func (a *Ai) Chat(rc *req.Ctx) {
 			turnId = (*resumeList)[0].TurnId
 		}
 
+		// 每轮重新解析当前 Agent，而不是沿用连接建立时的快照：
+		// Agent 在构造时绑定 ChatModel，模型配置（地址 / Key / 模型名）热生效后
+		// 旧实例仍指向旧端点 —— 连接级快照会让「改完配置的下一轮对话」在已打开的
+		// 页面里继续走旧地址，直到刷新页面重连。未变更配置时该调用只取缓存指针。
+		turnAgent, agentErr := agent.GetDefaultAgent(rc.MetaCtx)
+		if agentErr != nil {
+			w.Write(protocol.NewErrorEvent(fmt.Sprintf("get agent error: %s", agentErr), "server"))
+			continue
+		}
+
 		// 会话级互斥注册（Start 时创建 turn ctx 与事件总线；userId 用于运行中列表与归属比对）
 		turn, startErr := chatRt.Start(convId, turnId, connUserId, baseCtx)
 		if startErr != nil {
@@ -227,7 +240,7 @@ func (a *Ai) Chat(rc *req.Ctx) {
 		turn.Publish(protocol.NewTurnStartedEvent(turnId, convId))
 
 		// 独立 goroutine 执行：连接断开/页面刷新不影响 turn 运行
-		go a.runTurn(turn, ag, convId, turnId, resumeParams, userMessage, recorder)
+		go a.runTurn(turn, turnAgent, convId, turnId, resumeParams, userMessage, recorder)
 
 		// 本连接订阅该 turn（回放含 turn_started，实时事件无缝续上）
 		cancelSub()

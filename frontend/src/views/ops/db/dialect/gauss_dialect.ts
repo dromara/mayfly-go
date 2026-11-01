@@ -2,13 +2,14 @@ import { DbType } from './dbType';
 import { registerDbDialect } from './registry';
 import { DuplicateStrategy } from './types';
 import type { DialectInfo } from './types';
-import { PostgresqlDialect } from './postgres_dialect';
+import { GAUSS_TYPE_LIST, PostgresqlDialect } from './postgres_dialect';
 
 let gsDialectInfo: DialectInfo;
 
 /**
  * GaussDB 方言：兼容 PostgreSQL 语法，能力声明与 DDL 生成均继承 PostgresqlDialect。
- * 差异仅在元信息（名称/图标）与批量插入的冲突处理语法。
+ * 差异在元信息（名称/图标）、类型清单（高斯有 largeserial / nchar / clob 等自有类型）
+ * 与批量插入的冲突处理语法。
  */
 class GaussDialect extends PostgresqlDialect {
     getInfo(): DialectInfo {
@@ -20,6 +21,8 @@ class GaussDialect extends PostgresqlDialect {
         Object.assign(gsDialectInfo, super.getInfo());
         gsDialectInfo.icon = 'icon db/guass';
         gsDialectInfo.name = 'GaussDB';
+        // 类型清单必须换成高斯自己的：父类给的是原生 PostgreSQL 标准类型集
+        gsDialectInfo.columnTypes = [...GAUSS_TYPE_LIST];
         return gsDialectInfo;
     }
 

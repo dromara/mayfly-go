@@ -123,6 +123,22 @@ func (app *DataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 		}
 	}
 
+	// 全量刷新会先清空目标表（TRUNCATE 是 DDL，MySQL/PG 下不可回滚），所以必须先确认源查询真的可执行。
+	// 否则源侧断连、权限被回收、SQL 运行期报错时，目标表已被清空且无法撤销 ——
+	// "目标全空 + 任务失败"是不可逆损失，而这次读取只是验证可读性（读首行即停）。
+	if task.SyncMode == entity.DataSyncModeFullRefresh {
+		probeSQL := sql
+		if rewritten, rwErr := srcConn.GetDialect().GetSQLParser().RewritePagination(sql, 0, 1); rwErr == nil && strings.TrimSpace(rewritten) != "" {
+			probeSQL = rewritten
+		}
+		_, probeErr := srcConn.WalkQueryRows(ctx, probeSQL, func(row map[string]any, columns []*dbi.QueryColumn) error {
+			return dbi.NewStopWalkQueryError("source probe: first row read")
+		})
+		if probeErr != nil {
+			return errorx.NewBizf("full refresh aborted: source query is not readable, target table was NOT cleared: %s", probeErr.Error())
+		}
+	}
+
 	// 全量刷新模式：先清空目标表
 	if task.SyncMode == entity.DataSyncModeFullRefresh {
 		sqlGen := targetConn.GetDialect().GetSQLGenerator()
@@ -213,16 +229,15 @@ func (app *DataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 			if err := app.srcData2TargetDb(ctx, result, sec); err != nil {
 				return err
 			}
-
-			// 目标写入已完成，但任务级水位属共享状态：仅在仍是本次锁持有者时推进，
-			// 避免新实例接管后旧任务默默推水位把新执行的进度拉到旧位置。
-			if app.runGuard.IsCurrentRun(task.Id, syncLog.RunId) && !app.runGuard.IsStopRequested(task.Id) {
-				if pwErr := app.persistUpdFieldVal(ctx, task); pwErr != nil {
-					logx.WarnfContext(ctx, "watermark persist failed (batch #%d): %s", batchNum, pwErr.Error())
-				}
-			} else {
-				logx.WarnfContext(ctx, "sync task [%d] was preempted or stop-requested, skipping watermark persist (batch #%d)", task.Id, batchNum)
-			}
+			// 水位**不在批间持久化**，只在本轮全部批次成功后推进一次（见下方 final batch 分支）。
+			//
+			// 原因：增量续跑条件是 `upd {>,>=} V`。若批间就把 V 推进到「本批末行的 upd 值」，
+			// 一旦在本批之后失败/停止/被抢占，下一轮以 `> V` 续跑时，与 V 同值但位于后续批次
+			// 尚未写入的行会被永久跳过（UpdField 非唯一时必然发生，例如秒级时间戳）。
+			//
+			// 取舍：改为「至少一次」语义 —— 中断后整轮重放，重复由目标侧的冲突策略
+			// （Ignore/Update/upsert）或主键约束显式暴露，而不是静默少写数据。
+			// 正确性优先于重放成本；纯 Append 且目标无主键时的重复是有意的 fail-loud 行为。
 
 			now := time.Now()
 			batchDuration := now.Sub(batchStart).Milliseconds()
@@ -276,15 +291,18 @@ func (app *DataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 		if err := app.srcData2TargetDb(ctx, result, sec); err != nil {
 			return err
 		}
-		if app.runGuard.IsCurrentRun(task.Id, syncLog.RunId) && !app.runGuard.IsStopRequested(task.Id) {
-			if pwErr := app.persistUpdFieldVal(ctx, task); pwErr != nil {
-				logx.WarnfContext(ctx, "watermark persist failed (final batch): %s", pwErr.Error())
-			}
-		} else {
-			logx.WarnfContext(ctx, "sync task [%d] was preempted or stop-requested, skipping watermark persist (final batch)", task.Id)
-		}
 		metrics.RecordBatch(len(result))
 		batchNum++
+	}
+
+	// 整轮成功：无条件推进一次水位（含「数据正好整除、没有尾批」的情况）。
+	// 批间不再推进（见上方说明），若这里也只放在尾批分支，整除时会永远不推进 → 每轮重放。
+	if app.runGuard.IsCurrentRun(task.Id, syncLog.RunId) && !app.runGuard.IsStopRequested(task.Id) {
+		if pwErr := app.persistUpdFieldVal(ctx, task); pwErr != nil {
+			logx.WarnfContext(ctx, "watermark persist failed (final batch): %s", pwErr.Error())
+		}
+	} else {
+		logx.WarnfContext(ctx, "sync task [%d] was preempted or stop-requested, skipping watermark persist (final batch)", task.Id)
 	}
 
 	if err := app.reconcileDeletes(ctx, sec, syncLog); err != nil {
@@ -423,7 +441,7 @@ func (app *DataSyncAppImpl) transformBatch(ctx context.Context, srcRes []map[str
 						if metrics != nil {
 							metrics.SkipCount++
 						}
-						pkWhere := buildPKWhereClause(srcData, target2Src, targetTableMeta, escapeFnForDialect(targetDbConn.Info.Type))
+						pkWhere := buildPKWhereClause(srcData, target2Src, targetTableMeta, escapeFnForDialect(targetDbConn.Info.Type), targetDbConn.GetDialect().Quoter().QuoteIdent)
 						logx.DebugContext(ctx, sec.conflictDetector.ResolveConflict(task.TaskName, pkWhere))
 						continue
 					}
@@ -455,7 +473,19 @@ func (app *DataSyncAppImpl) transformBatch(ctx context.Context, srcRes []map[str
 			if metrics != nil {
 				metrics.SkipCount++
 			}
+			// 转换规则失败被计为 skip：必须在这里把错误提出来让本轮失败。
+			// 否则表现为"任务成功、但目标列少写了一行/若干行"，比直接写 NULL 更难发现。
+			if transformEngine != nil {
+				if tErr := transformEngine.Err(); tErr != nil {
+					return nil, tErr
+				}
+			}
 			continue
+		}
+		if transformEngine != nil {
+			if tErr := transformEngine.Err(); tErr != nil {
+				return nil, tErr
+			}
 		}
 		targetData = append(targetData, data)
 	}

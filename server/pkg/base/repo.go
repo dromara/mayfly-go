@@ -79,6 +79,10 @@ type Repo[T model.ModelI] interface {
 	// CountByCond 根据指定条件统计model表的数量。SQL 出错时返回 error，不与「统计为 0」混淆
 	CountByCond(cond any) (int64, error)
 
+	// CountByCondCtx 同 CountByCond，但使用 ctx 里绑定的事务连接。
+	// 事务内统计自己刚写入的行必须用它，否则会读成事务开始前的旧值
+	CountByCondCtx(ctx context.Context, cond any) (int64, error)
+
 	// Exists 根据指定条件判断是否存在数据。
 	//
 	// 带 ctx：事务内做「先查重再写入」的存在性判断必须用它，它走 ctx 绑定的事务连接，
@@ -211,6 +215,10 @@ func (br *RepoImpl[T]) PageByCond(cond any, pageParam model.PageParam, cols ...s
 
 func (br *RepoImpl[T]) CountByCond(cond any) (int64, error) {
 	return gormx.CountByCond(br.GetModel(), toQueryCond(cond))
+}
+
+func (br *RepoImpl[T]) CountByCondCtx(ctx context.Context, cond any) (int64, error) {
+	return gormx.CountByCondCtx(ctx, br.GetModel(), toQueryCond(cond))
 }
 
 func (br *RepoImpl[T]) Exists(ctx context.Context, cond any) (bool, error) {

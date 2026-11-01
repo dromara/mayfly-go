@@ -4,12 +4,11 @@ import (
 	"context"
 
 	"mayfly-go/internal/ai/agent/contributor"
+	"mayfly-go/internal/ai/llm"
 	"mayfly-go/internal/ai/memory"
 	"mayfly-go/internal/ai/session"
 	"mayfly-go/pkg/eventbus"
 	"mayfly-go/pkg/logx"
-
-	"github.com/cloudwego/eino/components/model"
 )
 
 // MemoryExtractionExtension 长期记忆提取扩展（装配期激活型，ChannelService）
@@ -25,19 +24,19 @@ import (
 type MemoryExtractionExtension struct {
 	memoryManager  *memory.Manager
 	sessionManager *session.Manager
-	chatModel      model.AgenticModel
+	modelProvider  llm.Provider
 }
 
 // NewExtractionExtension 创建记忆提取扩展（memoryManager 为 nil 时返回 nil，
 // 未启用记忆能力，宿主跳过注册）
-func NewExtractionExtension(memoryManager *memory.Manager, sessionManager *session.Manager, chatModel model.AgenticModel) *MemoryExtractionExtension {
+func NewExtractionExtension(memoryManager *memory.Manager, sessionManager *session.Manager, modelProvider llm.Provider) *MemoryExtractionExtension {
 	if memoryManager == nil {
 		return nil
 	}
 	return &MemoryExtractionExtension{
 		memoryManager:  memoryManager,
 		sessionManager: sessionManager,
-		chatModel:      chatModel,
+		modelProvider:  modelProvider,
 	}
 }
 
@@ -47,18 +46,18 @@ func (e *MemoryExtractionExtension) Id() string { return "memory_extraction" }
 
 // Activate 装配期激活：注入 LLM Extractor + 订阅会话摘要完成事件（幂等）
 func (e *MemoryExtractionExtension) Activate(_ context.Context) error {
-	// 注入 LLM Extractor（无 ChatModel 时提取能力降级为不可用）
-	if e.chatModel != nil {
+	// 注入 LLM Extractor（无模型访问入口时提取能力降级为不可用）
+	if e.modelProvider != nil {
 		extractor := memory.NewLLMExtractor()
 		extractor.WithConfig(&memory.LLMExtractorConfig{
 			Enabled:       true,
 			MinConfidence: 0.7,
-			ChatModel:     e.chatModel,
+			ModelProvider: e.modelProvider,
 		})
 		e.memoryManager.WithExtractor(extractor)
 		logx.Info("LLM memory extractor auto-configured")
 	} else {
-		logx.Warn("ChatModel not provided, memory extraction will be disabled")
+		logx.Warn("model provider not provided, memory extraction will be disabled")
 	}
 
 	if e.sessionManager == nil {

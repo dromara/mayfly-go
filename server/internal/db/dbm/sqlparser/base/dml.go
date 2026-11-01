@@ -230,7 +230,7 @@ func (l *Lexer) ParseDelete() sqlstmt.Stmt {
 
 	return &sqlstmt.DeleteStmt{
 		Base:   sqlstmt.Base{Text: l.TextFrom(start)},
-		Tables: tables,
+		Tables: dedupeTableRefs(tables),
 		Where:  where,
 		Limit:  limit,
 	}
@@ -292,4 +292,25 @@ func (l *Lexer) parseDmlCond() *sqlstmt.Expr {
 	}
 	l.Consume()
 	return l.ParseCondExpr(false)
+}
+
+// dedupeTableRefs 按「schema.name」小写去重，保留首次出现的顺序。
+//
+// 多表 DELETE 的目标别名与 FROM 里的同一张表会重复登记（`DELETE t1 FROM t1 JOIN t2`），
+// 重复项会让「表数量」类策略重复计数，也会让 ACL 反复查同一张表。
+func dedupeTableRefs(refs []sqlstmt.TableRef) []sqlstmt.TableRef {
+	if len(refs) < 2 {
+		return refs
+	}
+	seen := make(map[string]bool, len(refs))
+	out := make([]sqlstmt.TableRef, 0, len(refs))
+	for _, ref := range refs {
+		key := strings.ToLower(ref.Schema + "." + ref.Name)
+		if ref.Name != "" && seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, ref)
+	}
+	return out
 }

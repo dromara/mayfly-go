@@ -79,13 +79,14 @@ func TestITDataSyncWatermark(t *testing.T) {
 	assert.Equal(t, 10, log1.ResNum)
 	assert.Equal(t, "10", task.UpdFieldVal)
 	assert.Equal(t, 10, countRows(t, dst, wmTgtTable))
-	require.Len(t, fake.updated, 4, "批级水位应持久化4次")
-	last := int64(0)
-	for _, ut := range fake.updated {
-		v, _ := value.ValToInt64(ut.UpdFieldVal)
-		assert.GreaterOrEqual(t, v, last, "水位不得回退")
-		last = v
-	}
+	// 水位**只在整轮成功后持久化一次**（不再批间推进）。
+	//
+	// 旧行为（4 次批间推进）配合 `> 水位` 续跑会在中断后跳过「与水位同值、但仍在后续批次
+	// 未写入」的行（UpdField 非唯一时必然发生）。现在改为至少一次语义：中断即整轮重放，
+	// 重复由冲突策略/主键暴露。
+	require.Len(t, fake.updated, 1, "水位只应在整轮成功后推进一次")
+	v, _ := value.ValToInt64(fake.updated[0].UpdFieldVal)
+	assert.EqualValues(t, 10, v, "推进后水位应为末行值")
 
 	// 第二轮增量（新增11~13）
 	wmInsertRows(t, src, 11, 13)

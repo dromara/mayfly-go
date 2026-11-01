@@ -10,7 +10,7 @@ import (
 
 func TestOraclePaginationFetchFirst(t *testing.T) {
 	sql := "SELECT id, name FROM users ORDER BY id FETCH FIRST 10 ROWS ONLY"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -28,7 +28,7 @@ func TestOraclePaginationFetchFirst(t *testing.T) {
 func TestOraclePaginationFetchFirstWithOffset(t *testing.T) {
 	// Oracle 12c+ 支持 OFFSET ... FETCH FIRST
 	sql := "SELECT id, name FROM users ORDER BY id OFFSET 20 ROWS FETCH FIRST 10 ROWS ONLY"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -45,7 +45,7 @@ func TestOraclePaginationFetchFirstWithOffset(t *testing.T) {
 func TestOraclePaginationFetchNext(t *testing.T) {
 	// NEXT 和 FIRST 等价
 	sql := "SELECT * FROM orders ORDER BY created_at DESC OFFSET 50 ROWS FETCH NEXT 20 ROWS ONLY"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -62,7 +62,7 @@ func TestOraclePaginationFetchNext(t *testing.T) {
 func TestOraclePaginationWithTies(t *testing.T) {
 	// WITH TIES 返回并列结果
 	sql := "SELECT * FROM products ORDER BY price DESC FETCH FIRST 10 ROWS WITH TIES"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -81,7 +81,7 @@ func TestOraclePaginationWithTies(t *testing.T) {
 func TestOraclePaginationRowNum(t *testing.T) {
 	// 传统 Oracle 分页方式
 	sql := "SELECT * FROM (SELECT u.*, ROWNUM AS rn FROM users u WHERE ROWNUM <= 30) WHERE rn > 20"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -97,7 +97,7 @@ func TestOraclePaginationRowNum(t *testing.T) {
 
 func TestOraclePaginationRowNumSimple(t *testing.T) {
 	sql := "SELECT * FROM users WHERE ROWNUM <= 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -113,7 +113,7 @@ func TestOraclePaginationRowNumSimple(t *testing.T) {
 
 func TestOraclePaginationRowNumWithWhere(t *testing.T) {
 	sql := "SELECT * FROM users WHERE status = 1 AND ROWNUM <= 50"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -131,7 +131,7 @@ func TestOraclePaginationRowNumWithWhere(t *testing.T) {
 
 func TestOraclePaginationWithWhere(t *testing.T) {
 	sql := "SELECT id, name, email FROM users WHERE status = 1 AND age > 18 ORDER BY id FETCH FIRST 20 ROWS ONLY"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -149,7 +149,7 @@ func TestOraclePaginationWithWhere(t *testing.T) {
 
 func TestOraclePaginationWithOrderBy(t *testing.T) {
 	sql := "SELECT * FROM users ORDER BY created_at DESC, id ASC FETCH FIRST 100 ROWS ONLY"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -167,7 +167,7 @@ func TestOraclePaginationWithOrderBy(t *testing.T) {
 
 func TestOraclePaginationWithJoin(t *testing.T) {
 	sql := "SELECT u.id, u.name, o.amount FROM users u LEFT JOIN orders o ON u.id = o.user_id WHERE u.status = 1 ORDER BY o.created_at DESC FETCH FIRST 20 ROWS ONLY"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -185,7 +185,7 @@ func TestOraclePaginationWithJoin(t *testing.T) {
 
 func TestOraclePaginationWithGroupBy(t *testing.T) {
 	sql := "SELECT user_id, COUNT(*) as order_count FROM orders GROUP BY user_id ORDER BY order_count DESC FETCH FIRST 10 ROWS ONLY"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -202,7 +202,7 @@ func TestOraclePaginationWithGroupBy(t *testing.T) {
 
 func TestOraclePaginationWithUnion(t *testing.T) {
 	sql := "SELECT id FROM users UNION SELECT id FROM admins ORDER BY 1 DESC FETCH FIRST 50 ROWS ONLY"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -220,7 +220,7 @@ func TestOraclePaginationWithUnion(t *testing.T) {
 
 func TestOraclePaginationUnionAll(t *testing.T) {
 	sql := "SELECT name FROM products UNION ALL SELECT name FROM services FETCH FIRST 30 ROWS ONLY"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -240,7 +240,7 @@ func TestOraclePaginationUnionAll(t *testing.T) {
 
 func TestOraclePaginationWithSubquery(t *testing.T) {
 	sql := "SELECT * FROM (SELECT id, name FROM users WHERE status = 1 ORDER BY id FETCH FIRST 100 ROWS ONLY) tmp WHERE ROWNUM <= 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -261,7 +261,7 @@ func TestOracleNestedPagination(t *testing.T) {
 			SELECT * FROM users ORDER BY id
 		) u WHERE ROWNUM <= 100
 	) WHERE rn > 90`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -279,7 +279,7 @@ func TestOracleNestedPagination(t *testing.T) {
 
 func TestOraclePaginationForUpdate(t *testing.T) {
 	sql := "SELECT * FROM users WHERE status = 0 ORDER BY id FETCH FIRST 10 ROWS ONLY FOR UPDATE"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -294,7 +294,7 @@ func TestOraclePaginationForUpdate(t *testing.T) {
 
 func TestOraclePaginationForUpdateNowait(t *testing.T) {
 	sql := "SELECT * FROM orders WHERE status = 'pending' ORDER BY created_at FETCH FIRST 20 ROWS ONLY FOR UPDATE NOWAIT"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -311,7 +311,7 @@ func TestOraclePaginationForUpdateNowait(t *testing.T) {
 
 func TestOracleLargeOffsetPagination(t *testing.T) {
 	sql := "SELECT * FROM (SELECT t.*, ROWNUM AS rn FROM (SELECT * FROM logs ORDER BY id) t WHERE ROWNUM <= 1000100) WHERE rn > 1000000"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)

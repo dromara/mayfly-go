@@ -1273,12 +1273,8 @@ WITH c AS (SELECT id FROM t) SELECT id FROM c
 
 ### stmt-show
 SHOW TABLES
-  = *sqlstmt.SelectStmt
+  = *sqlstmt.ShowStmt
   text="SHOW TABLES"
-  distinct=false
-  where=<nil>
-  having=<nil>
-  limit=<nil>
 
 ### stmt-unknown
 VACUUM ANALYZE t

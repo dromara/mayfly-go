@@ -14,6 +14,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
@@ -168,6 +169,11 @@ func (r *stubRollbackRecordRepo) GetById(_ uint64, _ ...string) (*entity.DbSQLEx
 
 func (r *stubRollbackRecordRepo) GetPageList(*entity.DbSQLExecQuery, ...string) (*model.PageResult[*entity.DbSQLExec], error) {
 	return nil, nil
+}
+
+// DeleteBefore 保留期清理不在本文件覆盖范围内，桩只需要满足仓储契约
+func (r *stubRollbackRecordRepo) DeleteBefore(context.Context, time.Time) (int64, error) {
+	return 0, nil
 }
 
 // TestGenRollbackRejectsRecordThatNeverTookEffect 只为「执行成功」的记录生成回滚。

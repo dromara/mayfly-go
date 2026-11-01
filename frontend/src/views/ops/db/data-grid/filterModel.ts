@@ -195,8 +195,8 @@ export const serializeFilterGroup = (group: TableFilterGroup, columns: TableColu
         }
         const columnType = resolveColumnMeta(column, dialect).wrapType;
         const name = dialect.quoteIdentifier(cond.columnName);
-        // 单引号转义（''）：wrapValue 各方言只加引号不转义，含撇号值（如 O'Brien）会拼出非法 SQL
-        const wrap = (v: string) => String(dialect.wrapValue(columnType, v.replace(/'/g, "''")));
+        // 单引号由方言 wrapValue 统一转义（见 escapeSqlStringLiteral），此处不再手工双写，否则会二次转义
+        const wrap = (v: string) => String(dialect.wrapValue(columnType, v));
         const clause = def.sql(cond, name, wrap);
         if (clause) {
             clauses.push(clause);

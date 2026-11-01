@@ -29,6 +29,37 @@ const (
 	ErrDbNameExist
 	ErrDbNotAccess
 
+	// 表级访问控制
+	LogDbTableAclSave
+	LogDbTableAclDelete
+	LogDbColumnAclSave
+	LogDbColumnAclDelete
+	ErrTableAccessDenied
+	ErrTableAclRolesUnavailable
+	ErrTableAclTableRequired
+	ErrTableNotAllowed
+	ErrColumnAccessDenied
+	ErrWholeTableReadDenied
+	ErrColumnAclColumnRequired
+
+	// 性能诊断
+	ErrPerfUnsupported
+	ErrMetricUnsupported
+	ErrDdlPrecheckTables
+	ErrRecoveryUnsupported
+	ErrAccountsUnsupported
+	ErrAclUnresolvable
+	ErrAccountsUnreadable
+	ErrExportTicketNotFound
+	ErrExportTicketMismatch
+	ErrExportTicketNotApproved
+	ErrExportTicketExpired
+	ErrExportTicketNotOwner
+	ErrExportTicketInvalid
+	ErrExportTicketScopeMismatch
+	ErrSlowQueryUnavailable
+	ErrLockWaitUnavailable
+
 	ErrExistRunFailSQL
 	ErrNeedSubmitWorkTicket
 
@@ -85,6 +116,9 @@ const (
 	TriggerReasonFullScan
 	TriggerReasonBigTableDdl
 	TriggerReasonNoPrimaryKey
+	TriggerReasonSelectStar
+	TriggerReasonMultiTableDml
+	TriggerReasonTableInList
 	ErrReviewCheckNotEvaluated
 	ErrReviewNoSqlToAnalyze
 	ErrReviewNoTargetDb
@@ -131,9 +165,11 @@ const (
 	ErrExplainUnavailable
 	LogDbExplainPlan
 
+	// 测试连接后读取「本连接实际是否加密」的观测缺口（能力缺失或库侧拒绝）
+	ErrTLSStatusUnavailable
+
 	// 列值采样（编辑器值补全）
 	ErrColumnValuesNoColumn
-	ErrColumnValuesUnsupported
 
 	// 表结构漂移基线
 	ErrSchemaBaselineEmpty

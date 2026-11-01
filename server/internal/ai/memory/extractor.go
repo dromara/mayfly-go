@@ -3,13 +3,13 @@ package memory
 import (
 	"context"
 	"fmt"
+	"mayfly-go/internal/ai/llm"
 	"mayfly-go/internal/ai/pkg/utils"
 	"mayfly-go/internal/ai/session"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"strings"
 
-	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -21,12 +21,12 @@ type Extractor interface {
 
 // LLMExtractorConfig LLM提取器配置
 type LLMExtractorConfig struct {
-	Enabled         bool               // 是否启用
-	Temperature     float64            // 温度参数 (0-1)
-	MaxTokens       int                // 最大token数
-	MinConfidence   float64            // 最小置信度阈值
-	MaxItemsPerCall int                // 单次提取最大记忆数量
-	ChatModel       model.AgenticModel // ChatModel 实例
+	Enabled         bool         // 是否启用
+	Temperature     float64      // 温度参数 (0-1)
+	MaxTokens       int          // 最大token数
+	MinConfidence   float64      // 最小置信度阈值
+	MaxItemsPerCall int          // 单次提取最大记忆数量
+	ModelProvider   llm.Provider // 模型访问入口（每次提取按当前生效配置取模型）
 }
 
 // DefaultLLMExtractorConfig 返回默认配置
@@ -37,7 +37,7 @@ func DefaultLLMExtractorConfig() *LLMExtractorConfig {
 		MaxTokens:       500,
 		MinConfidence:   0.7,
 		MaxItemsPerCall: 10,
-		ChatModel:       nil, // 需要外部设置
+		ModelProvider:   nil, // 需要外部设置
 	}
 }
 
@@ -78,9 +78,9 @@ func (e *LLMExtractor) ExtractFromMessages(ctx context.Context, userID string, m
 		return []*MemoryItem{}, nil
 	}
 
-	// 检查是否配置了 ChatModel
-	if e.config.ChatModel == nil {
-		logx.WarnfContext(ctx, "LLM extractor ChatModel not configured, skipping extraction")
+	// 检查是否配置了模型访问入口
+	if e.config.ModelProvider == nil {
+		logx.WarnfContext(ctx, "LLM extractor model provider not configured, skipping extraction")
 		return []*MemoryItem{}, nil
 	}
 
@@ -114,8 +114,14 @@ func (e *LLMExtractor) ExtractFromMessages(ctx context.Context, userID string, m
 func (e *LLMExtractor) extractWithLLM(ctx context.Context, prompt string, userID string) (memories []*MemoryItem, err error) {
 	defer gox.Recover()
 
+	// 每次提取按当前生效配置取模型（模型地址 / Key 变更后无需重建提取器）
+	chatModel, err := e.config.ModelProvider.ChatModel(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get chat model: %w", err)
+	}
+
 	// 调用 LLM 生成提取结果（提取为非交互场景，直接用 Generate 非流式获取完整结果）
-	response, err := e.config.ChatModel.Generate(ctx, []*schema.AgenticMessage{
+	response, err := chatModel.Generate(ctx, []*schema.AgenticMessage{
 		schema.SystemAgenticMessage(prompt),
 	})
 	if err != nil {

@@ -147,11 +147,14 @@ export const defaultCapabilities: DialectCapabilities = {
     supportsTableEdit: true,
     supportsDuplicateStrategy: true,
     // 表编辑器交互约束
+    supportsPrimaryKeyEdit: true,
     canEditAutoIncrementOnCreate: true,
     canEditAutoIncrementOnEdit: true,
     // 连接元信息
     connectionMode: 'host_port',
     connectDescriptor: 'none',
+    // 连接加密档位：默认不声明（方言按自身驱动真实能力覆盖）
+    tlsModes: [],
     // 词法特征
     quotePairs: standardQuotePairs,
     sqlSplitOptions: {},

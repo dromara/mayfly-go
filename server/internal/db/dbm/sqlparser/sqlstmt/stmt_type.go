@@ -10,7 +10,10 @@ const (
 	StmtTypeDelete StmtType = "delete"
 	StmtTypeMerge  StmtType = "merge"
 	StmtTypeDDL    StmtType = "ddl"
-	StmtTypeOther  StmtType = "other"
+	// OTHER 拆两类：只读（导航/事务/维护）与可能写（CALL/LOAD DATA/COPY FROM/未知）。
+	// 拆分的意义在安全侧：写语句不能再落进只读通道。
+	StmtTypeOtherRead  StmtType = "other-read"
+	StmtTypeOtherWrite StmtType = "other-write"
 )
 
 // ClassifyByParse 供各方言 StatementClassifier 复用的通用实现：解析 → 按 AST Kind 判定语句类型。
@@ -26,4 +29,30 @@ func ClassifyByParse(parse func(string) (Stmt, error), sql string) (StmtType, er
 		return "", nil
 	}
 	return DefaultClassifyStmt(stmt.StmtKind()), nil
+}
+
+// DefaultClassifyStmt 基于 AST 的默认语句分类：把 Kind 映射为 StmtType。
+//
+// 这是唯一实现（原先 stmt_type.go 与 pagination.go 各有一份，已收敛到此）。
+// Kind 层无法区分 OTHER 的读写，兜底按可能写处理（fail-closed）——需要精确区分时
+// 走 sqlparser.Classify 的 AST 分支（*OtherStmt.ReadOnly）。
+func DefaultClassifyStmt(kind Kind) StmtType {
+	switch kind {
+	case KindSelect:
+		return StmtTypeSelect
+	case KindInsert:
+		return StmtTypeInsert
+	case KindUpdate:
+		return StmtTypeUpdate
+	case KindDelete:
+		return StmtTypeDelete
+	case KindMerge:
+		return StmtTypeMerge
+	case KindDdl:
+		return StmtTypeDDL
+	case KindShow:
+		return StmtTypeOtherRead
+	default:
+		return StmtTypeOtherWrite
+	}
 }

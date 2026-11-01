@@ -28,6 +28,9 @@ type DbConn struct {
 
 // 关闭连接
 func (d *DbConn) Close() error {
+	// 临时证书目录与连接池同生命周期：无论底层连接是否已建立（db==nil）都必须清理，
+	// 否则建连失败但已落盘的私钥会留在临时目录里
+	defer d.Info.CleanupTLSFiles()
 	if db := d.Info.GetDb(); db != nil {
 		// 释放随连接持有的中转通道（nil 接收者安全），与底层连接关闭解耦于任何业务模块
 		defer d.tunnel.Close()

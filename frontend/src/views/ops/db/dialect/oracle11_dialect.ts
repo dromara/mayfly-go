@@ -31,7 +31,8 @@ class Oracle11Dialect extends OracleDialect {
             defVal = ` DEFAULT ${data.tableName}_${cl.name}_SEQ.NEXTVAL`;
         }
         const name = this.resolveColumnName(cl);
-        return ` ${this.quoteIdentifier(name)} ${cl.type}${length} ${defVal} ${cl.nullable ? '' : 'NOT NULL'} `;
+        // 与基类一致：可空必须显式写 NULL（NOT NULL 是列约束，省略不会撤销）
+        return ` ${this.quoteIdentifier(name)} ${cl.type}${length} ${defVal} ${cl.nullable ? 'NULL' : 'NOT NULL'} `;
     }
 
     /** 基类 genColumnBasicSql 的 11g 适配：无 data 上下文时忽略自增序列 */

@@ -53,6 +53,7 @@ import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
 import ResourceAuthCertTableEdit from '../component/ResourceAuthCertTableEdit.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
+import { relateTagItem } from '../component/relateTagItem';
 import { AuthCertCiphertextTypeEnum } from '../tag/enums';
 import { esApi } from './api';
 import type { EsInstance } from './types';
@@ -84,7 +85,7 @@ const emit = defineEmits(['cancel', 'val-change']);
 /** 表单声明（defineFormItems<EsInstanceForm>，渲染 + 校验唯一数据源；group 分组容器 + tagCodePaths/authCerts/sshTunnel 走插槽） */
 const items = defineFormItems<EsInstanceForm>([
     { type: 'group', label: 'common.basic' },
-    { prop: 'tagCodePaths', label: 'tag.relateTag' },
+    relateTagItem<EsInstanceForm>(),
     { prop: 'name', label: 'common.name', required: true },
     { prop: 'version', label: 'common.version', disabled: true },
     {

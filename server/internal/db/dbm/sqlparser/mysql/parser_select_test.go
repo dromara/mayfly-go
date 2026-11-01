@@ -10,7 +10,7 @@ import (
 
 func TestSelectBasic(t *testing.T) {
 	sql := "-- 测试查询 sql \n SELECT `id`, name FROM users WHERE status = 1 ORDER BY id DESC LIMIT 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -54,7 +54,7 @@ func TestSelectBasic(t *testing.T) {
 
 func TestSelectDistinct(t *testing.T) {
 	sql := "SELECT DISTINCT id, name FROM users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -72,7 +72,7 @@ func TestSelectDistinct(t *testing.T) {
 
 func TestSelectStar(t *testing.T) {
 	sql := "SELECT * FROM users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -87,7 +87,7 @@ func TestSelectStar(t *testing.T) {
 
 func TestSelectTableStar(t *testing.T) {
 	sql := "SELECT u.*, o.amount FROM users u, orders o"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -105,7 +105,7 @@ func TestSelectTableStar(t *testing.T) {
 
 func TestSelectWithAlias(t *testing.T) {
 	sql := "SELECT id AS user_id, name AS user_name FROM users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -126,7 +126,7 @@ func TestSelectWithAlias(t *testing.T) {
 
 func TestSelectMultipleTables(t *testing.T) {
 	sql := "SELECT * FROM users, orders, products"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -146,7 +146,7 @@ func TestSelectMultipleTables(t *testing.T) {
 
 func TestSelectWithJoin(t *testing.T) {
 	sql := "SELECT u.id, o.amount FROM users u LEFT JOIN orders o ON u.id = o.user_id WHERE u.status = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -170,7 +170,7 @@ func TestSelectWithJoin(t *testing.T) {
 
 func TestSelectInnerJoin(t *testing.T) {
 	sql := "SELECT * FROM users u INNER JOIN orders o ON u.id = o.user_id"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -185,7 +185,7 @@ func TestSelectInnerJoin(t *testing.T) {
 
 func TestSelectRightJoin(t *testing.T) {
 	sql := "SELECT * FROM users u RIGHT JOIN orders o ON u.id = o.user_id"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -200,7 +200,7 @@ func TestSelectRightJoin(t *testing.T) {
 
 func TestSelectCrossJoin(t *testing.T) {
 	sql := "SELECT * FROM users CROSS JOIN roles"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -217,7 +217,7 @@ func TestSelectCrossJoin(t *testing.T) {
 
 func TestSelectComplexWhere(t *testing.T) {
 	sql := "SELECT * FROM users WHERE status = 1 AND (age > 18 OR role = 'admin') ORDER BY name"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -238,7 +238,7 @@ func TestSelectComplexWhere(t *testing.T) {
 
 func TestSelectLimitOffset(t *testing.T) {
 	sql := "SELECT * FROM users LIMIT 10, 20"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -264,7 +264,7 @@ func TestSelectLimitOffset(t *testing.T) {
 
 func TestUnionSelect(t *testing.T) {
 	sql := "SELECT 1 UNION SELECT 2 UNION ALL SELECT 3"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -285,7 +285,7 @@ func TestUnionSelect(t *testing.T) {
 
 func TestUnionWithOrderByLimit(t *testing.T) {
 	sql := "SELECT id FROM users UNION SELECT id FROM admins ORDER BY 1 DESC LIMIT 20"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -303,7 +303,7 @@ func TestUnionWithOrderByLimit(t *testing.T) {
 
 func TestUnionMultiple(t *testing.T) {
 	sql := "SELECT id FROM t1 UNION SELECT id FROM t2 UNION ALL SELECT id FROM t3 UNION SELECT id FROM t4"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -320,7 +320,7 @@ func TestUnionMultiple(t *testing.T) {
 
 func TestShow(t *testing.T) {
 	sql := "SHOW VARIABLES LIKE 'max_connections'"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -336,7 +336,7 @@ func TestShow(t *testing.T) {
 
 func TestShowTables(t *testing.T) {
 	sql := "SHOW TABLES"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)

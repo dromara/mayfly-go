@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"strings"
 	"testing"
 
 	_ "mayfly-go/internal/db/dbm"
@@ -65,4 +66,24 @@ func TestSetSkipIndexValidation(t *testing.T) {
 	assert.False(t, task.GetSkipIndexValidation())
 	_, existed := task.Extra[entity.ExtraKeySkipIndexValidation]
 	assert.False(t, existed, "false 时必须清除 key，避免脏数据留在 Extra")
+}
+
+// TestValidateRejectsFilterWithDeleteReconcile 过滤条件 × 删除对账不可共存。
+//
+// 删除对账发的是 `DELETE ... WHERE 唯一键 NOT IN (本次同步到的键)`；被过滤掉的源行不进这个集合，
+// 会被判定为「目标侧多余」而删除。过滤器的本意是"只同步子集"，实际会变成"删除子集之外的一切"，
+// 且任务报成功。保存阶段必须直接拒绝。
+func TestValidateRejectsFilterWithDeleteReconcile(t *testing.T) {
+	for _, mode := range []entity.DataSyncMode{entity.DataSyncModeIncrementalSoftDel, entity.DataSyncModeIncrementalHardDel} {
+		task := &entity.DataSyncTask{FilterCondition: "status = 1", SyncMode: mode}
+		if err := validateDataSyncSQL(nil, task); err == nil {
+			t.Fatalf("mode=%d 配置过滤条件时应拒绝，实际通过", mode)
+		}
+	}
+	// 对照组：无过滤条件时不应被这条守卫拦下（其它校验可能因字段缺失报错，这里只要求不是该守卫）
+	task := &entity.DataSyncTask{SyncMode: entity.DataSyncModeIncrementalHardDel}
+	err := validateDataSyncSQL(nil, task)
+	if err != nil && strings.Contains(err.Error(), "不能同时配置过滤条件") {
+		t.Fatal("无过滤条件时不应命中该守卫")
+	}
 }

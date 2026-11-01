@@ -9,7 +9,7 @@ import (
 func TestSubqueryInFrom(t *testing.T) {
 	// FROM 子句中的子查询
 	sql := "SELECT * FROM (SELECT id, name FROM users WHERE status = 1) AS u WHERE u.id > 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -53,7 +53,7 @@ func TestSubqueryInFrom(t *testing.T) {
 func TestSubqueryInWhere(t *testing.T) {
 	// WHERE 子句中的子查询（IN）
 	sql := "SELECT * FROM users WHERE id IN (SELECT user_id FROM orders WHERE amount > 100)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -77,7 +77,7 @@ func TestSubqueryInWhere(t *testing.T) {
 func TestSubqueryInSelect(t *testing.T) {
 	// SELECT 列中的子查询
 	sql := "SELECT id, name, (SELECT COUNT(*) FROM orders WHERE orders.user_id = users.id) AS order_count FROM users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -106,7 +106,7 @@ func TestSubqueryInSelect(t *testing.T) {
 func TestNestedSubquery(t *testing.T) {
 	// 嵌套子查询
 	sql := "SELECT * FROM (SELECT * FROM (SELECT id FROM users WHERE status = 1) AS inner_u) AS outer_u WHERE outer_u.id > 5"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -129,7 +129,7 @@ func TestNestedSubquery(t *testing.T) {
 func TestSubqueryWithUnion(t *testing.T) {
 	// 子查询包含 UNION
 	sql := "SELECT * FROM (SELECT id FROM users UNION SELECT id FROM admins) AS all_users WHERE all_users.id > 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -152,7 +152,7 @@ func TestSubqueryWithUnion(t *testing.T) {
 func TestCorrelatedSubquery(t *testing.T) {
 	// 相关子查询
 	sql := "SELECT u.id, u.name FROM users u WHERE u.id IN (SELECT o.user_id FROM orders o WHERE o.user_id = u.id AND o.amount > 50)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -176,7 +176,7 @@ func TestCorrelatedSubquery(t *testing.T) {
 func TestSubqueryWithExists(t *testing.T) {
 	// EXISTS 子查询
 	sql := "SELECT * FROM users WHERE EXISTS (SELECT 1 FROM orders WHERE orders.user_id = users.id)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -199,7 +199,7 @@ func TestSubqueryWithExists(t *testing.T) {
 func TestMultipleSubqueries(t *testing.T) {
 	// 多个子查询
 	sql := "SELECT * FROM users WHERE id IN (SELECT user_id FROM orders) AND department_id IN (SELECT id FROM departments WHERE name = 'IT')"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -222,7 +222,7 @@ func TestMultipleSubqueries(t *testing.T) {
 func TestSubqueryWithLimit(t *testing.T) {
 	// 子查询包含 LIMIT
 	sql := "SELECT * FROM (SELECT id, name FROM users ORDER BY created_at DESC LIMIT 10) AS top_users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -254,7 +254,7 @@ func TestComplexSubquery(t *testing.T) {
 		AND u.id IN (SELECT user_id FROM user_groups WHERE group_id = 5)
 	ORDER BY u.name`
 
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)

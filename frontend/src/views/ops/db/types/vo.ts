@@ -210,14 +210,25 @@ export interface ColumnMetadata {
     numScale?: number;
     /** 列默认值 */
     columnDefault?: string;
+    /**
+     * 默认值是否为表达式（函数调用/运算式）。由后端 dbi.Column.IsExprDefault 下发，
+     * 前端据此决定生成 DDL 时是否加引号（`DEFAULT 'uuid()'` 会静默把函数降级成字符串）。
+     */
+    isExprDefault?: boolean;
+    /** 方言附加信息，如 MySQL 的 onUpdate（「自动更新」子句原文） */
+    extra?: Record<string, unknown>;
     /** 是否自增 */
     autoIncrement?: boolean;
     /** 动态设置: 显示列类型(含长度) */
     columnType?: string;
-    /** 动态设置: 是否显示长度 */
-    showLength?: number | null;
-    /** 动态设置: 是否显示小数位数 */
-    showScale?: number | null;
+}
+
+/** 表键约束（主键/唯一键），含约束名与键内列序（对应后端 dbi.KeyConstraint） */
+export interface DbTableKey {
+    name: string;
+    type: 'primary' | 'unique';
+    /** 成员列按键内序排列（ordinal 从 1 起） */
+    columns: { name: string; ordinal: number }[];
 }
 
 // ==================== 数据文件导入 ====================
@@ -332,6 +343,8 @@ export interface TableOpData {
         oldTableName: string;
         oldTableComment: string;
         db?: string;
+        /** 现状主键的约束名（pg/mssql 撤销主键要按名字 DROP CONSTRAINT） */
+        primaryKeyName?: string;
         fields: { res: ColumnDefinition[]; oldFields: ColumnDefinition[] };
         indexes: { res: IndexDefinition[]; oldIndexes: IndexDefinition[]; columns: { name: string; comment: string }[] };
     };
@@ -444,4 +457,108 @@ export interface TreeNodeCallbackData {
     key?: string;
     /** 实例版本 */
     version?: string;
+}
+
+/** 敏感列扫描结果（后端 SensitiveScanResult） */
+export interface SensitiveScanResult {
+    findings: SensitiveColumnFinding[];
+    scannedTables: number;
+    totalTables: number;
+    truncated: boolean;
+}
+
+/** 一条敏感列候选：category 是命中类别，前端据此出文案 */
+export interface SensitiveColumnFinding {
+    tableName: string;
+    columnName: string;
+    columnType: string;
+    level: 'high' | 'medium';
+    category: 'phone' | 'idcard' | 'credential' | 'bankcard' | 'email' | 'name' | 'address' | 'other';
+    protected: boolean;
+}
+
+/** 慢查询聚合（方言给出的事实，界面不做二次判定） */
+export interface DbSlowQuery {
+    digest: string;
+    sql: string;
+    schema?: string;
+    calls: number;
+    avgMs: number;
+    maxMs: number;
+    totalMs: number;
+    rowsAvg: number;
+}
+
+/** 锁等待链：一行是「一个等待方 → 一个阻塞方」 */
+export interface DbLockWait {
+    waitSessionId: string;
+    waitUser?: string;
+    waitDb?: string;
+    waitQuery?: string;
+    waitMs: number;
+    waitTrx?: string;
+    blockTrx?: string;
+    blockSessionId: string;
+    blockUser?: string;
+    blockDb?: string;
+    blockQuery?: string;
+    lockType?: string;
+}
+
+/** 实例指标趋势（后端 MetricSeries） */
+export interface DbMetricSeries {
+    metric: string;
+    points: { ts: number; value: number }[];
+}
+
+/** DDL 预检发现：level=danger 不可逆、warn 耗时/兼容性、info 提示 */
+export interface DbDdlFinding {
+    level: 'danger' | 'warn' | 'info';
+    code: string;
+    table?: string;
+    args?: Record<string, unknown>;
+}
+
+/** DDL 预检结果 */
+export interface DbDdlPrecheckResult {
+    statements: { sql: string; kind: string; tables: string[] }[];
+    tables: { name: string; rows: number; bytes: number; hasPk: boolean }[];
+    findings: DbDdlFinding[];
+}
+
+/** 时间点恢复（PITR）前提：prepared=false 时 reason 必读 */
+export interface DbRecoveryReadiness {
+    prepared: boolean;
+    mode: string;
+    reason?: string;
+    oldestPoint?: string;
+    latestPoint?: string;
+    retention?: string;
+}
+
+/** 实例账号（MySQL 为 user@host，PG 为 role） */
+export interface DbAccount {
+    name: string;
+    host?: string;
+    canLogin: boolean;
+    locked: boolean;
+    passwordExpired: boolean;
+    superuser: boolean;
+    canGrant: boolean;
+    neverExpire: boolean;
+    lastChanged?: string;
+}
+
+/** 账号风险：high 必须处置、warn 建议处置、info 知会 */
+export interface DbAccountRisk {
+    level: 'high' | 'warn' | 'info';
+    code: string;
+    account: string;
+    host?: string;
+}
+
+/** 账号盘点结果 */
+export interface DbAccountOverview {
+    accounts: DbAccount[];
+    risks: DbAccountRisk[];
 }

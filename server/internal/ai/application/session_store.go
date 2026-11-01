@@ -299,6 +299,10 @@ func (s *sessionStoreImpl) GetMeta(ctx context.Context, sessionKey string) (*ses
 		Count:      conv.TotalMessageCount,
 		TokenCount: conv.GetExtraInt("contextTokens"),
 		Skip:       conv.CompactionMessageCount,
+		// UserId 必须带上会话归属人：摘要完成事件据此触发长期记忆提取，
+		// 为空时订阅方（AgentMemoryExtractor）会静默跳过——表现为「记忆提取永不触发」，
+		// 而日志、门禁、界面全都正常。会话没有独立 user 列，归属人取创建人
+		UserId: strconv.FormatUint(conv.CreatorId, 10),
 	}
 	if conv.CreateTime != nil {
 		meta.CreatedAt = *conv.CreateTime

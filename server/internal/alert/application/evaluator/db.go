@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -27,6 +28,14 @@ const (
 	MetricDbLockWaitCount = "db_lock_wait_count"
 	// MetricDbSchemaDrift 与结构基线不一致的表数（不依赖会话内省能力，来自主自己的基线表）
 	MetricDbSchemaDrift = "db_schema_drift_tables"
+	// MetricDbTLSCertDaysLeft 已配置证书中最早到期的剩余天数（负数=已过期）。
+	// 不依赖库可达：证书来自平台保存的配置，比「连上去看一眼」更稳，也覆盖了连不上的时段
+	MetricDbTLSCertDaysLeft = "db_tls_cert_days_left"
+	// MetricDbPitrNotReady 不具备时间点恢复前提（1 未就绪 / 0 就绪）。
+	//
+	// 单独成指标而不是塞进 ping：库完全健康但 binlog 没开，是「备份看着有、其实恢复不了」
+	// 的典型形态，只有单独指标才配得出「未就绪即告警」
+	MetricDbPitrNotReady = "db_pitr_not_ready"
 )
 
 // DbEvaluator 数据库实例指标评估器。
@@ -81,6 +90,32 @@ func (e *DbEvaluator) initMetrics() {
 		Definition: service.MetricDefinition{Key: MetricDbSchemaDrift, Label: "alert.metricDbSchemaDrift", LabelMsgId: imsg.MetricDbSchemaDrift, Unit: "", HasRange: false, Min: 0},
 		Extract:    extractDbSchemaDrift,
 	})
+
+	e.metrics.register(&MetricExtractor[*dbi.DbHealth]{
+		Definition: service.MetricDefinition{Key: MetricDbTLSCertDaysLeft, Label: "alert.metricDbTlsCertDaysLeft", LabelMsgId: imsg.MetricDbTlsCertDaysLeft, Unit: "d", HasRange: false, Min: 0},
+		Extract:    extractDbTLSCertDaysLeft,
+	})
+	e.metrics.register(&MetricExtractor[*dbi.DbHealth]{
+		Definition: service.MetricDefinition{Key: MetricDbPitrNotReady, Label: "alert.metricDbPitrNotReady", LabelMsgId: imsg.MetricDbPitrNotReady, HasRange: false, Min: 0, Max: 1},
+		Extract:    extractDbPitrNotReady,
+	})
+}
+
+// extractDbPitrNotReady PITR 前提是否缺失。
+//
+// 方言不支持探测时**返回错误而不是 0**：0 会被规则读成「已就绪」并标绿，
+// 而事实是这台库根本没被观测过（与会话类指标同一取向）。
+func extractDbPitrNotReady(health *dbi.DbHealth, healthErr error) (float64, error) {
+	if healthErr != nil {
+		return 0, healthErr
+	}
+	if health == nil || health.RecoveryPrepared == nil {
+		return 0, errors.New("recovery readiness is not observable on this instance")
+	}
+	if *health.RecoveryPrepared {
+		return 0, nil
+	}
+	return 1, nil
 }
 
 // extractDbSchemaDrift 漂移表数。
@@ -95,6 +130,21 @@ func extractDbSchemaDrift(health *dbi.DbHealth, healthErr error) (float64, error
 		return 0, fmt.Errorf("no table structure baseline has been taken for this db instance")
 	}
 	return float64(health.DriftedTables), nil
+}
+
+// extractDbTLSCertDaysLeft 证书剩余天数。
+//
+// 没配证书（或材料里解析不出证书）时**返回错误而不是 0**：0 会被规则读成「今天到期」，
+// 而事实是根本没有要过期的证书。已过期返回负数，规则用同一指标即可同时表达
+// 「即将过期」与「已经过期」。
+func extractDbTLSCertDaysLeft(health *dbi.DbHealth, healthErr error) (float64, error) {
+	if healthErr != nil {
+		return 0, fmt.Errorf("db health unavailable: %w", healthErr)
+	}
+	if health == nil || health.TLSCertDaysLeft == nil {
+		return 0, fmt.Errorf("no tls certificate is configured for this db instance")
+	}
+	return float64(*health.TLSCertDaysLeft), nil
 }
 
 // extractDbPingFail 可达性指标：取不到样本(healthErr)与 Ping 失败同样是「不可达」，返回 1 而非错误；

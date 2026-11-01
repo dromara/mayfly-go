@@ -54,6 +54,7 @@ import { computed, ref, useTemplateRef, type PropType } from 'vue';
 import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
+import { relateTagItem } from '../component/relateTagItem';
 import { redisApi } from './api';
 import type { Redis, RedisSaveForm } from './types';
 
@@ -82,7 +83,7 @@ const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unk
 /** 表单声明（defineFormItems<RedisSaveForm>，渲染 + 校验唯一数据源；sentinel 专属字段按 mode 条件显隐） */
 const items = computed(() =>
     defineFormItems<RedisSaveForm>([
-        { prop: 'tagCodePaths', label: 'tag.relateTag', required: true, slot: 'tagCodePaths' },
+        relateTagItem<RedisSaveForm>(),
         { prop: 'name', label: 'common.name', required: true },
         {
             prop: 'mode',

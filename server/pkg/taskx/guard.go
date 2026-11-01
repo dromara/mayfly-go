@@ -39,8 +39,12 @@ type RunGuard[T comparable] struct {
 	// 短任务（如告警评估）可设较小值，长任务（如大数据同步）可设较大值。
 	LockTTL time.Duration
 
-	mu   sync.Mutex   // 保护 held map 的 check-and-mark 原子性
+	mu   sync.Mutex   // 保护 held/stopped 两个 map 的原子性
 	held map[T]string // taskId → 所有权值（随机字符串）
+
+	// stopped 进程内停止意图。无 Redis（单实例部署）时这是唯一的停止通道；
+	// 有 Redis 时与 Redis 标记并行生效（本地命中即返回，省一次往返）。
+	stopped map[T]bool
 }
 
 // lockTTL 返回实际使用的锁 TTL。
@@ -187,10 +191,20 @@ func (g *RunGuard[T]) IsCurrentRun(taskId T, runId string) bool {
 // 单删 Redis 会让本地 map 与 Redis 状态分歧，持有者继续跑；
 // 引入独立"停止标记"通道，两条路径各自成立、由持有者主动收敛，无破坏性副作用。
 //
-// 本实例持有的情况：立即 Release，本地 fast path 下一批即中止；Redis 标记同步写入，
-// 让其他潜在观察方（如前端 IsRunning 查询）也能看到停止信号。
+// **不得在这里 Release**：释放互斥只等于"允许别人进来"，并不会让旧执行停下。
+// 旧执行真正停下的机制是它在批边界读到停止标记；若这里先删锁，新一轮 Acquire 立刻成功，
+// 两轮就会同时对同一张表做 DDL/DML（旧执行的分片/批次还在写）。
+// 因此：停止只表达意图，锁由持有者在退出路径上用 Release/ReleaseWithRunId 释放。
 func (g *RunGuard[T]) RequestStop(taskId T) {
-	g.Release(taskId)
+	// 先记本地意图：这是无 Redis（单实例）场景下唯一的停止通道。
+	// 不能依赖 Release —— 停止不再释放互斥，本地标记才是持有者能读到的信号。
+	g.mu.Lock()
+	if g.stopped == nil {
+		g.stopped = make(map[T]bool)
+	}
+	g.stopped[taskId] = true
+	g.mu.Unlock()
+
 	cli := rediscli.GetCli()
 	if cli == nil {
 		return // 单实例部署：Release 已生效；无 Redis 也就没有跨实例语义
@@ -204,6 +218,12 @@ func (g *RunGuard[T]) RequestStop(taskId T) {
 // IsStopRequested 检查是否有跨实例停止标记。持有者在批次边界与 sleep tick 内调用。
 // Redis 不可达时保守返回 false：宁可让当前批次跑完由 endRunning 收敛，也不因 Redis 抖动误停健康任务。
 func (g *RunGuard[T]) IsStopRequested(taskId T) bool {
+	g.mu.Lock()
+	stopped := g.stopped[taskId]
+	g.mu.Unlock()
+	if stopped {
+		return true
+	}
 	cli := rediscli.GetCli()
 	if cli == nil {
 		return false
@@ -221,6 +241,10 @@ func (g *RunGuard[T]) IsStopRequested(taskId T) bool {
 // 由 AcquireWithRunId（防上一轮 stale 标记误停新一轮首批）与 endRunning（响应后收敛）双侧调用；
 // 即使两处都失败，标记本身的 5 分钟 TTL 也能自愈。
 func (g *RunGuard[T]) ClearStopRequest(taskId T) {
+	g.mu.Lock()
+	delete(g.stopped, taskId)
+	g.mu.Unlock()
+
 	cli := rediscli.GetCli()
 	if cli == nil {
 		return

@@ -9,7 +9,7 @@ import type {
     SqlColumnType,
     SqlSnippetTemplate,
 } from './types';
-import { appendLimitSql, QuoteEscape } from './shared/utils';
+import { appendLimitSql, escapeSqlStringLiteral, QuoteEscape } from './shared/utils';
 import { backtickQuotePairs, clickhouseSplitOptions, defineCapabilities } from './shared/capabilities';
 import { limitCommaPageSnippet } from './shared/snippets';
 import { DbType } from './dbType';
@@ -24,9 +24,13 @@ class ClickHouseDialect implements DbDialect {
         return defineCapabilities({
             supportsSchema: false,
             supportsAutoIncrement: false,
+            // ClickHouse 的主键是建表时的 ORDER BY 表达式，不是可勾选的列属性
+            supportsPrimaryKeyEdit: false,
             defaultIndexType: 'INDEX',
             // ClickHouse 的 INSERT 无 ON CONFLICT / INSERT IGNORE 语义
             supportsDuplicateStrategy: false,
+            // 驱动接受完整 tls.Config，三档均可兑现
+            tlsModes: ['require', 'verify-ca', 'verify-full'],
             quotePairs: backtickQuotePairs,
             sqlSplitOptions: clickhouseSplitOptions,
         });
@@ -108,19 +112,18 @@ class ClickHouseDialect implements DbDialect {
     }
 
     genColumnBasicSql(cl: ColumnDefinition): string {
-        // ClickHouse 部分类型需要参数：FixedString(N)、Decimal(P,S)、DateTime64(N)
+        // ClickHouse 只有 FixedString(N)、Decimal(P,S)、DateTime64(N) 接受参数：
+        // 换类型时残留的长度（String(64)、Int64(64)）都是语法错误，故按类型白名单写出
         let typeWithParams = cl.type;
-        if (cl.length) {
-            if (cl.numScale) {
-                typeWithParams = `${cl.type}(${cl.length},${cl.numScale})`;
-            } else {
-                typeWithParams = `${cl.type}(${cl.length})`;
-            }
+        const baseType = (cl.type || '').toLowerCase();
+        const acceptsParams = ['fixedstring', 'decimal', 'datetime64'].includes(baseType);
+        if (cl.length && acceptsParams) {
+            typeWithParams = cl.numScale ? `${cl.type}(${cl.length},${cl.numScale})` : `${cl.type}(${cl.length})`;
         }
-        let colDef = `${this.quoteIdentifier(cl.name)} ${typeWithParams}`;
-        if (!cl.nullable) {
-            colDef += ' NOT NULL';
-        }
+        // ClickHouse 没有 NOT NULL 约束：可空性由 Nullable(T) 包装表达（写出 NOT NULL 是非法语法）。
+        // 元数据侧已把 Nullable(T) 拆成「基础类型 + nullable=true」，这里按同一约定还原
+        const typeSql = cl.nullable ? `Nullable(${typeWithParams})` : typeWithParams;
+        let colDef = `${this.quoteIdentifier(cl.name)} ${typeSql}`;
         if (cl.comment) {
             colDef += ` COMMENT '${QuoteEscape(cl.comment)}'`;
         }
@@ -226,8 +229,8 @@ class ClickHouseDialect implements DbDialect {
             if (value === null || value === undefined) {
                 return 'NULL';
             }
-            // Escape single quotes
-            return `'${String(value).replace(/'/g, "''")}'`;
+            // 转义走共享真源（含反斜杠：ClickHouse 字符串同样把 \ 当转义符）
+            return `'${escapeSqlStringLiteral(value, { escapeBackslash: true })}'`;
         }
 
         // For date/time types, might need special handling
@@ -264,7 +267,7 @@ class ClickHouseDialect implements DbDialect {
             { udtName: 'Float32', dataType: 'Float32', desc: '32-bit floating point', space: '数值' },
             { udtName: 'Float64', dataType: 'Float64', desc: '64-bit floating point', space: '数值' },
             { udtName: 'String', dataType: 'String', desc: 'Variable-length string', space: '字符串' },
-            { udtName: 'FixedString', dataType: 'FixedString(N)', desc: 'Fixed-length string', space: '字符串' },
+            { udtName: 'FixedString', dataType: 'FixedString', desc: 'Fixed-length string, needs N: FixedString(N)', space: '字符串' },
             { udtName: 'DateTime', dataType: 'DateTime', desc: 'Date and time', space: '时间' },
             { udtName: 'DateTime64', dataType: 'DateTime64', desc: 'Date and time with precision', space: '时间' },
             { udtName: 'Date', dataType: 'Date', desc: 'Date', space: '时间' },
@@ -273,14 +276,14 @@ class ClickHouseDialect implements DbDialect {
             { udtName: 'IPv4', dataType: 'IPv4', desc: 'IPv4 address', space: '其他' },
             { udtName: 'IPv6', dataType: 'IPv6', desc: 'IPv6 address', space: '其他' },
             { udtName: 'Bool', dataType: 'Bool', desc: 'Boolean', space: '其他' },
-            { udtName: 'Decimal', dataType: 'Decimal(P, S)', desc: 'Exact decimal number', space: '数值' },
+            { udtName: 'Decimal', dataType: 'Decimal', desc: 'Exact decimal number, needs P,S: Decimal(P, S)', space: '数值' },
             { udtName: 'Enum8', dataType: 'Enum8', desc: '8-bit enumeration', space: '其他' },
             { udtName: 'Enum16', dataType: 'Enum16', desc: '16-bit enumeration', space: '其他' },
-            { udtName: 'Array', dataType: 'Array(T)', desc: 'Array of type T', space: '复杂' },
-            { udtName: 'Tuple', dataType: 'Tuple(T1, T2, ...)', desc: 'Tuple of types', space: '复杂' },
-            { udtName: 'Map', dataType: 'Map(K, V)', desc: 'Map of key-value pairs', space: '复杂' },
-            { udtName: 'Nullable', dataType: 'Nullable(T)', desc: 'Nullable type T', space: '其他' },
-            { udtName: 'LowCardinality', dataType: 'LowCardinality(T)', desc: 'Low cardinality type T', space: '其他' },
+            { udtName: 'Array', dataType: 'Array', desc: 'Array of type T, write full form: Array(T)', space: '复杂' },
+            { udtName: 'Tuple', dataType: 'Tuple', desc: 'Tuple of types, write full form: Tuple(T1, T2)', space: '复杂' },
+            { udtName: 'Map', dataType: 'Map', desc: 'Map of key-value pairs, write full form: Map(K, V)', space: '复杂' },
+            { udtName: 'Nullable', dataType: 'Nullable', desc: 'Nullable type T, write full form: Nullable(T)', space: '其他' },
+            { udtName: 'LowCardinality', dataType: 'LowCardinality', desc: 'Low cardinality type T, write full form: LowCardinality(T)', space: '其他' },
         ];
     }
 

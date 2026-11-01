@@ -17,7 +17,7 @@ type Parser struct {
 }
 
 // NewParser 创建 Oracle 解析器
-func NewParser(sql string) *Parser {
+func newParser(sql string) *Parser {
 	return &Parser{Lexer: base.NewLexer(sql, tokenizer.OracleConfig)}
 }
 

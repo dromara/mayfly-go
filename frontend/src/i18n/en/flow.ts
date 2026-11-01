@@ -124,6 +124,19 @@ export default {
         // FlowBizType
         dbSqlExec: 'DBMS-Run SQL',
         redisRunCmd: 'Redis-Run Cmd',
+        dbExport: 'DBMS - Export database',
+        exportDb: 'Database',
+        exportContent: 'Content',
+        exportTableCount: 'Tables',
+        exportFormTip: 'This is the export scope you requested: database, table list and content are fixed at submission; download it from the ticket detail once approved.',
+        exportReason: 'Reason',
+        exportTables: 'Table list',
+        exportDownload: 'Download export',
+        exportDownloadHint: 'Downloadable within 24 hours after approval; the approved scope is binding',
+        exportNotApproved: 'Available after approval (not downloadable in the current state)',
+        exportDumpType1: 'Structure only',
+        exportDumpType2: 'Data only',
+        exportDumpType3: 'Structure and data',
         agentRemediation: 'AI-Change Proposal',
         // biz info panel for proposal approval tickets
         proposalTitle: 'Proposal Title',
@@ -311,7 +324,8 @@ export default {
                 update: 'update',
                 delete: 'delete',
                 ddl: 'DDL',
-                other: 'other',
+                'other-read': 'Read-only (other)',
+                'other-write': 'May write (other)',
             },
             cmdType: {
                 read: 'read',
@@ -332,7 +346,8 @@ export default {
                 delete: 'delete',
                 merge: 'merge',
                 ddl: 'DDL',
-                other: 'other',
+                'other-read': 'Read-only (other)',
+                'other-write': 'May write (other)',
             },
         },
         check: {
@@ -371,6 +386,7 @@ export default {
             maxRows: 'Maximum rows',
             minRows: 'Large-table row floor',
             cmds: 'Command list',
+            tables: 'Table list',
         },
         op: {
             eq: 'is',

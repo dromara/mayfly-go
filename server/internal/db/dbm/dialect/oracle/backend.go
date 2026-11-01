@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/pkg/tlsx"
 	"mayfly-go/pkg/logx"
 	"strings"
 
@@ -107,13 +108,18 @@ type Backend struct {
 func (om *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	urlOptions := make(map[string]string)
 
-	// 库位的 schema 段已由 codec 解析进 d.Schema（无 schema 层时恒为空）
+	// 库位的 schema 段已在 ToDbInfo 阶段由 codec 解析进 d.Schema（无 schema 层时恒为空）
 	schema := d.Schema
+	tlsCfg := d.EffectiveTLS()
 	if d.Params != "" {
 		paramArr := strings.Split(d.Params, "&")
 		for _, param := range paramArr {
 			ps := strings.Split(param, "=")
 			if len(ps) > 1 {
+				// 结构化 TLS 生效时忽略手写的 ssl 键：否则同一条连接上的加密开关有两处真源
+				if tlsCfg != nil && isOracleTLSKey(ps[0]) {
+					continue
+				}
 				if ps[0] == "clientCharset" {
 					urlOptions["client charset"] = ps[1]
 				} else {
@@ -121,6 +127,13 @@ func (om *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error)
 				}
 			}
 		}
+	}
+
+	if tlsCfg != nil {
+		// go-ora 的 ServerName 固定取拨号地址（network/session.go），隧道场景下会是 127.0.0.1，
+		// 因此本方言只声明 require（加密不校验证书）；证书校验需 wallet/服务端 DN，属后续能力
+		urlOptions["SSL"] = "true"
+		urlOptions["SSL VERIFY"] = "false"
 	}
 
 	serviceName := d.GetExtraString("serviceName")
@@ -147,9 +160,21 @@ func (om *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error)
 // GetCapabilities oracle：核心能力全支持（含独立 schema 层），并声明已实现的视图与序列内省。
 // OracleMetadata11 内嵌 OracleMetadata 继承其 MetadataNavigator 实现，故 11/12 两版本声明均真实。
 func (om *Backend) GetCapabilities() dbi.MetadataCapabilities {
+	// TLS：只声明 require。go-ora 的证书校验主机名固定取拨号地址，
+	// 无法与 SSH 隧道共存，也没有自定义 CA 入口（校验走系统根 + 服务端 DN）
 	return dbi.NewAllCapabilities().
 		With(dbi.FeatViews, dbi.FeatSequences, dbi.FeatSessions, dbi.FeatExplain).
+		WithTLSModes(tlsx.ModeRequire).
 		WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true, HasSchema: true})
+}
+
+// isOracleTLSKey 手写参数中与结构化 TLS 冲突的键（go-ora 解析时大小写不敏感）
+func isOracleTLSKey(key string) bool {
+	switch strings.ToUpper(strings.TrimSpace(key)) {
+	case "SSL", "SSL VERIFY", "SSL SERVER DN", "WALLET":
+		return true
+	}
+	return false
 }
 
 func (om *Backend) GetDialect(di *dbi.DbInfo) dbi.Dialect {

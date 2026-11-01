@@ -4,7 +4,10 @@ package migrationx
 const DbmsConfParams = `{"version":1,"cols":2,"fields":[
 	{"prop":"querySqlSave","label":"system.sysconf.recordQuerySql","type":"select","options":[{"label":"true","value":"true"},{"label":"false","value":"false"}]},
 	{"prop":"sqlExecTl","label":"system.sysconf.sqlExecLimt"},
+	{"prop":"sqlExecSaveDays","label":"system.sysconf.sqlExecSaveDays","tooltip":"system.sysconf.sqlExecSaveDaysPlaceholder"},
 	{"prop":"maxResultSet","label":"system.sysconf.maxResultSet"},
+	{"prop":"metricSampleMinutes","label":"system.sysconf.metricSampleMinutes","tooltip":"system.sysconf.metricSampleMinutesPlaceholder"},
+	{"prop":"metricRetainDays","label":"system.sysconf.metricRetainDays","tooltip":"system.sysconf.metricRetainDaysPlaceholder"},
 	{"prop":"maskEnabled","label":"system.sysconf.maskEnabled","type":"select","options":[{"label":"true","value":"true"},{"label":"false","value":"false"}],"tooltip":"system.sysconf.maskEnabledPlaceholder"},
 	{"prop":"maskFailClosed","label":"system.sysconf.maskFailClosed","type":"select","options":[{"label":"true","value":"true"},{"label":"false","value":"false"}],"tooltip":"system.sysconf.maskFailClosedPlaceholder"},
 	{"prop":"maskExemptRoleIds","label":"system.sysconf.maskExemptRoleIds","tooltip":"system.sysconf.maskExemptRoleIdsPlaceholder"}

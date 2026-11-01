@@ -10,7 +10,7 @@ import (
 
 func TestDmInsertBasic(t *testing.T) {
 	sql := "INSERT INTO users (name, age) VALUES ('John', 30)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -27,7 +27,7 @@ func TestDmInsertBasic(t *testing.T) {
 
 func TestDmInsertMultipleRows(t *testing.T) {
 	sql := "INSERT INTO users (name, age) VALUES ('John', 30), ('Jane', 25), ('Bob', 35)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -43,7 +43,7 @@ func TestDmInsertMultipleRows(t *testing.T) {
 
 func TestDmUpdateBasic(t *testing.T) {
 	sql := "UPDATE users SET name = 'John' WHERE id = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -64,7 +64,7 @@ func TestDmUpdateBasic(t *testing.T) {
 
 func TestDmUpdateMultipleColumns(t *testing.T) {
 	sql := "UPDATE users SET name = 'John', age = 30, email = 'john@example.com' WHERE id = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -78,7 +78,7 @@ func TestDmUpdateMultipleColumns(t *testing.T) {
 
 func TestDmUpdateReturning(t *testing.T) {
 	sql := "UPDATE users SET status = 0 WHERE id = 1 RETURNING id, name, status"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -94,7 +94,7 @@ func TestDmUpdateReturning(t *testing.T) {
 
 func TestDmDeleteBasic(t *testing.T) {
 	sql := "DELETE FROM users WHERE id = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -115,7 +115,7 @@ func TestDmDeleteBasic(t *testing.T) {
 
 func TestDmDeleteReturning(t *testing.T) {
 	sql := "DELETE FROM users WHERE status = 0 RETURNING id, name"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -131,7 +131,7 @@ func TestDmDeleteReturning(t *testing.T) {
 
 func TestDmComplexUpdateWithSubquery(t *testing.T) {
 	sql := "UPDATE users SET total_orders = (SELECT COUNT(*) FROM orders WHERE orders.user_id = users.id) WHERE EXISTS (SELECT 1 FROM orders WHERE orders.user_id = users.id)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -145,7 +145,7 @@ func TestDmComplexUpdateWithSubquery(t *testing.T) {
 
 func TestDmComplexDeleteWithSubquery(t *testing.T) {
 	sql := "DELETE FROM users WHERE id NOT IN (SELECT DISTINCT user_id FROM orders)"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -161,7 +161,7 @@ func TestDmComplexDeleteWithSubquery(t *testing.T) {
 
 func TestDmDoubleQuoteDML(t *testing.T) {
 	sql := `UPDATE "users" SET "name" = 'John' WHERE "id" = 1`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -180,7 +180,7 @@ func TestDmDoubleQuoteDML(t *testing.T) {
 
 func TestDmInsertWithDoubleQuotes(t *testing.T) {
 	sql := `INSERT INTO "users" ("name", "age", "email") VALUES ('John', 30, 'john@example.com')`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -194,7 +194,7 @@ func TestDmInsertWithDoubleQuotes(t *testing.T) {
 
 func TestDmInsertWithSpecialChars(t *testing.T) {
 	sql := `INSERT INTO "logs" ("message", "level") VALUES ('Error: connection failed!', 'ERROR')`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -207,7 +207,7 @@ func TestDmInsertWithSpecialChars(t *testing.T) {
 func TestDmInsertMultipleRowsComplex(t *testing.T) {
 	// 多行插入包含特殊字符
 	sql := `INSERT INTO "users" ("name", "email") VALUES ('John', 'john@example.com'), ('Jane', 'jane@test.com'), ('Bob', 'bob@demo.com')`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -219,7 +219,7 @@ func TestDmInsertMultipleRowsComplex(t *testing.T) {
 
 func TestDmInsertReturningComplex(t *testing.T) {
 	sql := `INSERT INTO "users" ("name", "email") VALUES ('John', 'john@example.com') RETURNING "id", "name", "created_at"`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -233,7 +233,7 @@ func TestDmInsertReturningComplex(t *testing.T) {
 
 func TestDmUpdateWithDoubleQuotes(t *testing.T) {
 	sql := `UPDATE "users" SET "name" = 'John', "age" = 30 WHERE "id" = 1`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -248,7 +248,7 @@ func TestDmUpdateWithDoubleQuotes(t *testing.T) {
 
 func TestDmUpdateWithComplexWhere(t *testing.T) {
 	sql := `UPDATE "orders" SET "status" = 'cancelled' WHERE "status" = 'pending' AND "created_at" < '2024-01-01' AND ("amount" < 100 OR "user_id" IS NULL)`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -263,7 +263,7 @@ func TestDmUpdateWithComplexWhere(t *testing.T) {
 
 func TestDmUpdateWithFunctions(t *testing.T) {
 	sql := `UPDATE "users" SET "updated_at" = NOW(), "login_count" = "login_count" + 1 WHERE "id" = 1`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -275,7 +275,7 @@ func TestDmUpdateWithFunctions(t *testing.T) {
 
 func TestDmUpdateReturningComplex(t *testing.T) {
 	sql := `UPDATE "users" SET "status" = 0 WHERE "id" = 1 RETURNING "id", "name", "status"`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -289,7 +289,7 @@ func TestDmUpdateReturningComplex(t *testing.T) {
 
 func TestDmUpdateWithSubquery(t *testing.T) {
 	sql := `UPDATE "users" SET "total" = (SELECT SUM("amount") FROM "orders" WHERE "user_id" = "users"."id") WHERE "status" = 'active'`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -305,7 +305,7 @@ func TestDmUpdateWithSubquery(t *testing.T) {
 
 func TestDmDeleteWithDoubleQuotes(t *testing.T) {
 	sql := `DELETE FROM "users" WHERE "id" = 1`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -319,7 +319,7 @@ func TestDmDeleteWithDoubleQuotes(t *testing.T) {
 
 func TestDmDeleteWithComplexWhere(t *testing.T) {
 	sql := `DELETE FROM "logs" WHERE "created_at" < '2024-01-01' AND ("level" = 'DEBUG' OR "level" = 'INFO')`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -334,7 +334,7 @@ func TestDmDeleteWithComplexWhere(t *testing.T) {
 
 func TestDmDeleteReturningComplex(t *testing.T) {
 	sql := `DELETE FROM "users" WHERE "status" = 0 RETURNING "id", "name"`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -348,7 +348,7 @@ func TestDmDeleteReturningComplex(t *testing.T) {
 
 func TestDmDeleteWithSubquery(t *testing.T) {
 	sql := `DELETE FROM "users" WHERE "id" NOT IN (SELECT DISTINCT "user_id" FROM "orders")`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -364,7 +364,7 @@ func TestDmDeleteWithSubquery(t *testing.T) {
 
 func TestDmDDLCreateTableWithQuotes(t *testing.T) {
 	sql := `CREATE TABLE "users" ("id" INT PRIMARY KEY, "name" VARCHAR(50) NOT NULL, "email" VARCHAR(255) UNIQUE)`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -378,7 +378,7 @@ func TestDmDDLCreateTableWithQuotes(t *testing.T) {
 
 func TestDmDDLCreateTableWithComments(t *testing.T) {
 	sql := `CREATE TABLE "orders" ("id" INT COMMENT '订单ID', "amount" DECIMAL(10,2) COMMENT '金额') COMMENT='订单表'`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -390,7 +390,7 @@ func TestDmDDLCreateTableWithComments(t *testing.T) {
 
 func TestDmDDLAlterTableAddColumn(t *testing.T) {
 	sql := `ALTER TABLE "users" ADD COLUMN "email" VARCHAR(255)`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -404,7 +404,7 @@ func TestDmDDLAlterTableAddColumn(t *testing.T) {
 
 func TestDmDDLDropIfExists(t *testing.T) {
 	sql := `DROP TABLE IF EXISTS "users"`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -421,7 +421,7 @@ func TestDmDDLDropIfExists(t *testing.T) {
 func TestDmDMLWithSingleLineComment(t *testing.T) {
 	// DM 单行注释 --
 	sql := "-- 更新用户信息\nUPDATE \"users\" SET \"name\" = 'John' WHERE \"id\" = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -437,7 +437,7 @@ func TestDmDMLWithSingleLineComment(t *testing.T) {
 func TestDmDMLWithMultiLineComment(t *testing.T) {
 	// 多行注释 /* */
 	sql := "/* 删除日志 */ DELETE FROM \"logs\" WHERE \"created_at\" < '2024-01-01'"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -453,7 +453,7 @@ func TestDmDMLWithMultiLineComment(t *testing.T) {
 func TestDmDMLWithInlineComment(t *testing.T) {
 	// 行内注释
 	sql := `SELECT "id", "name" /* 用户名 */ FROM "users" WHERE "status" = 1`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -473,7 +473,7 @@ func TestDmDMLWithMultipleComments(t *testing.T) {
 SELECT "id", "amount" FROM "orders" 
 WHERE "status" = 'paid' AND "created_at" > '2024-01-01'
 ORDER BY "created_at" DESC`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -488,7 +488,7 @@ ORDER BY "created_at" DESC`
 
 func TestDmInsertWithComment(t *testing.T) {
 	sql := "-- 插入数据\nINSERT INTO \"users\" (\"name\", \"email\") VALUES ('John', 'john@example.com')"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -502,7 +502,7 @@ func TestDmInsertWithComment(t *testing.T) {
 
 func TestDmInsertWithSchema(t *testing.T) {
 	sql := `INSERT INTO "TEST"."users" ("name", "age") VALUES ('John', 30)`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -519,7 +519,7 @@ func TestDmInsertWithSchema(t *testing.T) {
 
 func TestDmUpdateWithSchema(t *testing.T) {
 	sql := `UPDATE "TEST"."t_db" SET "name" = 'test' WHERE "id" = 5`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -547,7 +547,7 @@ func TestDmUpdateWithSchema(t *testing.T) {
 
 func TestDmDeleteWithSchema(t *testing.T) {
 	sql := `DELETE FROM "TEST"."logs" WHERE "created_at" < '2024-01-01'`
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -572,7 +572,7 @@ func TestDmDeleteWithSchema(t *testing.T) {
 // 且无 LIMIT 时 Limit 为 nil。达梦 MySQL 兼容模式下 DELETE … LIMIT n 只删 WHERE 匹配集的子集，
 // 若不捕获 LIMIT，旧值回查会捞回全部匹配行，回滚为未被删除的行生成 INSERT（撞主键或插入重复行）。
 func TestDmUpdateDeleteLimitCapture(t *testing.T) {
-	u, err := NewParser("UPDATE users SET name = 'a' WHERE id > 1 LIMIT 10").Parse()
+	u, err := newParser("UPDATE users SET name = 'a' WHERE id > 1 LIMIT 10").Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -584,7 +584,7 @@ func TestDmUpdateDeleteLimitCapture(t *testing.T) {
 		t.Errorf("WHERE.Text polluted by LIMIT: %+v", us.Where)
 	}
 
-	d, err := NewParser("DELETE FROM users WHERE id > 1 LIMIT 5").Parse()
+	d, err := newParser("DELETE FROM users WHERE id > 1 LIMIT 5").Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -594,11 +594,11 @@ func TestDmUpdateDeleteLimitCapture(t *testing.T) {
 	}
 
 	// 无 LIMIT：必须为 nil，普通达梦 UPDATE/DELETE 不得被误判为带行限制而 fail-closed
-	u2, _ := NewParser("UPDATE users SET name = 'a' WHERE id = 1").Parse()
+	u2, _ := newParser("UPDATE users SET name = 'a' WHERE id = 1").Parse()
 	if l := u2.(*sqlstmt.UpdateStmt).Limit; l != nil {
 		t.Errorf("expected nil Limit for UPDATE without LIMIT, got %+v", l)
 	}
-	d2, _ := NewParser("DELETE FROM users WHERE id = 1").Parse()
+	d2, _ := newParser("DELETE FROM users WHERE id = 1").Parse()
 	if l := d2.(*sqlstmt.DeleteStmt).Limit; l != nil {
 		t.Errorf("expected nil Limit for DELETE without LIMIT, got %+v", l)
 	}

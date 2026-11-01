@@ -3,6 +3,7 @@ package transfer
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"mayfly-go/internal/db/domain/entity"
@@ -94,12 +95,39 @@ func appendRunLine(log *entity.DbTransferLog, msg string) {
 
 // Log 向运行日志追加一行带时间戳的记录，并同步更新缓存以供前端实时查看。
 // 仅写入 RunLog（用户可见），不重复写入系统日志，与 sync 模块 appendRunLog 行为一致。
-func (app *DbTransferAppImpl) Log(ctx context.Context, logId uint64, msg string) {
+// transferLogLocks 按 logId 串行化运行日志的「读快照—追加—写回」。
+//
+// 缓存里的 RunLog 是整串读改写：多表并发迁移（task.Concurrency > 0）时多个协程同时
+// appendRunLine，后写会整体覆盖前写 —— 丢行不可恢复，落库的 run_log 与实际过程不一致，
+// 排查现场时会被误导。这类丢失不报错、也不体现在任务状态上，只能靠互斥保证。
+var transferLogLocks sync.Map // map[uint64]*sync.Mutex
+
+func transferLogMutex(logId uint64) *sync.Mutex {
+	actual, _ := transferLogLocks.LoadOrStore(logId, new(sync.Mutex))
+	return actual.(*sync.Mutex)
+}
+
+// mutateTransferLog 串行化「取缓存副本 → 修改 → 写回」。
+//
+// 所有对运行日志的读改写都必须走这里，不能只有 Log：进度更新(setTransferLog 写 TableCount/TotalRows)、
+// 校验指标、收尾摘要各自都持有独立副本，与 Log 并发时会互相覆盖（丢行不可恢复，TotalRows 还会回退）。
+func (app *DbTransferAppImpl) mutateTransferLog(logId uint64, fn func(*entity.DbTransferLog)) {
+	mu := transferLogMutex(logId)
+	mu.Lock()
+	defer mu.Unlock()
+
 	log := app.getTransferLog(logId)
-	if log != nil {
-		appendRunLine(log, msg)
-		app.setTransferLog(logId, log)
+	if log == nil {
+		return
 	}
+	fn(log)
+	app.setTransferLog(logId, log)
+}
+
+func (app *DbTransferAppImpl) Log(ctx context.Context, logId uint64, msg string) {
+	app.mutateTransferLog(logId, func(log *entity.DbTransferLog) {
+		appendRunLine(log, msg)
+	})
 }
 
 // runEndTitles 运行日志收尾摘要标题，按本次执行的用途区分文案。
@@ -190,6 +218,9 @@ func (app *DbTransferAppImpl) endRun(ctx context.Context, logId uint64, taskId u
 		if err := app.transferLogRepo.UpdateById(context.Background(), log, transferLogEndColumns...); err != nil {
 			logx.ErrorfContext(context.Background(), "failed to save transfer log [%d]: %s", log.Id, err.Error())
 		}
+
+		// 终态已落库：释放该日志的互斥条目（日志缓存有 TTL，锁没有，不删会按执行次数单调增长）
+		transferLogLocks.Delete(logId)
 	}
 
 	// 修改任务状态
@@ -227,17 +258,14 @@ func (app *DbTransferAppImpl) setVerifyMetrics(logId uint64, report *TransferVer
 	if report == nil {
 		return
 	}
-	log := app.getTransferLog(logId)
-	if log == nil {
-		return
-	}
 	var totalRows int64
 	for _, res := range report.Results {
 		totalRows += res.SrcCount
 	}
-	log.TableCount = len(report.Results)
-	log.TotalRows = totalRows
-	app.setTransferLog(logId, log)
+	app.mutateTransferLog(logId, func(log *entity.DbTransferLog) {
+		log.TableCount = len(report.Results)
+		log.TotalRows = totalRows
+	})
 }
 
 // getTransferLogCache 只读迁移日志的运行中缓存（不回落 DB）：缓存里是执行中的日志，其指标为实时值

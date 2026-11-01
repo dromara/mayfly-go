@@ -20,6 +20,39 @@ var Zh_CN = map[i18n.MsgId]string{
 	ErrDbNameExist:      "该实例下数据库名已存在",
 	ErrDbNotAccess:      "未配置数据库【{{.dbName}}】的操作权限",
 
+	LogDbTableAclSave:   "DB-保存表访问控制",
+	LogDbTableAclDelete: "DB-删除表访问控制",
+
+	LogDbColumnAclSave:   "DB-保存列访问控制",
+	LogDbColumnAclDelete: "DB-删除列访问控制",
+
+	ErrExportTicketNotFound:      "找不到该导出工单",
+	ErrExportTicketMismatch:      "该工单不是导出工单，不能用于下载",
+	ErrExportTicketNotApproved:   "该导出工单尚未审批通过",
+	ErrExportTicketExpired:       "该导出工单已超出可下载时限（审批通过后 24 小时内有效）",
+	ErrExportTicketNotOwner:      "只有工单申请人本人可以使用这张导出工单",
+	ErrExportTicketInvalid:       "工单里没有记录有效的导出范围（库与表清单），不能作为下载凭据",
+	ErrExportTicketScopeMismatch: "本次下载的库或表与工单批准的范围不一致",
+
+	ErrAclUnresolvable:      "该库启用了表/列访问控制，而这条语句的表引用无法静态确定（派生表、子查询或解析失败），已拒绝执行",
+	ErrAccountsUnreadable:   "读不到该实例的账号信息（多为账号缺少只读权限）：{{.reason}}",
+	ErrAccountsUnsupported:  "该实例无法盘点账号：{{.reason}}",
+	ErrRecoveryUnsupported:  "该实例无法探测恢复能力：{{.reason}}",
+	ErrDdlPrecheckTables:    "预检不完整：读取表规模失败（{{.err}}）",
+	ErrMetricUnsupported:    "不支持该指标：{{.metric}}",
+	ErrPerfUnsupported:      "当前数据库类型未实现该项性能诊断能力",
+	ErrSlowQueryUnavailable: "该实例无法提供慢查询统计：{{.reason}}",
+	ErrLockWaitUnavailable:  "该实例无法提供锁等待链：{{.reason}}。请确认 performance_schema 已开启且版本支持",
+
+	ErrColumnAccessDenied:      "无权访问列【{{.column}}】（已被管理员列入保护名单）",
+	ErrWholeTableReadDenied:    "该表存在无权查看的列（{{.columns}}），整表导出/复制会绕过列保护；请改用查询导出并显式选择列",
+	ErrColumnAclColumnRequired: "请选择要保护的列",
+
+	ErrTableAccessDenied:        "无权访问表【{{.table}}】（已被管理员列入保护名单）",
+	ErrTableAclRolesUnavailable: "无法确认当前账号的角色，表级权限按拒绝处理",
+	ErrTableAclTableRequired:    "请选择要保护的表",
+	ErrTableNotAllowed:          "无权访问表【{{.table}}】（该库启用了访问白名单，该表不在你的可访问清单中）",
+
 	ErrExistRunFailSQL:      "存在执行错误的sql",
 	ErrNeedSubmitWorkTicket: "该操作需要提交工单审批执行，审批通过后会自动执行本次操作",
 
@@ -76,6 +109,9 @@ var Zh_CN = map[i18n.MsgId]string{
 	TriggerReasonFullScan:      "执行计划显示存在全表/全索引扫描",
 	TriggerReasonBigTableDdl:   "目标表数据量达到大表阈值，结构变更需额外确认锁表与耗时风险",
 	TriggerReasonNoPrimaryKey:  "目标表没有主键",
+	TriggerReasonSelectStar:    "查询使用 SELECT * 拉取全部列",
+	TriggerReasonMultiTableDml: "多表更新/删除无法按行定位旧值",
+	TriggerReasonTableInList:   "目标表命中管理员设定的保护名单",
 	ErrReviewCheckNotEvaluated: "该检查项本次无法给出结论，不代表未命中：{{.reason}}",
 	ErrReviewNoSqlToAnalyze:    "缺少可分析的语句",
 	ErrReviewNoTargetDb:        "预检必须指定目标数据库，否则无法按该库方言解析与估算",
@@ -120,11 +156,11 @@ var Zh_CN = map[i18n.MsgId]string{
 	LogDbExplainPlan: "db-取SQL执行计划",
 
 	// 拿不到计划不等于该语句没有代价：界面必须把这一句显示出来，而不是画一张空图或只列 0 个节点
-	ErrExplainUnavailable: "本次拿不到执行计划：{{.reason}}（不等于该语句无需计划，也不表示它安全）",
+	ErrExplainUnavailable:   "本次拿不到执行计划：{{.reason}}（不等于该语句无需计划，也不表示它安全）",
+	ErrTLSStatusUnavailable: "无法读取本连接的加密状态：{{.reason}}（这不等于未加密，也不等于已加密）",
 
 	// 表/列不存在时报不存在，而不是让 SQL 报错把用户输入原样回显
-	ErrColumnValuesNoColumn:    "表【{{.table}}】不存在列【{{.column}}】（或已被删除），无法采样该列的值",
-	ErrColumnValuesUnsupported: "该方言未提供分页改写能力，为避免拼出不合法的限制行数语法而未采样",
+	ErrColumnValuesNoColumn: "表【{{.table}}】不存在列【{{.column}}】（或已被删除），无法采样该列的值",
 
 	// 表结构漂移基线：截断与「读不到」都必须说出口，不能拿一份不完整的基线报「无漂移」
 	ErrSchemaBaselineEmpty:      "该库当前读不到任何表结构，无法建立基线",

@@ -92,17 +92,47 @@ func (l *Lexer) parseSelectBody() *sqlstmt.SelectStmt {
 		sel.Into = true
 	}
 
+	// Oracle 的有序聚合：LISTAGG(...) WITHIN GROUP (ORDER BY ...)。
+	// WITHIN GROUP 属于投影表达式的一部分，若不当场消费，GROUP 会被当成子句边界，
+	// 使紧随其后的 FROM 及其表清单整体丢失。
+	for l.wordIs("WITHIN") && l.wordIsAt(1, "GROUP") {
+		l.Consume()
+		l.Consume()
+		if l.Current().Value == "(" {
+			l.SkipParentheses()
+		}
+	}
+
 	if l.Current().IsKeyword("FROM") {
 		l.Consume()
 		sel.From = l.parseFromTables()
 		sel.Joins = l.parseJoinClauses()
 	}
 
-	if l.Current().IsKeyword("WHERE") {
+	// ClickHouse PREWHERE 是 WHERE 的前置过滤（语义子集）：不接住它，解析会停在
+	// FROM 之后，后续子句内容被误当成表名污染表清单。
+	if l.wordIs("PREWHERE") {
 		l.Consume()
 		sel.Where = l.ParseCondExpr(false)
+	}
+
+	if l.Current().IsKeyword("WHERE") {
+		l.Consume()
+		where := l.ParseCondExpr(false)
+		if where.Text != "" {
+			if sel.Where != nil && sel.Where.Text != "" {
+				// PREWHERE 与 WHERE 并存时用 AND 合并，保持谓词文本可回放
+				where.Text = sel.Where.Text + " AND " + where.Text
+			}
+			sel.Where = where
+		}
 		// 层次子句在 WHERE 之后（Oracle 文档语序）
 		l.parseHierarchic()
+	}
+
+	// ClickHouse 的 ARRAY JOIN 也可出现在 WHERE 之后
+	if l.isArrayJoin() {
+		l.skipArrayJoinClause()
 	}
 
 	if l.Current().IsKeyword("GROUP") {

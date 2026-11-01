@@ -60,6 +60,7 @@ import RedisRunCmdFlowBizForm from './flowbiz/redis/RedisRunCmdFlowBizForm.vue';
 import { FLOW_DRAWER } from '@/views/flow/drawerSize';
 
 const DbSqlExecFlowBizForm = defineAsyncComponent(() => import('./flowbiz/dbms/DbSqlExecFlowBizForm.vue'));
+const DbExportFlowBizForm = defineAsyncComponent(() => import('@/views/flow/flowbiz/dbms/DbExportFlowBizForm.vue'));
 
 const props = defineProps({
     title: {
@@ -89,6 +90,7 @@ const bizFormRef = useTemplateRef<{ validateBizForm: () => Promise<void>; resetB
 // 业务组件
 const bizComponents = shallowReactive<Record<string, unknown>>({
     db_sql_exec_flow: DbSqlExecFlowBizForm,
+    db_export_flow: DbExportFlowBizForm,
     redis_run_cmd_flow: RedisRunCmdFlowBizForm,
 });
 

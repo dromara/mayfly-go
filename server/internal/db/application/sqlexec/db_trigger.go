@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
+	"mayfly-go/internal/db/dbm/sqlparser/tokenizer"
 	"mayfly-go/internal/db/imsg"
 	flowapp "mayfly-go/internal/flow/application"
 	flowdto "mayfly-go/internal/flow/application/dto"
@@ -18,15 +19,29 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/collx"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cast"
 )
 
+// selectKeywordPattern 判断写语句里是否含 SELECT（子查询/来源表），用于判定表引用可信度。
+// 宁可对含字面量 "select" 的语句多拒一次（仅在配了 ACL 规则的库上），也不放过子查询绕过。
+var selectKeywordPattern = regexp.MustCompile(`(?i)\bselect\b`)
+
+// viewTableRefPattern 从视图定义里取 FROM/JOIN 后的表引用；括号开头（子查询）不匹配
+// viewCacheTtl 视图清单缓存有效期：够短，新建视图很快就会生效；够长，翻页不会反复查系统表
+const viewCacheTtl = 30 * time.Second
+
+var viewTableRefPattern = regexp.MustCompile("(?is)\\b(?:from|join)\\s+([\\w.$`\"\\[\\]]+)")
+
 // 语句类型候选值，与执行器分派保持一致：
 // select 为查询语句，read 为解析失败或无法归类的只读语句，merge 为 upsert 写语句，other 为其余语句
-var dbStmtTypes = []string{"select", "read", "insert", "update", "delete", "merge", "ddl", "other"}
+// dbStmtTypes 策略「语句类型」可选值：来自解析器的语句注册表（单一真源），
+// 新增语句类型只要在 base/sharedStatementSpecs 填好 PolicyType 即自动出现。
+var dbStmtTypes = sqlparser.PolicyStatementTypes()
 
 // 破坏性 DDL 关键字默认集
 var dbDestructiveKeywords = []string{"drop", "truncate", "rename"}
@@ -38,6 +53,10 @@ const (
 	dbFieldSQLHasWhere  = "sqlHasWhere"
 	dbFieldTargetTables = "targetTables"
 	dbFieldSQLLength    = "sqlLength"
+	// dbFieldSelectStar SELECT 列表里用了 * （含 t.* 与 UNION 各分支）
+	dbFieldSelectStar = "selectStar"
+	// dbFieldDmlTableCount 写语句涉及的表数量（>1 即多表更新/删除）
+	dbFieldDmlTableCount = "dmlTableCount"
 )
 
 // 内置检查项 key
@@ -50,6 +69,9 @@ const (
 	dbCheckFullScan            = "db.full-scan"
 	dbCheckBigTableDdl         = "db.ddl-on-large-table"
 	dbCheckNoPrimaryKey        = "db.no-primary-key"
+	dbCheckSelectStar          = "db.select-star"
+	dbCheckMultiTableDml       = "db.multi-table-dml"
+	dbCheckTableInList         = "db.table-in-list"
 )
 
 // init 注册 DBMS 执行 SQL 场景的触发策略能力。
@@ -87,6 +109,8 @@ func dbTriggerFields() []trigger.TriggerField {
 		},
 		{Key: dbFieldSQLHasWhere, TitleKey: "flow.field.sqlHasWhere", Group: "risk", Type: trigger.TypeBool},
 		{Key: dbFieldTargetTables, TitleKey: "flow.field.targetTables", Group: "target", Type: trigger.TypeStringList},
+		{Key: dbFieldSelectStar, TitleKey: "flow.field.selectStar", Group: "statement", Type: trigger.TypeBool},
+		{Key: dbFieldDmlTableCount, TitleKey: "flow.field.dmlTableCount", Group: "statement", Type: trigger.TypeNumber},
 		// 以下四个都要查库，全部做成惰性派生：条件没引用到就不会付这次 EXPLAIN/内省的开销，
 		// 未绑定流程定义的库更是完全不进入这条路径（见 evaluateSQLTrigger 的 procdef 空判）
 		{
@@ -358,6 +382,73 @@ func dbTriggerChecks() []trigger.CheckDef {
 				return noPk, nil
 			},
 		},
+		{
+			Key: dbCheckSelectStar, TitleKey: "flow.check.selectStar", Summary: imsg.TriggerReasonSelectStar,
+			DescriptionKey: "flow.checkDesc.selectStar",
+			// 默认「仅提醒」：SELECT * 是性能与可维护性问题，不是权限边界。
+			// 需要用它挡「大字段表全列拉取」时，管理员把它提级即可
+			BizTypes: []string{DbSQLExecFlowBizType}, Default: flowentity.SeverityWarning,
+			Evaluate: func(ctx context.Context, tc *trigger.Context, _ map[string]any) (bool, error) {
+				stmtType, _ := tc.RawValue(dbFieldStmtType)
+				if stmtType != string(sqlstmt.StmtTypeSelect) {
+					return false, nil
+				}
+				// 事实缺失（只有关键字分类、没有 AST）时判不命中：这是风格规则，
+				// 不能因为解析不出结构就拦人
+				star, ok := tc.Attribute(dbFieldSelectStar)
+				if !ok {
+					return false, nil
+				}
+				matched, _ := star.(bool)
+				return matched, nil
+			},
+		},
+		{
+			Key: dbCheckMultiTableDml, TitleKey: "flow.check.multiTableDml", Summary: imsg.TriggerReasonMultiTableDml,
+			DescriptionKey: "flow.checkDesc.multiTableDml",
+			// 多表更新/删除的旧值采集与回滚一律 fail-closed 跳过（无法按行定位），
+			// 因此默认要求审批：让「改了什么、怎么退回去」在事前就有人看过
+			BizTypes: []string{DbSQLExecFlowBizType}, Default: flowentity.SeverityRequired,
+			Evaluate: func(ctx context.Context, tc *trigger.Context, _ map[string]any) (bool, error) {
+				stmtType, _ := tc.RawValue(dbFieldStmtType)
+				if stmtType != string(sqlstmt.StmtTypeUpdate) && stmtType != string(sqlstmt.StmtTypeDelete) {
+					return false, nil
+				}
+				raw, ok := tc.Attribute(dbFieldDmlTableCount)
+				if !ok {
+					return false, nil
+				}
+				count, _ := raw.(int)
+				return count > 1, nil
+			},
+		},
+		{
+			Key: dbCheckTableInList, TitleKey: "flow.check.tableInList", Summary: imsg.TriggerReasonTableInList,
+			DescriptionKey: "flow.checkDesc.tableInList",
+			// 把「指定表需审批」变成开箱可用的检查项：此前只能靠自定义条件手填目标表，
+			// 而自定义条件不区分合规意图，配置期也看不出这条策略在保护什么
+			BizTypes: []string{DbSQLExecFlowBizType}, Default: flowentity.SeverityRequired,
+			Params: []trigger.CheckParam{{
+				Key: "tables", TitleKey: "flow.checkParam.tables", Type: trigger.TypeStringList, Required: true,
+			}},
+			Evaluate: func(ctx context.Context, tc *trigger.Context, params map[string]any) (bool, error) {
+				configured := trigger.ParamStrings(params, "tables")
+				if len(configured) == 0 {
+					// 名单为空 = 没有要保护的表，不命中（而不是拦全部）
+					return false, nil
+				}
+				for _, target := range targetTablesOf(tc) {
+					for _, want := range configured {
+						// 表名大小写随方言与建表方式变化：不区分大小写比对，
+						// 否则把表名写成大写就绕过了保护名单
+						if strings.EqualFold(target, want) {
+							return true, nil
+						}
+					}
+				}
+				return false, nil
+			},
+		},
 	}
 }
 
@@ -365,7 +456,10 @@ func dbTriggerChecks() []trigger.CheckDef {
 func dbTriggerPresets() []trigger.PolicyPreset {
 	return []trigger.PolicyPreset{
 		{Key: "standard", TitleKey: "flow.policy.presetStandard", CheckKeys: []string{dbCheckDmlRequiresApproval}},
-		{Key: "strict", TitleKey: "flow.policy.presetStrict", CheckKeys: []string{dbCheckDmlRequiresApproval, dbCheckDmlWithoutWhere, dbCheckDestructiveDdl}},
+		{Key: "strict", TitleKey: "flow.policy.presetStrict", CheckKeys: []string{
+			dbCheckDmlRequiresApproval, dbCheckDmlWithoutWhere, dbCheckDestructiveDdl,
+			dbCheckMultiTableDml, dbCheckSelectStar,
+		}},
 		{Key: "loose", TitleKey: "flow.policy.presetLoose", CheckKeys: []string{dbCheckDestructiveDdl}},
 	}
 }
@@ -387,11 +481,241 @@ func ptrFloat(value float64) *float64 {
 	return &value
 }
 
+// tableAclEnabled 该库是否配置了表访问控制规则
+func (d *DbSQLExecAppImpl) tableAclEnabled(ctx context.Context, conn *dbi.DbConn) (bool, error) {
+	if d.tableAcl == nil || conn == nil || conn.Info == nil {
+		return false, nil
+	}
+	return d.tableAcl.HasRules(ctx, conn.Info.Id)
+}
+
+// assertTableAcl 表级权限闸门：语句的目标表命中保护名单即拒绝。
+//
+// 目标表取自与触发策略同一份事实（sqlTriggerFacts）：两处各判一套必然出现
+// 「策略看到表 A、权限看不到」的偏差。未注入实现（单测直接构造）视为未配置规则。
+func (d *DbSQLExecAppImpl) assertTableAcl(ctx context.Context, sqlExecParam *sqlExecParam) error {
+	if d.tableAcl == nil || sqlExecParam == nil || sqlExecParam.DbConn == nil || sqlExecParam.DbConn.Info == nil {
+		return nil
+	}
+	tables, resolvable := d.aclScopeFor(ctx, sqlExecParam.DbConn, sqlExecParam.SQL, sqlExecParam.Stmt)
+	dbId := sqlExecParam.DbConn.Info.Id
+	// 一条语句一次判定：可信度 + 表级 + 列级（列级与表级是两套独立规则，
+	// 表没被整体挡住不等于列可以随便读）
+	return d.tableAcl.AssertStatementAllowed(ctx, dbId, tables, resolvable, statementColumnRefs(sqlExecParam.Stmt))
+}
+
+// aclTableScope 从解析结果里取「表引用」并给出「这份清单是否可信」。
+//
+// 触发策略那侧的 targetTables 是给规则匹配用的粗口径，直接拿来做权限判定会漏人：
+//   - 派生表在 AST 里只是名为 "(SELECT ...)" 的表引用，内层真实表根本不在清单里；
+//   - INSERT…SELECT 只有写入目标，来源表缺失；
+//   - 条件子查询（WHERE ... IN (SELECT ... FROM t_secret)）完全不进清单；
+//   - 解析失败时 Stmt 为 nil，清单为空。
+//
+// 这些形态一律返回 resolvable=false，由 ACL 层决定「有规则就拒绝」。
+// OTHER 类（SHOW / EXPLAIN / CALL）保持可信但无表清单：否则 SHOW TABLES 都会被挡死，
+// 而存储过程内部的表引用本来就无法静态判定（记为已知边界，不靠猜）。
+func aclTableScope(sql string, stmt sqlstmt.Stmt) (tables []string, resolvable bool) {
+	if stmt == nil {
+		return nil, false
+	}
+	tables, _ = sqlTriggerFacts(sql, stmt)[dbFieldTargetTables].([]string)
+	for _, table := range tables {
+		if strings.HasPrefix(strings.TrimSpace(table), "(") {
+			return tables, false
+		}
+	}
+	switch stmt.StmtKind() {
+	case sqlstmt.KindSelect:
+		// 条件子查询 / 标量子查询里的表**不在** targetTables 里（清单只收 FROM/JOIN/UNION）。
+		// 语句里出现第二个 SELECT 就说明清单不完整：`select * from t_db where id in (select id from t_secret)`
+		// 此前按「清单可信」放行，等于用一条 IN 子查询即可读到被保护表。
+		if len(selectKeywordPattern.FindAllStringIndex(sql, -1)) > 1 {
+			return tables, false
+		}
+		return tables, true
+	case sqlstmt.KindInsert, sqlstmt.KindUpdate, sqlstmt.KindDelete, sqlstmt.KindMerge:
+		// 写语句里出现 SELECT 就意味着存在来源/子查询表，而它们不在清单里
+		if selectKeywordPattern.MatchString(sql) {
+			return tables, false
+		}
+		return tables, true
+	case sqlstmt.KindDdl:
+		return tables, true
+	case sqlstmt.KindWith:
+		// CTE：内层真实表不一定出现在清单里
+		return tables, false
+	}
+	// OTHER 类要再分一层：SHOW/EXPLAIN/SET 这类不读业务表，放行才能保住基本可用性；
+	// CALL/EXECUTE 的过程体里访问哪些表在客户端无法判定——配了规则的库上按不可判定拒绝，
+	// 否则存储过程就是一条稳定绕过保护名单的通道（此前正因如此被整体放行）。
+	// EXPLAIN 是特殊形态：纯 EXPLAIN 只出计划（只读），但 EXPLAIN ANALYZE 会**真正执行**
+	// 内层语句。其 StmtKind 也是 KindOther，若走下面的 EXPLAIN 白名单就会被当成只读放行，
+	// 使 `EXPLAIN ANALYZE DELETE FROM t` 绕过表级 ACL。这里先拦：只要带 ANALYZE
+	// （或已识别出内层写类型），清单不可信 → 有规则的库一律拒绝。
+	if explain, ok := stmt.(*sqlstmt.ExplainStmt); ok && (explain.Analyze || explain.Inner != "") {
+		return nil, false
+	}
+	if otherStmtReadsNoTable(sql) {
+		return nil, true
+	}
+	return nil, false
+}
+
+// otherStmtReadsNoTable 判断 OTHER 类语句是否确定不访问业务表（导航/事务/会话类）。
+//
+// 采用**白名单**：只有列出的形态才算确定安全，新增形态默认按「不可判定」处理——
+// 黑名单在这里是危险的，漏一个就等于漏一条绕过通道。
+func otherStmtReadsNoTable(sql string) bool {
+	// 白名单单一真源在 tokenizer：ACL 与语句分类必须共用同一份名单，
+	// 否则会出现「分类说只读、ACL 说不可判定」的自相矛盾，或一处加词另一处漏加。
+	return tokenizer.IsReadOnlyLeadingKeyword(leadingKeyword(sql))
+}
+
+// leadingKeyword 取语句首个关键字（跳过前导空白、行注释与块注释），统一大写。
+func leadingKeyword(sql string) string {
+	text := sql
+	for {
+		text = strings.TrimLeft(text, " \t\r\n")
+		switch {
+		case strings.HasPrefix(text, "--"), strings.HasPrefix(text, "#"):
+			if idx := strings.IndexAny(text, "\r\n"); idx >= 0 {
+				text = text[idx+1:]
+				continue
+			}
+			return ""
+		case strings.HasPrefix(text, "/*"):
+			if idx := strings.Index(text, "*/"); idx >= 0 {
+				text = text[idx+2:]
+				continue
+			}
+			return ""
+		default:
+			end := strings.IndexAny(text, " \t\r\n(")
+			if end < 0 {
+				return strings.ToUpper(text)
+			}
+			return strings.ToUpper(text[:end])
+		}
+	}
+}
+
+// viewNames 取某库的视图名集合（短 TTL 缓存）。
+//
+// 缓存键是实例内的库 id：视图清单变化频率远低于查询频率，而 ACL 判定是逐语句的，
+// 不缓存等于给每次查询加两次系统表往返。
+func (d *DbSQLExecAppImpl) viewNames(ctx context.Context, conn *dbi.DbConn) (map[string]bool, error) {
+	dbId := conn.Info.Id
+	d.viewCacheMu.Lock()
+	entry, ok := d.viewCache[dbId]
+	d.viewCacheMu.Unlock()
+	if ok && time.Since(entry.at) < viewCacheTtl {
+		return entry.names, nil
+	}
+	views, err := conn.Metadata().ListObjects(ctx, "", dbi.KindView)
+	if err != nil {
+		return nil, err
+	}
+	names := make(map[string]bool, len(views))
+	for _, view := range views {
+		names[aclTableKey(view.Name)] = true
+	}
+	d.viewCacheMu.Lock()
+	if d.viewCache == nil {
+		d.viewCache = make(map[uint64]viewNamesEntry)
+	}
+	d.viewCache[dbId] = viewNamesEntry{names: names, at: time.Now()}
+	d.viewCacheMu.Unlock()
+	return names, nil
+}
+
+// aclScopeFor 语句的 ACL 作用域：表清单 + 「清单是否可信」。
+//
+// 断言（checkSQLTrigger）与结果裁剪（doQuery 星号兜底）必须用同一份作用域：
+// 两处各自从 sqlTriggerFacts 取清单，会出现「判定时展开了视图、裁剪时没展开」的偏差，
+// 表现为视图里的被保护列被原样返回。
+func (d *DbSQLExecAppImpl) aclScopeFor(ctx context.Context, conn *dbi.DbConn, sql string, stmt sqlstmt.Stmt) ([]string, bool) {
+	tables, resolvable := aclTableScope(sql, stmt)
+	if d.tableAcl == nil || conn == nil || conn.Info == nil {
+		return tables, resolvable
+	}
+	// 视图是解析盲区：语句里只有视图名。只有该库配了规则才付「列视图 + 取定义」的代价
+	if hasRules, err := d.tableAcl.HasRules(ctx, conn.Info.Id); err == nil && hasRules {
+		var viewResolvable bool
+		tables, viewResolvable = d.expandAclViews(ctx, conn, tables)
+		if !viewResolvable {
+			resolvable = false
+		}
+	}
+	return tables, resolvable
+}
+
+// expandAclViews 把目标表里的视图展开成其定义中引用的表（只展开一层）。
+//
+// 返回 (展开后的表清单, 是否可解析)。三种情况：
+//   - 方言列不出视图（ErrUnsupportedKind 等）：保持原清单，视为可解析——不能因为平台读不到视图
+//     元数据就把该库所有查询挡死；
+//   - 目标表是视图且能取到定义：把定义里的表并进清单一起判定；
+//   - 是视图但取不到定义/提取不出表：不可解析，由 ACL 层按「有规则即拒绝」处理。
+func (d *DbSQLExecAppImpl) expandAclViews(ctx context.Context, conn *dbi.DbConn, tables []string) ([]string, bool) {
+	if len(tables) == 0 {
+		return tables, true
+	}
+	viewNames, err := d.viewNames(ctx, conn)
+	if err != nil {
+		// 列不出视图（方言不支持/权限不足）：保持原清单，不能因此把整库查询挡死
+		return tables, true
+	}
+	expanded := append([]string{}, tables...)
+	for _, table := range tables {
+		if !viewNames[aclTableKey(table)] {
+			continue
+		}
+		ddl, ddlErr := conn.Metadata().ObjectDDL(ctx, "", dbi.KindView, table)
+		if ddlErr != nil {
+			return tables, false
+		}
+		refs := viewDefinitionTables(ddl)
+		if len(refs) == 0 {
+			return tables, false
+		}
+		expanded = append(expanded, refs...)
+	}
+	return expanded, true
+}
+
+// viewDefinitionTables 从视图定义（CREATE VIEW ... AS SELECT ... FROM/JOIN ...）里取引用的表名。
+//
+// 只做「一层、纯文本关键字」提取：视图定义是数据库自己存的规范文本，不是用户输入；
+// 提取不到就返回空，由上层判为不可解析（宁拒不放）。
+func viewDefinitionTables(ddl string) []string {
+	matches := viewTableRefPattern.FindAllStringSubmatch(ddl, -1)
+	names := make([]string, 0, len(matches))
+	seen := make(map[string]bool, len(matches))
+	for _, match := range matches {
+		if len(match) < 2 {
+			continue
+		}
+		name := aclTableKey(match[1])
+		if name == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		names = append(names, name)
+	}
+	return names
+}
+
 // checkSQLTrigger 按已绑定流程定义的触发策略判定该语句能否直接执行。
 //
 // 语句类型取自执行器已完成的分类，解析出的结构化事实一并透传，
 // 避免在求值路径上重复解析，也保证分类口径与执行、审计一致
 func (d *DbSQLExecAppImpl) checkSQLTrigger(ctx context.Context, sqlExecParam *sqlExecParam, stmtType string) error {
+	// 表级权限先于触发策略：它是「这张表能不能碰」，不是「要不要人批」。
+	// 放在这里而不是各入口自己判，是为了让编辑器 / 网格 / 脚本执行共用同一口径
+	if err := d.assertTableAcl(ctx, sqlExecParam); err != nil {
+		return err
+	}
 	decision, err := d.evaluateSQLTrigger(ctx, sqlExecParam, stmtType)
 	if err != nil || decision == nil {
 		return err
@@ -456,8 +780,14 @@ func (d *DbSQLExecAppImpl) checkSqlsWithoutTicket(ctx context.Context, conn *dbi
 		// 定位失败按「不可判定」拒绝整批，不能当成未绑定
 		return nil, err
 	}
-	if procdef == nil {
-		// 未绑定流程定义即无需治理，也不必为每条语句付解析开销
+	// 表级权限与触发策略相互独立：未绑定流程定义也要判，否则「配了保护名单但没绑工单」
+	// 的库上，导出 / 导入 / AI 三个入口会全部绕过表级权限
+	aclEnabled, err := d.tableAclEnabled(ctx, conn)
+	if err != nil {
+		return nil, err
+	}
+	if procdef == nil && !aclEnabled {
+		// 既无策略也无保护名单：不必为每条语句付解析开销
 		return notices, nil
 	}
 	sp, splitter := dialect.GetSQLParser(), dialect.GetSQLSplitter()
@@ -466,6 +796,12 @@ func (d *DbSQLExecAppImpl) checkSqlsWithoutTicket(ctx context.Context, conn *dbi
 		// 必须带上连接：没有库定位就没有「要查哪个库」，估算行数/主键/表规模这类事实一律算不出来，
 		// 而按无法判定处理会让导入与 Agent 入口在配了相应策略的库上全部被拦
 		sqlExec := &sqlExecParam{DbConn: conn, SQL: sql, Stmt: stmt, Procdef: procdef}
+		if err := d.assertTableAcl(ctx, sqlExec); err != nil {
+			return nil, err
+		}
+		if procdef == nil {
+			continue
+		}
 		// 分类走 sqlparser.Classify：与交互执行、审计同一口径
 		decision, err := d.evaluateSQLTrigger(ctx, sqlExec, string(sqlparser.Classify(sp, splitter, sql, stmt, parseErr)))
 		if err != nil {
@@ -499,13 +835,17 @@ func sqlTriggerFacts(sql string, stmt sqlstmt.Stmt) map[string]any {
 	case *sqlstmt.UpdateStmt:
 		attributes["sqlHasWhere"] = typed.Where != nil
 		attributes["targetTables"] = tableRefNames(typed.Tables)
+		attributes[dbFieldDmlTableCount] = len(typed.Tables)
 	case *sqlstmt.DeleteStmt:
 		attributes["sqlHasWhere"] = typed.Where != nil
 		attributes["targetTables"] = tableRefNames(typed.Tables)
+		attributes[dbFieldDmlTableCount] = len(typed.Tables)
 	case *sqlstmt.InsertStmt:
 		attributes["targetTables"] = []string{typed.Table.Name}
+		attributes[dbFieldDmlTableCount] = 1
 	case *sqlstmt.SelectStmt:
 		attributes["sqlHasWhere"] = typed.Where != nil
+		attributes[dbFieldSelectStar] = selectHasStar(typed)
 		// 查询语句同样要给出目标表：「只读语句不许碰客户表」「某些表必须走工单」这类策略
 		// 对 SELECT 一样成立。此前只在 DML/DDL 分支解析，条件里的 targetTables
 		// 对查询恒不命中，等于这类策略配了却完全不生效
@@ -513,11 +853,20 @@ func sqlTriggerFacts(sql string, stmt sqlstmt.Stmt) map[string]any {
 			attributes["targetTables"] = tables
 		}
 	case *sqlstmt.DdlStmt:
-		// DDL 的目标表由语句文本取：骨架解析只把语句包装成「这是一条 DDL」（列定义与约束不是
-		// 触发策略要的信息，为它扩展四个方言的解析器不划算）。没有表名就没有「大表结构变更」
-		// 也没有「指定表的结构变更需审批」，扫不出来时留空，下游按无法判定处理（fail-closed）
-		if tables := ddlTargetTables(sql); len(tables) > 0 {
+		// 目标表以 AST 的 DdlStmt.Target 为准（解析器在骨架层提取，单一真源）；
+		// ddlTargetTables 的文本抽取只作为**兜底**保留：它额外覆盖 `RENAME TABLE a TO b` 这类
+		// AST 尚未建模的改名形态，两处结果合并去重，不丢既有能力。
+		tables := ddlTargetTables(sql)
+		if typed.Target != "" && !slices.ContainsFunc(tables, func(t string) bool { return strings.EqualFold(t, typed.Target) }) {
+			tables = append([]string{typed.Target}, tables...)
+		}
+		if len(tables) > 0 {
 			attributes["targetTables"] = tables
+		}
+	case *sqlstmt.MergeStmt:
+		// MERGE INTO <target>：目标表由 AST 给出，使「指定表」策略与表级访问控制覆盖 upsert
+		if typed.Target != "" {
+			attributes["targetTables"] = []string{typed.Target}
 		}
 	}
 	return attributes
@@ -575,6 +924,28 @@ func ddlTargetTables(sql string) []string {
 		collect(ddlToNameRe)
 	}
 	return names
+}
+
+// selectHasStar 判断一条查询是否在结果列里用了 *（含 t.*）。
+//
+// 必须是「结构判定」而不是扫文本：字符串字面量里的 '*'（如 LIKE '%*%'）与
+// COUNT(*) 里的星号都不是「取全部列」，按文本判会给出误报。
+// UNION 的每个分支单独判：外层没有星号不代表分支里没有。
+func selectHasStar(stmt *sqlstmt.SelectStmt) bool {
+	if stmt == nil {
+		return false
+	}
+	for _, item := range stmt.Items {
+		if item.IsStar() {
+			return true
+		}
+	}
+	for _, union := range stmt.Unions {
+		if selectHasStar(union.Select) {
+			return true
+		}
+	}
+	return false
 }
 
 // selectTargetTables 收集一条查询真正读到的表：FROM、JOIN，以及 UNION 系列的每个子查询。

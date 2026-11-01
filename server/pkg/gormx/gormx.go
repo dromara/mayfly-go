@@ -105,6 +105,29 @@ func Exists(ctx context.Context, dbModel model.ModelI, cond *model.QueryCond) (b
 	return len(ids) > 0, nil
 }
 
+// CountByCondCtx 同 CountByCond，但使用 ctx 里绑定的事务连接。
+//
+// 事务内统计自己刚写入的行必须用它：非事务连接读不到未提交数据，会读成事务开始前的旧值。
+// 典型受害者是「已完成票数」这类派生计数——写了自己的完成行却统计不到，完成条件恒不满足，
+// 节点会静默卡在待审批（不报错、无提示）。
+func CountByCondCtx(ctx context.Context, dbModel model.ModelI, cond *model.QueryCond) (int64, error) {
+	cond = toCond(cond)
+	if err := cond.GetErr(); err != nil {
+		return 0, err
+	}
+	gdb := DB(ctx).Model(dbModel)
+	if err := gdb.Error; err != nil {
+		return 0, err
+	}
+	setGdbWhere(gdb, cond)
+	applyDeletedFilter(gdb, dbModel, cond)
+	var count int64
+	if err := gdb.Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 // PageQuery 根据查询条件分页查询数据。若未指定查询列，则查询列以 toModels 字段为准；
 // 软删过滤由语句生成时按模型支持性与调用方声明自动判定，无需调用方关心
 func (q *Query) PageQuery[T any](pageParam model.PageParam, toModels []T) (*model.PageResult[T], error) {

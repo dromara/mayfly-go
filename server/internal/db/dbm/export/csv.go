@@ -72,8 +72,13 @@ func (c *CSVConsumer) Finish(w io.Writer, settings *Settings) error { return nil
 func newCSVWriter(w io.Writer, settings *Settings) *csv.Writer {
 	cw := csv.NewWriter(w)
 	if settings != nil {
-		if settings.FieldSeparator != "" && len(settings.FieldSeparator) > 0 {
-			cw.Comma = rune(settings.FieldSeparator[0])
+		if settings.FieldSeparator != "" {
+			// 取首个 rune 而非首字节：多字节分隔符（全角 ； 等）按 [0] 会得到半个 UTF-8 序列，
+			// 导出产物分隔符变成乱码，而导入侧（csv_importer.csvSeparator）是按 rune 取的，双向失配。
+			for _, r := range settings.FieldSeparator {
+				cw.Comma = r
+				break
+			}
 		}
 		if settings.LineTerminator != "" && settings.LineTerminator != "\n" {
 			cw.UseCRLF = settings.LineTerminator == "\r\n"

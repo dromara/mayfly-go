@@ -13,6 +13,7 @@ import type {
 import { createDefaultColumns, defaultColumnConfigs } from './shared/defaultColumns';
 import { appendLimitSql, buildSchemaTable, extractSchema, getDefaultDataType, QuoteEscape, wrapValueDefault } from './shared/utils';
 import { defineCapabilities, plsqlSplitOptions } from './shared/capabilities';
+import { diffPrimaryKey } from './shared/primaryKey';
 import { rownumPageSnippet } from './shared/snippets';
 import { DbType } from './dbType';
 import { registerDbDialect } from './registry';
@@ -22,7 +23,7 @@ import type { TableEditContext, TableInfoEditContext, ChangeDiff } from './types
 // 参考文档:https://eco.dameng.com/document/dm/zh-cn/sql-dev/dmpl-sql-datatype.html#%E5%AD%97%E7%AC%A6%E6%95%B0%E6%8D%AE%E7%B1%BB%E5%9E%8B
 const DM_TYPE_LIST: SqlColumnType[] = [
     // 字符数据类型
-    { udtName: 'CHAR', dataType: 'VARCHAR', desc: '定长字符串', space: '', range: '1 - 32767' },
+    { udtName: 'CHAR', dataType: 'CHAR', desc: '定长字符串', space: '', range: '1 - 32767' },
     { udtName: 'VARCHAR', dataType: 'VARCHAR', desc: '变长字符串', space: '', range: '1 - 32767' },
 
     // 精确数值数据类型 NUMERIC、DECIMAL、DEC 类型、NUMBER 类型、INTEGER 类型、INT 类型、BIGINT 类型、TINYINT 类型、BYTE 类型、SMALLINT
@@ -453,7 +454,8 @@ class DMDialect extends SchemaDialectBase {
         const defVal = this.getDefaultValueSql(cl);
         const incr = cl.autoIncrement ? 'IDENTITY' : '';
         const name = this.resolveColumnName(cl);
-        return ` ${this.quoteIdentifier(name)} ${cl.type}${length} ${incr} ${cl.nullable ? '' : 'NOT NULL'} ${defVal} `;
+        // 与 Oracle 同源：可空必须显式写 NULL，省略可空性不会撤销既有的 NOT NULL 约束
+        return ` ${this.quoteIdentifier(name)} ${cl.type}${length} ${incr} ${cl.nullable ? 'NULL' : 'NOT NULL'} ${defVal} `;
     }
 
     // ==================== DM 特有的 DDL 方法 ====================
@@ -514,17 +516,11 @@ class DMDialect extends SchemaDialectBase {
         let renameSql = '';
         let commentSql = '';
 
-        // 主键字段
-        let priArr = new Set();
-
         if (changeData.add.length > 0) {
             changeData.add.forEach((a) => {
                 modifySql += `ALTER TABLE ${dbTable} ADD ${this.genColumnBasicSql(a)};`;
                 if (a.comment) {
                     commentSql += `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${QuoteEscape(a.comment)}';`;
-                }
-                if (a.isPrimaryKey) {
-                    priArr.add(this.quoteIdentifier(a.name));
                 }
             });
         }
@@ -543,9 +539,6 @@ class DMDialect extends SchemaDialectBase {
                     }
                 }
                 modifySql += `ALTER TABLE ${dbTable} MODIFY ${this.genColumnBasicSql(a)};`;
-                if (a.isPrimaryKey) {
-                    priArr.add(this.quoteIdentifier(a.name));
-                }
             });
         }
 
@@ -555,21 +548,14 @@ class DMDialect extends SchemaDialectBase {
             });
         }
 
-        // 编辑主键
-        let dropPkSql = '';
-        if (priArr.size > 0) {
-            let resPri = tableData.fields.res.find((a: ColumnDefinition) => a.isPrimaryKey);
-            if (resPri) {
-                priArr.add(this.quoteIdentifier(resPri.name));
-            }
-            // 如果有编辑主键字段，则删除主键，再添加主键
-            // 解析表字段中是否含有主键，有的话就删除主键
-            if (tableData.fields.oldFields.find((a: ColumnDefinition) => a.isPrimaryKey)) {
-                dropPkSql = `ALTER TABLE ${dbTable} DROP PRIMARY KEY;`;
-            }
-        }
-
-        let addPkSql = priArr.size > 0 ? `ALTER TABLE ${dbTable} ADD PRIMARY KEY (${Array.from(priArr).join(',')});` : '';
+        // 主键按「旧主键 → 新主键」整体求值（复合主键不能只取被改动的那几列，会丢成员）
+        const primaryKey = diffPrimaryKey(tableData.fields.oldFields, tableData.fields.res);
+        const hasOldPrimaryKey = tableData.fields.oldFields.some((field) => field.isPrimaryKey);
+        let dropPkSql = primaryKey.changed && hasOldPrimaryKey ? `ALTER TABLE ${dbTable} DROP PRIMARY KEY;` : '';
+        let addPkSql =
+            primaryKey.changed && primaryKey.columns.length > 0
+                ? `ALTER TABLE ${dbTable} ADD PRIMARY KEY (${primaryKey.columns.map((name) => this.quoteIdentifier(name)).join(',')});`
+                : '';
 
         return dropPkSql + modifySql + dropSql + renameSql + addPkSql + commentSql;
     }

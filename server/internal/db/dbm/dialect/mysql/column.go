@@ -18,6 +18,10 @@ func mysqlSQLValueBytes(val any) string {
 	if strVal, ok := val.(string); ok && dbi.IsHexString(strVal) {
 		return fmt.Sprintf("X'%s'", strVal)
 	}
+	// 非 hex 文本：按字面字节写入（与基础实现/参数路径统一）
+	if strVal, ok := val.(string); ok && strVal != "" {
+		return fmt.Sprintf("X'%x'", strVal)
+	}
 	return dbi.SQLValueStringEscapeBackslash(val)
 }
 

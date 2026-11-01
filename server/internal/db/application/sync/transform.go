@@ -53,6 +53,8 @@ type TransformEngine struct {
 	rules map[string]*TransformRule
 	// funcs 内置函数注册表（函数名 -> 实现）
 	funcs map[string]TransformFunc
+	// err 本轮首个转换错误（fail-closed：调用方据此中止任务，而不是把 NULL 写进目标列）
+	err error
 }
 
 // TransformFunc 内置转换函数签名：参数为已求值的字符串参数列表
@@ -123,6 +125,19 @@ func (e *TransformEngine) Transform(srcRow map[string]any, fieldMap []map[string
 	return target, false
 }
 
+// recordErr 记录首个转换错误。
+//
+// 转换失败（列不存在、表达式写错）若按"写 NULL"处理，会把目标列从有值改成 NULL 且任务仍报成功，
+// 与同模块"冲突检测失败即中止"的 fail-closed 语义相反，因此这里留痕并由调用方在行处理后检查。
+func (e *TransformEngine) recordErr(err error) {
+	if err != nil && e.err == nil {
+		e.err = err
+	}
+}
+
+// Err 返回本轮转换中出现的第一个错误（nil 表示全部成功）
+func (e *TransformEngine) Err() error { return e.err }
+
 // applyRule 应用单条转换规则，返回 (转换后的值, 是否跳过该行)
 func (e *TransformEngine) applyRule(rule *TransformRule, srcRow map[string]any) (any, bool) {
 	switch rule.Type {
@@ -133,7 +148,8 @@ func (e *TransformEngine) applyRule(rule *TransformRule, srcRow map[string]any) 
 		}
 		val, ok := lookupRowValue(srcRow, col)
 		if !ok {
-			return nil, false
+			e.recordErr(fmt.Errorf("transform column [%s]: source column [%s] not found", rule.TargetColumn, col))
+			return nil, true
 		}
 		return val, false
 
@@ -143,8 +159,8 @@ func (e *TransformEngine) applyRule(rule *TransformRule, srcRow map[string]any) 
 	case TransformTypeExpr:
 		result, err := e.evalExpression(rule.Config.Expression, srcRow)
 		if err != nil {
-			logx.Warnf("transform expression eval failed for column [%s]: %s", rule.TargetColumn, err.Error())
-			return nil, false
+			e.recordErr(fmt.Errorf("transform expression for column [%s]: %w", rule.TargetColumn, err))
+			return nil, true
 		}
 		return result, false
 

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"mayfly-go/internal/ai/agent/contributor"
+	"mayfly-go/internal/ai/llm/llmtest"
 	"mayfly-go/internal/ai/session"
 
 	"github.com/cloudwego/eino/schema"
@@ -23,11 +24,7 @@ func newTestManager(t *testing.T, window int) *session.Manager {
 	if err != nil {
 		t.Fatalf("create store: %v", err)
 	}
-	m := session.NewManager(store)
-	if window > 0 {
-		m.WithContextWindow(window)
-	}
-	return m
+	return session.NewManager(store).WithModelProvider(&llmtest.Provider{Window: window})
 }
 
 func msg(role schema.RoleType, content string) *session.Message {

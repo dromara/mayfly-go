@@ -16,7 +16,36 @@ import (
 func healthWith(sessions ...*dbi.SessionInfo) *dbi.DbHealth {
 	// BaselineExists 置真：这个助手代表「一切都可观测」的健康样本，
 	// 否则漂移指标会在「指标注册表一致性」用例里被当成故障
-	return &dbi.DbHealth{InstanceId: 1, Sessions: sessions, SessionsAvailable: true, BaselineExists: true}
+	//
+	// TLSCertDaysLeft 同理：证书指标在「没配证书」时按设计返回错误（不可判定），
+	// 健康样本必须是「配了证书且还有效」，否则会把合法语义误判成回归
+	certDays := 90
+	// RecoveryPrepared 同理：PITR 指标在「方言不支持探测」时按设计返回错误，
+	// 健康样本必须是「探测过且已就绪」
+	pitrReady := true
+	return &dbi.DbHealth{InstanceId: 1, Sessions: sessions, SessionsAvailable: true, BaselineExists: true, TLSCertDaysLeft: &certDays, RecoveryPrepared: &pitrReady}
+}
+
+// TestDbExtractTLSCertDaysLeft 证书剩余天数的三种取值语义：
+// 有证书给天数、没证书返回错误（不是 0）、已过期给负数。
+func TestDbExtractTLSCertDaysLeft(t *testing.T) {
+	days := 12
+	if v, err := extractDbTLSCertDaysLeft(&dbi.DbHealth{TLSCertDaysLeft: &days}, nil); err != nil || v != 12 {
+		t.Fatalf("configured cert must yield its remaining days, got v=%v err=%v", v, err)
+	}
+
+	expired := -3
+	if v, err := extractDbTLSCertDaysLeft(&dbi.DbHealth{TLSCertDaysLeft: &expired}, nil); err != nil || v != -3 {
+		t.Fatalf("expired cert must yield a negative day count, got v=%v err=%v", v, err)
+	}
+
+	// 没配证书时返回错误而不是 0：0 会被规则读成「今天到期」
+	if v, err := extractDbTLSCertDaysLeft(&dbi.DbHealth{}, nil); err == nil {
+		t.Fatalf("instance without certificate must error instead of reporting %v days", v)
+	}
+	if _, err := extractDbTLSCertDaysLeft(nil, errors.New("instance not found")); err == nil {
+		t.Fatal("sampling failure must surface as an error")
+	}
 }
 
 func TestDbExtractPingFail(t *testing.T) {
@@ -106,6 +135,24 @@ func TestDbSchemaDriftMetric(t *testing.T) {
 	drifted := &dbi.DbHealth{BaselineExists: true, DriftedTables: 3}
 	if v, err := extractDbSchemaDrift(drifted, nil); err != nil || v != 3 {
 		t.Fatalf("want 3 drifted tables, got v=%v err=%v", v, err)
+	}
+}
+
+// TestDbExtractPitrNotReady PITR 前提指标的三种取值语义：
+// 未就绪给 1、就绪给 0、方言不支持探测返回错误（不是 0——0 会被读成「已就绪」并标绿）。
+func TestDbExtractPitrNotReady(t *testing.T) {
+	notReady, ready := false, true
+	if v, err := extractDbPitrNotReady(&dbi.DbHealth{RecoveryPrepared: &notReady}, nil); err != nil || v != 1 {
+		t.Fatalf("not ready must be 1, got v=%v err=%v", v, err)
+	}
+	if v, err := extractDbPitrNotReady(&dbi.DbHealth{RecoveryPrepared: &ready}, nil); err != nil || v != 0 {
+		t.Fatalf("ready must be 0, got v=%v err=%v", v, err)
+	}
+	if _, err := extractDbPitrNotReady(&dbi.DbHealth{}, nil); err == nil {
+		t.Fatal("unobservable recovery readiness must error, not report 0")
+	}
+	if _, err := extractDbPitrNotReady(nil, errors.New("instance gone")); err == nil {
+		t.Fatal("health error must propagate")
 	}
 }
 

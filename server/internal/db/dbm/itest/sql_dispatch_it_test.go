@@ -25,9 +25,10 @@ func TestITMysqlDispatchMatrix(t *testing.T) {
 
 	// 类型分类断言（文档化解析器行为）
 	assert.Equal(t, "*sqlstmt.OtherStmt", parseStmtType(t, conn, "SET @it_x = 1"))
-	// EXPLAIN 解析为 ExplainStmt（仅计划/读，Classify 归 Other 走只读通道；EXPLAIN ANALYZE <写> 才判写）
+	// EXPLAIN 解析为 ExplainStmt（仅计划 → other-read；EXPLAIN ANALYZE 会真执行 → other-write）
 	assert.Equal(t, "*sqlstmt.ExplainStmt", parseStmtType(t, conn, "EXPLAIN select 1"))
-	assert.Equal(t, "*sqlstmt.SelectStmt", parseStmtType(t, conn, "SHOW TABLES LIKE 'it_dispatch%'"))
+	// SHOW 独立建模为 ShowStmt（不再伪装 SelectStmt），分类为 other-read（只读导航）
+	assert.Equal(t, "*sqlstmt.ShowStmt", parseStmtType(t, conn, "SHOW TABLES LIKE 'it_dispatch%'"))
 	// 前置注释被切割器剥离，不影响分类
 	assert.Equal(t, "*sqlstmt.SelectStmt", parseStmtType(t, conn, "/* header */ select 1"))
 

@@ -11,7 +11,7 @@ import (
 
 func TestPgSelectBasic(t *testing.T) {
 	sql := "SELECT id, name FROM users WHERE status = 1 ORDER BY id DESC LIMIT 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -76,7 +76,7 @@ func TestPgSelectBasic(t *testing.T) {
 
 func TestPgSelectDistinct(t *testing.T) {
 	sql := "SELECT DISTINCT id, name FROM users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -90,7 +90,7 @@ func TestPgSelectDistinct(t *testing.T) {
 
 func TestPgSelectStar(t *testing.T) {
 	sql := "SELECT * FROM users"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -122,7 +122,7 @@ func TestPgSelectStar(t *testing.T) {
 
 func TestPgSelectWithJoin(t *testing.T) {
 	sql := "SELECT u.id, o.amount FROM users u LEFT JOIN orders o ON u.id = o.user_id WHERE u.status = 1"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -177,7 +177,7 @@ func TestPgSelectWithJoin(t *testing.T) {
 
 func TestPgSelectComplexWhere(t *testing.T) {
 	sql := "SELECT * FROM users WHERE status = 1 AND (age > 18 OR role = 'admin') ORDER BY name"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -218,7 +218,7 @@ func TestPgSelectComplexWhere(t *testing.T) {
 
 func TestPgOffsetLimit(t *testing.T) {
 	sql := "SELECT * FROM users OFFSET 10 LIMIT 20"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -248,7 +248,7 @@ func TestPgOffsetLimit(t *testing.T) {
 
 func TestPgLimitAll(t *testing.T) {
 	sql := "SELECT * FROM users LIMIT ALL"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -262,7 +262,7 @@ func TestPgLimitAll(t *testing.T) {
 
 func TestPgUnion(t *testing.T) {
 	sql := "SELECT 1 UNION SELECT 2 UNION ALL SELECT 3"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -301,7 +301,7 @@ func TestPgUnion(t *testing.T) {
 
 func TestPgForUpdate(t *testing.T) {
 	sql := "SELECT id FROM users WHERE id = 1 FOR UPDATE"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -339,7 +339,7 @@ func TestPgForUpdate(t *testing.T) {
 
 func TestPgForUpdateSkipLocked(t *testing.T) {
 	sql := "SELECT id FROM users WHERE status = 1 FOR UPDATE SKIP LOCKED"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -355,7 +355,7 @@ func TestPgForUpdateSkipLocked(t *testing.T) {
 
 func TestPgUpdateReturning(t *testing.T) {
 	sql := "UPDATE users SET name = 'John' WHERE id = 1 RETURNING id, name"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -371,7 +371,7 @@ func TestPgUpdateReturning(t *testing.T) {
 
 func TestPgDeleteReturning(t *testing.T) {
 	sql := "DELETE FROM users WHERE id = 1 RETURNING *"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -396,7 +396,7 @@ func TestPgDDL(t *testing.T) {
 
 	for _, sql := range sqls {
 		t.Run(sql[:10], func(t *testing.T) {
-			parser := NewParser(sql)
+			parser := newParser(sql)
 			stmt, err := parser.Parse()
 			if err != nil {
 				t.Fatalf("parse error: %v", err)

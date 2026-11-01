@@ -420,6 +420,17 @@ func (e *Exporter) exportData(ctx context.Context, writer *writerx.StringWriter,
 	rows := make([][]any, 0)
 	pendingBytes := 0
 
+	// 预算在遍历前解析一次：Settings 可由调用方在调用期设置，<=0 表示未设置（回落默认值，
+	// 同时避免 0 作为取模除数导致 panic）
+	batchRows := e.settings.BatchRows
+	if batchRows <= 0 {
+		batchRows = DefaultBatchRows
+	}
+	batchBytes := int(e.settings.BatchBytes)
+	if e.settings.BatchBytes <= 0 {
+		batchBytes = DefaultBatchBytes
+	}
+
 	// flush 闭包：将缓冲区数据委托给消费者输出一批
 	flushRows := func() error {
 		if len(rows) == 0 {
@@ -473,8 +484,11 @@ func (e *Exporter) exportData(ctx context.Context, writer *writerx.StringWriter,
 		dataCount++
 		pendingBytes += rowBytes
 
-		// 行数与字节数双预算：达到任一预算即 flush
-		if dataCount%DefaultBatchRows != 0 && pendingBytes < DefaultBatchBytes {
+		// 行数与字节数双预算：达到任一预算即 flush。
+		//
+		// 预算取自 Settings（此前只读常量，BatchRows/BatchBytes 声明了却从未生效——
+		// 调用方为大字段调小批量的诉求被静默忽略）。<=0 时回落到默认值，避免 0 做除数 panic。
+		if dataCount%batchRows != 0 && pendingBytes < batchBytes {
 			return nil
 		}
 		if err := flushRows(); err != nil {

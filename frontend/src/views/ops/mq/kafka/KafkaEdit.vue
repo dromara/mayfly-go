@@ -42,6 +42,7 @@ import { computed, useTemplateRef, type PropType } from 'vue';
 import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
 import SshTunnelSelect from '../../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../../component/TagTreeSelect.vue';
+import { relateTagItem } from '../../component/relateTagItem';
 import type { Kafka } from '@/views/ops/mq/types';
 
 /** Kafka 编辑表单类型 */
@@ -75,7 +76,7 @@ const emit = defineEmits(['cancel', 'val-change']);
 
 /** 表单声明（defineFormItems<KafkaForm>，渲染 + 校验唯一数据源；tagCodePaths/sshTunnel 走插槽） */
 const items = defineFormItems<KafkaForm>([
-    { prop: 'tagCodePaths', label: 'tag.relateTag', required: true },
+    relateTagItem<KafkaForm>(),
     { prop: 'name', label: 'common.name', required: true },
     { prop: 'hosts', label: 'Hosts', type: 'textarea', rows: 2, required: true, placeholder: 'mq.kafka.hostsPlaceholder' },
     {

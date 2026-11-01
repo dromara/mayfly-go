@@ -32,7 +32,9 @@ func TestExcelDateRoundtrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	table, err := (&ExcelImporter{}).Parse(bytes.NewReader(buf.Bytes()), &Options{HasHeader: true})
+	// 日期序列数还原由**目标列**驱动：不指定 DateSerialColumns 时保持原始序列数，
+	// 指定后才转 ISO（解析层不再逐格探测单元格格式，避免 excelize 全量解析整张 sheet）
+	table, err := (&ExcelImporter{}).Parse(bytes.NewReader(buf.Bytes()), &Options{HasHeader: true, DateSerialColumns: []int{2}})
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -93,5 +95,59 @@ func TestCSVBomAndBlankRows(t *testing.T) {
 	}
 	if table2.Rows[0][0] != "123" {
 		t.Fatalf("无表头 BOM 未剥离，first cell=%q", table2.Rows[0][0])
+	}
+}
+
+// TestExcelDateSerialOnlyForMappedColumns 只有被指定为日期列的列才做序列数还原。
+//
+// 这是 P1-6 的核心不变量：解析层不调用 GetCellStyle（那会让 excelize 把整张 sheet
+// 反序列化常驻内存），所以"单元格套了日期格式"不再自动转 ISO —— 由上层按目标列类型决定。
+func TestExcelDateSerialOnlyForMappedColumns(t *testing.T) {
+	f := excelize.NewFile()
+	const sheet = "Sheet1"
+	_ = f.SetCellValue(sheet, "A1", "id")
+	_ = f.SetCellValue(sheet, "A2", "1")
+	_ = f.SetCellValue(sheet, "B1", "amount")
+	_ = f.SetCellValue(sheet, "B2", "1234.5")
+	var buf bytes.Buffer
+	if err := f.Write(&buf); err != nil {
+		t.Fatalf("write xlsx: %v", err)
+	}
+
+	// 对照组：未指定日期列 → 纯数字列保持原值（金额、数量等不会被误当日期）
+	table, err := (&ExcelImporter{}).Parse(bytes.NewReader(buf.Bytes()), &Options{HasHeader: true})
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if got := table.Rows[0][1]; got != "1234.5" {
+		t.Errorf("未指定日期列时数值应保持原样，got %q", got)
+	}
+
+	// 指定为日期列 → 按 Excel 1900 序列数还原
+	table, err = (&ExcelImporter{}).Parse(bytes.NewReader(buf.Bytes()), &Options{HasHeader: true, DateSerialColumns: []int{1}})
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if got := table.Rows[0][1]; got != "1903-05-18 12:00:00" {
+		t.Errorf("指定为日期列后应按序列数还原，got %q", got)
+	}
+}
+
+// TestExcelTimeOnlySerial Excel 纯时间单元格（序列 <1）必须还原为 HH:MM:SS。
+//
+// 旧实现以 serial < 1 拒绝，导致 12:00（0.5）被原样写成 "0.5"：写 TIME 列会报 1292，
+// 或按整数解释成 00:00:00。
+func TestExcelTimeOnlySerial(t *testing.T) {
+	if got := excelSerialToTime(0.5); got != "12:00:00" {
+		t.Errorf("0.5 应为 12:00:00，got %q", got)
+	}
+	if got := excelSerialToTime(0.25); got != "06:00:00" {
+		t.Errorf("0.25 应为 06:00:00，got %q", got)
+	}
+	if _, ok := parseExcelSerial("0.5"); !ok {
+		t.Error("纯时间序列 0.5 应被接受")
+	}
+	if _, ok := parseExcelSerial("-1"); ok {
+		t.Error("负数不应被当作序列数")
 	}
 }

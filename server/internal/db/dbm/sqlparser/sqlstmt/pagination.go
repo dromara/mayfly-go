@@ -75,24 +75,3 @@ func OracleRewritePagination(sql string, offset, limit int64) string {
 	}
 	return sql
 }
-
-// DefaultClassifyStmt 基于 AST 的默认语句分类。
-// 将 sqlstmt.Kind 映射为 StmtType。
-func DefaultClassifyStmt(kind Kind) StmtType {
-	switch kind {
-	case KindSelect:
-		return StmtTypeSelect
-	case KindInsert:
-		return StmtTypeInsert
-	case KindUpdate:
-		return StmtTypeUpdate
-	case KindDelete:
-		return StmtTypeDelete
-	case KindMerge:
-		return StmtTypeMerge
-	case KindDdl:
-		return StmtTypeDDL
-	default:
-		return StmtTypeOther
-	}
-}

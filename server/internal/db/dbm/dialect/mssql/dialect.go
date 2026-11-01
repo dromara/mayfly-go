@@ -31,7 +31,9 @@ type MssqlDialect struct {
 // GetSQLParser 语法与标准SQL最接近，沿用pgsql解析器（见 sqlparser/mssql）。
 // 但分页改写需使用 SQL Server 的 OFFSET-FETCH 语法，故由其包装一层。
 func (md *MssqlDialect) GetSQLParser() sqlparser.SQLParser {
-	return mssqlparser.NewParser()
+	// 唯一入口是类型零值：各方言不再暴露第二个「带 sql 的构造函数」，
+	// 避免两套 Parse 形态并存（历史上 mssql 是 NewParser() 无参、其他方言是 NewParser(sql)）
+	return new(mssqlparser.MssqlParser)
 }
 
 func (md *MssqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
@@ -141,3 +143,8 @@ func (md *MssqlDialect) GetSQLSplitter() sqlparser.SQLSplitter {
 func (md *MssqlDialect) GetSQLGenerator() dbi.SQLGenerator {
 	return &SQLGenerator{DefaultSQLGenerator: dbi.DefaultSQLGenerator{QuoterFn: md.Quoter}, di: md.di}
 }
+
+// 编译期契约：解析 / 分页改写 / 语句分类三者缺一不可。
+// 历史实现把它们做成「可选能力 + 类型断言 + 默认 LIMIT 回退」，漏实现时运行期会静默
+// 生成非法 SQL（Oracle/MSSQL 不支持 LIMIT）；现收敛为必需方法，缺实现直接编译失败。
+var _ sqlparser.SQLParser = (*mssqlparser.MssqlParser)(nil)

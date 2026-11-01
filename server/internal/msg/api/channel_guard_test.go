@@ -77,7 +77,10 @@ func TestChannelCredentialStaysBehindSavePermission(t *testing.T) {
 //
 // 脱敏侧写一个键名、发送侧读另一个键名时不会报错：只会「该脱的没脱」或「加签静默不算」
 func TestSecretExtraKeyHasSingleSource(t *testing.T) {
-	root := filepath.Join("..", "..") // internal/msg
+	// 扫描范围是 internal/msg：本守卫约束的是「消息渠道密钥键名不得分叉」。
+	// 原先写成 ".."/".."（实际落到 internal/）与注释不符，会把 db 模块的敏感列识别规则
+	// （其中 "secret" 是合法的列名特征）误判为违规。
+	root := ".." // internal/msg
 	// 常量定义处的路径识别用后缀而不是等值：WalkDir 交的是相对 root 的路径（带 ../），
 	// 拼个“msgx/msgx.go”去 == 比永不相等，会把定义处自己也当成违规项
 	const constFileSuffix = "msgx" + string(filepath.Separator) + "msgx.go"

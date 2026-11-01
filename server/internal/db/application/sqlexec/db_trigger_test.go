@@ -76,7 +76,7 @@ func TestDbTriggerChecks(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			stmtType := string(sqlstmt.StmtTypeOther)
+			stmtType := string(sqlstmt.StmtTypeOtherRead)
 			switch tc.stmt.(type) {
 			case *sqlstmt.SelectStmt:
 				stmtType = string(sqlstmt.StmtTypeSelect)
@@ -532,5 +532,121 @@ func TestDdlFactsCarryTargetTables(t *testing.T) {
 	}
 	if len(tables) != 1 || tables[0] != "orders" {
 		t.Fatalf("target tables = %v, want [orders]", tables)
+	}
+}
+
+// TestSelectStarCheck SELECT * 的判据必须是「结构」而不是文本：
+// 字符串字面量里的星号、COUNT(*) 都不算「取全部列」，UNION 分支里的 * 则要算进去。
+func TestSelectStarCheck(t *testing.T) {
+	def, ok := trigger.CheckOf(dbCheckSelectStar)
+	if !ok {
+		t.Fatalf("the check %q must be registered", dbCheckSelectStar)
+	}
+	const sql = "select 1"
+	cases := []struct {
+		name string
+		stmt sqlstmt.Stmt
+		want bool
+	}{
+		{"star", &sqlstmt.SelectStmt{Items: []sqlstmt.SelectItem{{Kind: sqlstmt.SelectItemStar}}}, true},
+		{"table star", &sqlstmt.SelectStmt{Items: []sqlstmt.SelectItem{{Kind: sqlstmt.SelectItemStar, TableAlias: "t"}}}, true},
+		{"explicit columns", &sqlstmt.SelectStmt{Items: []sqlstmt.SelectItem{{Kind: sqlstmt.SelectItemColumn, ColumnName: "id"}}}, false},
+		{"union branch star", &sqlstmt.SelectStmt{
+			Items:  []sqlstmt.SelectItem{{Kind: sqlstmt.SelectItemColumn, ColumnName: "id"}},
+			Unions: []sqlstmt.UnionClause{{Select: &sqlstmt.SelectStmt{Items: []sqlstmt.SelectItem{{Kind: sqlstmt.SelectItemStar}}}}},
+		}, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := trigger.NewContext(context.Background(), DbSQLExecFlowBizType, 1,
+				map[string]string{"stmtType": string(sqlstmt.StmtTypeSelect), "sql": sql}, nil).
+				WithAttributes(sqlTriggerFacts(sql, tc.stmt))
+			got, err := def.Evaluate(context.Background(), ctx, nil)
+			if err != nil {
+				t.Fatalf("evaluate: %v", err)
+			}
+			if got != tc.want {
+				t.Fatalf("select-star = %v, want %v", got, tc.want)
+			}
+		})
+	}
+
+	// 非查询语句一律不命中
+	update := &sqlstmt.UpdateStmt{Tables: []sqlstmt.TableRef{{Name: "t"}}}
+	ctx := trigger.NewContext(context.Background(), DbSQLExecFlowBizType, 1,
+		map[string]string{"stmtType": string(sqlstmt.StmtTypeUpdate), "sql": "update t set a = 1"}, nil).
+		WithAttributes(sqlTriggerFacts("update t set a = 1", update))
+	if got, _ := def.Evaluate(context.Background(), ctx, nil); got {
+		t.Fatal("select-star must not fire on updates")
+	}
+}
+
+// TestMultiTableDmlCheck 多表更新/删除必须命中；单表与非写语句不命中。
+func TestMultiTableDmlCheck(t *testing.T) {
+	def, ok := trigger.CheckOf(dbCheckMultiTableDml)
+	if !ok {
+		t.Fatalf("the check %q must be registered", dbCheckMultiTableDml)
+	}
+	cases := []struct {
+		name     string
+		sql      string
+		stmtType string
+		stmt     sqlstmt.Stmt
+		want     bool
+	}{
+		{"update two tables", "update a, b set a.x = 1", "update",
+			&sqlstmt.UpdateStmt{Tables: []sqlstmt.TableRef{{Name: "a"}, {Name: "b"}}}, true},
+		{"update one table", "update a set x = 1", "update",
+			&sqlstmt.UpdateStmt{Tables: []sqlstmt.TableRef{{Name: "a"}}}, false},
+		{"delete two tables", "delete a, b from a join b", "delete",
+			&sqlstmt.DeleteStmt{Tables: []sqlstmt.TableRef{{Name: "a"}, {Name: "b"}}}, true},
+		{"insert", "insert into a values (1)", "insert",
+			&sqlstmt.InsertStmt{Table: sqlstmt.TableRef{Name: "a"}}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := trigger.NewContext(context.Background(), DbSQLExecFlowBizType, 1,
+				map[string]string{"stmtType": tc.stmtType, "sql": tc.sql}, nil).
+				WithAttributes(sqlTriggerFacts(tc.sql, tc.stmt))
+			got, err := def.Evaluate(context.Background(), ctx, nil)
+			if err != nil {
+				t.Fatalf("evaluate: %v", err)
+			}
+			if got != tc.want {
+				t.Fatalf("multi-table-dml = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestTableInListCheck 保护名单按表名忽略大小写匹配；空名单不命中（而不是拦全部）。
+func TestTableInListCheck(t *testing.T) {
+	def, ok := trigger.CheckOf(dbCheckTableInList)
+	if !ok {
+		t.Fatalf("the check %q must be registered", dbCheckTableInList)
+	}
+	sql := "select id from orders"
+	stmt := &sqlstmt.SelectStmt{
+		Items: []sqlstmt.SelectItem{{Kind: sqlstmt.SelectItemColumn, ColumnName: "id"}},
+		From:  []sqlstmt.TableRef{{Name: "orders"}},
+	}
+	newCtx := func() *trigger.Context {
+		return trigger.NewContext(context.Background(), DbSQLExecFlowBizType, 1,
+			map[string]string{"stmtType": string(sqlstmt.StmtTypeSelect), "sql": sql}, nil).
+			WithAttributes(sqlTriggerFacts(sql, stmt))
+	}
+
+	if got, _ := def.Evaluate(context.Background(), newCtx(), map[string]any{"tables": []any{"orders"}}); !got {
+		t.Fatal("the protected table must be hit")
+	}
+	// 大小写不同也要命中：否则把表名写成大写就绕过了名单
+	if got, _ := def.Evaluate(context.Background(), newCtx(), map[string]any{"tables": []any{"ORDERS"}}); !got {
+		t.Fatal("table matching must be case-insensitive")
+	}
+	if got, _ := def.Evaluate(context.Background(), newCtx(), map[string]any{"tables": []any{"users"}}); got {
+		t.Fatal("an unrelated table must not be hit")
+	}
+	if got, _ := def.Evaluate(context.Background(), newCtx(), map[string]any{}); got {
+		t.Fatal("an empty list protects nothing and must not hit")
 	}
 }

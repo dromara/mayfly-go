@@ -139,6 +139,7 @@ import { FLOW_DRAWER } from '@/views/flow/drawerSize';
 const DbSqlExecBiz = defineAsyncComponent(() => import('./flowbiz/dbms/DbSqlExecBiz.vue'));
 const RedisRunCmdBiz = defineAsyncComponent(() => import('./flowbiz/redis/RedisRunCmdBiz.vue'));
 const AgentRemediationBiz = defineAsyncComponent(() => import('./flowbiz/agentops/AgentRemediationBiz.vue'));
+const DbExportBiz = defineAsyncComponent(() => import('./flowbiz/dbms/DbExportBiz.vue'));
 
 const props = defineProps({
     procinstId: {
@@ -169,6 +170,7 @@ const bizComponents = shallowReactive<Record<string, unknown>>({
     db_sql_exec_flow: DbSqlExecBiz,
     redis_run_cmd_flow: RedisRunCmdBiz,
     agent_remediation_flow: AgentRemediationBiz,
+    db_export_flow: DbExportBiz,
 });
 
 const state = reactive({

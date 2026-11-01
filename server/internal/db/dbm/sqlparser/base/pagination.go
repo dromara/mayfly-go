@@ -65,6 +65,13 @@ func (l *Lexer) parseRowLimitTail() *sqlstmt.Limit {
 				l.Consume()
 				continue
 			}
+			// SQLite 的 LIMIT -1 表示「不限制行数」（负数由 - 与数字两个 token 组成）
+			if l.Current().Value == "-" && isNumberToken(l.Peek(1)) {
+				l.Consume()
+				count, _ := strconv.Atoi(l.Consume().Value)
+				lim.Count = -count
+				continue
+			}
 			if isNumberToken(l.Current()) {
 				first, _ := strconv.Atoi(l.Consume().Value)
 				if l.Current().Value == "," {
@@ -129,10 +136,29 @@ func (l *Lexer) parseRowLimitTail() *sqlstmt.Limit {
 // 都不受影响；这也让本函数无需把 TOP 登记成关键字即可工作（TOP 在 Oracle 系不是保留字）。
 // 未识别到时返回 nil，不消费任何 token。
 func (l *Lexer) parseTopLimit() *sqlstmt.Limit {
-	if !l.IsWord("TOP") || !isNumberToken(l.Peek(1)) {
+	if !l.IsWord("TOP") {
 		return nil
 	}
 	start := l.Pos
+	// T-SQL 两种写法：TOP n 与 TOP (n)
+	if lp := l.Peek(1); lp.Value == "(" && isNumberToken(l.Peek(2)) && l.Peek(3).Value == ")" {
+		l.Consume() // TOP
+		l.Consume() // (
+		count, _ := strconv.Atoi(l.Consume().Value)
+		l.Consume() // )
+		if l.IsWord("PERCENT") {
+			l.Consume()
+			count = 0
+		}
+		if l.isWordPair("WITH", "TIES") {
+			l.Consume()
+			l.Consume()
+		}
+		return &sqlstmt.Limit{Count: count, Text: l.TextFromExclusive(start)}
+	}
+	if !isNumberToken(l.Peek(1)) {
+		return nil
+	}
 	l.Consume() // TOP
 	count, _ := strconv.Atoi(l.Consume().Value)
 	if l.IsWord("PERCENT") {

@@ -12,6 +12,8 @@ const (
 	KindDdl    Kind = "DDL"
 	KindWith   Kind = "WITH"
 	KindOther  Kind = "OTHER"
+	// KindShow SHOW 元信息语句（与 OTHER 分开：它是只读导航，不该与 CALL/LOAD 同类）
+	KindShow Kind = "SHOW"
 )
 
 // Stmt 是所有 SQL 语句的接口

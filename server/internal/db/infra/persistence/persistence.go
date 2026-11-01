@@ -18,4 +18,7 @@ func InitIoc() {
 	ioc.Register(newMaskRuleRepo())
 	ioc.Register(newMaskColumnRepo())
 	ioc.Register(newSchemaBaselineRepo())
+	ioc.Register(newDbTableAclRepo())
+	ioc.Register(newDbColumnAclRepo())
+	ioc.Register(newDbMetricSampleRepo())
 }

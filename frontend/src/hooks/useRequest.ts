@@ -267,14 +267,19 @@ async function execCustomFetch(uaf: UseFetchReturn<unknown>, reqOptions?: Reques
 
     // 如果提示没有权限，则跳转至无权限页面
     if (resultCode === ResultEnum.NO_PERMISSION) {
-        // 必须动态取 router：`@/router` 会拉起 syssocket → 系统消息组件 → 业务 api 模块，
-        // 而那些模块在模块顶层就调用 `Api.newGet()`。静态 import 会让 common/Api.ts 的求值
-        // 绕回自己（class Api 还没初始化），偶发 `Cannot access 'Api' before initialization`，
-        // 表现是懒加载出来的整块面板直接空白。
-        const { default: router } = await import('@/router');
-        await router.push({
-            path: URL_401,
-        });
+        // 未登录（无 token）时不跳 401：登录页同样会发起探测类请求（如 AI 可用性），
+        // 一旦把「未登录」当成「无权限」，页面会被从登录页踢到 401，用户再也无法登录。
+        // 该场景的正确去向由路由守卫处理（无 token → login）
+        if (getToken()) {
+            // 必须动态取 router：`@/router` 会拉起 syssocket → 系统消息组件 → 业务 api 模块，
+            // 而那些模块在模块顶层就调用 `Api.newGet()`。静态 import 会让 common/Api.ts 的求值
+            // 绕回自己（class Api 还没初始化），偶发 `Cannot access 'Api' before initialization`，
+            // 表现是懒加载出来的整块面板直接空白。
+            const { default: router } = await import('@/router');
+            await router.push({
+                path: URL_401,
+            });
+        }
         return Promise.reject(new Error(result.msg || ''));
     }
 

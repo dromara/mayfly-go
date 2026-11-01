@@ -76,14 +76,25 @@ func TestBindSyncValues_EmptyHexBlob(t *testing.T) {
 	assert.Equal(t, []byte{}, bound[0][0])
 }
 
-func TestBindSyncValues_InvalidBinaryStillFails(t *testing.T) {
-	// 非 hex 字符应报错，不默默当字符串写进 blob：
-	// 奇数长度与包含非 hex 字符两种都由 hex.DecodeString 自身拒绝。
+func TestBindSyncValues_NonHexBinaryWritesLiteralBytes(t *testing.T) {
+	// 非 hex 文本写入二进制列：按字面字节（不报错）。
+	//
+	// 契约是"同一中间值经文本路径与参数路径落同一结果"。旧实现参数路径报错、文本路径
+	// 退回字符串字面量（MySQL 隐式转换 / PG 报错），同一任务换个冲突策略就在
+	// "脏写"和"失败"之间漂移。现在两路径都按字面字节写入，靠 Warn 提示。
 	columns := []dbi.Column{colHelper("blob_col", "blob")}
-	_, err := bindSyncValues("mysql", columns, [][]any{{"zz"}})
-	assert.Error(t, err)
-	_, err = bindSyncValues("mysql", columns, [][]any{{"4865"}})
-	assert.NoError(t, err, "偶数位合法 hex 应能通过")
+	vals, err := bindSyncValues("mysql", columns, [][]any{{"zz"}})
+	require.NoError(t, err)
+	b, ok := vals[0][0].([]byte)
+	require.True(t, ok, "非 hex 文本应绑定为 []byte")
+	require.Equal(t, []byte("zz"), b)
+
+	// hex 仍然解码（不能因为宽松就丢掉 hex 语义）
+	vals, err = bindSyncValues("mysql", columns, [][]any{{"4865"}})
+	require.NoError(t, err)
+	b, ok = vals[0][0].([]byte)
+	require.True(t, ok)
+	require.Equal(t, []byte("He"), b)
 }
 
 func TestBindSyncValues_RowColumnMismatch(t *testing.T) {

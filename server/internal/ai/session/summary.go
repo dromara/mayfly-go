@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"fmt"
+	"mayfly-go/internal/ai/llm"
 	"mayfly-go/internal/ai/prompt"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
@@ -10,7 +11,6 @@ import (
 	"mayfly-go/pkg/utils/stringx"
 	"strings"
 
-	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -54,8 +54,8 @@ func DefaultSummaryConfig() *SummaryConfig {
 
 // LLMSummarizer 基于 LLM 的摘要器
 type LLMSummarizer struct {
-	maxMessages int                // 用于摘要的最大消息数，避免超出上下文限制
-	chatModel   model.AgenticModel // ChatModel 实例（可选，不设置则自动获取）
+	maxMessages int          // 用于摘要的最大消息数，避免超出上下文限制
+	provider    llm.Provider // 模型访问入口（每轮摘要按当前生效配置取模型）
 }
 
 // NewLLMSummarizer 创建基于 LLM 的摘要器
@@ -71,9 +71,12 @@ func (s *LLMSummarizer) WithMaxMessages(maxMessages int) *LLMSummarizer {
 	return s
 }
 
-// WithChatModel 设置 ChatModel 实例
-func (s *LLMSummarizer) WithChatModel(chatModel model.AgenticModel) *LLMSummarizer {
-	s.chatModel = chatModel
+// WithModelProvider 注入模型访问入口
+//
+// 摘要器生命周期与进程同级：这里必须注入 Provider 而非 ChatModel 实例，
+// 模型配置（地址 / Key / 模型名）变更后摘要自动使用新模型
+func (s *LLMSummarizer) WithModelProvider(provider llm.Provider) *LLMSummarizer {
+	s.provider = provider
 	return s
 }
 
@@ -104,9 +107,13 @@ func (s *LLMSummarizer) GenerateSummary(ctx context.Context, messages []*Message
 func (s *LLMSummarizer) generateLLMSummary(ctx context.Context, messages []*Message) (summary string, err error) {
 	defer gox.Recover()
 
-	// ChatModel 必须由外部注入
-	if s.chatModel == nil {
-		return "", fmt.Errorf("ChatModel not configured, cannot generate LLM summary")
+	// 模型必须由外部注入 Provider（装配期缺省时降级为规则摘要）
+	if s.provider == nil {
+		return "", fmt.Errorf("model provider not configured, cannot generate LLM summary")
+	}
+	chatModel, err := s.provider.ChatModel(ctx)
+	if err != nil {
+		return "", fmt.Errorf("get chat model: %w", err)
 	}
 
 	// 准备用于摘要的消息（限制数量避免超出上下文）
@@ -120,7 +127,7 @@ func (s *LLMSummarizer) generateLLMSummary(ctx context.Context, messages []*Mess
 
 	// 调用 LLM 生成摘要（System 设定角色，User 提供待处理内容；摘要为非交互场景，
 	// 直接用 Generate 非流式获取完整结果）
-	response, err := s.chatModel.Generate(ctx, []*schema.AgenticMessage{
+	response, err := chatModel.Generate(ctx, []*schema.AgenticMessage{
 		schema.SystemAgenticMessage("你是对话摘要专家，负责将对话历史压缩为结构化的摘要。保留关键信息，去除冗余细节。\n" +
 			"必须遵守：\n" +
 			"1. 只记录用户**明确表达**的要求。单次指令（如「再来一条」）不得概括为「持续/批量/高频任务」；\n" +

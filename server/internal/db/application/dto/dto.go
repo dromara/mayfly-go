@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/export"
 	"mayfly-go/internal/db/domain/entity"
+	"mayfly-go/internal/pkg/tlsx"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 )
 
@@ -12,6 +13,21 @@ type SaveDbInstance struct {
 	DbInstance   *entity.DbInstance
 	AuthCerts    []*tagentity.ResourceAuthCert
 	TagCodePaths []string
+
+	// TLSMaterial 本次表单明文提交的证书材料（CA/客户端证书/私钥）。
+	//
+	// 与 DbInstance.TLSMaterialEnc（密文列）分开传递：编辑表单从不回显证书，
+	// 留空表示沿用库中旧密文，由 normalizeDbTLS 统一合并——不把明文塞进实体，
+	// 避免它随实体被日志、响应或 GORM 的字段选择意外带出。
+	TLSMaterial *tlsx.Material
+}
+
+// ConnTestResult 测试连接成功后返回的观测事实（不是判定结论）。
+type ConnTestResult struct {
+	// TLS 本连接实际协商出的加密状态；Available=false 表示该方言读不到，而不是未加密
+	TLS *dbi.TLSStatus `json:"tls,omitempty"`
+	// TLSNote 读不到加密状态的原因，与 TLS.Available=false 配对出现
+	TLSNote string `json:"tlsNote,omitempty"`
 }
 
 type DumpDb struct {

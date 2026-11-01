@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/pkg/tlsx"
+	"mayfly-go/pkg/errorx"
 
-	_ "github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/ClickHouse/clickhouse-go/v2"
 )
 
 func init() {
@@ -150,8 +152,11 @@ type Backend struct {
 func (cm *Backend) GetCapabilities() dbi.MetadataCapabilities {
 	// clickhouse 仅支持注释与 DDL 导出；有 database 层、无独立 schema 层；支持视图内省（无序列），
 	// 并声明已实现的会话内省（system.processes）与执行计划分析（EXPLAIN json）。
+	// TLS：驱动接受完整的 *tls.Config，故三档（含 verify-ca 的只校链）都可兑现
 	return dbi.NewCapabilities(dbi.FeatComments, dbi.FeatDDLExport).
-		With(dbi.FeatViews, dbi.FeatSessions, dbi.FeatExplain).WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true})
+		With(dbi.FeatViews, dbi.FeatSessions, dbi.FeatExplain).
+		WithTLSModes(tlsx.ModeRequire, tlsx.ModeVerifyCA, tlsx.ModeVerifyFull).
+		WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true})
 }
 
 func (cm *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
@@ -160,13 +165,30 @@ func (cm *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error)
 		dbName = "default"
 	}
 	dsn := fmt.Sprintf("clickhouse://%s:%s@%s:%d/%s", d.Username, d.Password, d.Host, d.Port, dbName)
-	if d.Params != "" {
-		dsn = fmt.Sprintf("%s?%s", dsn, d.Params)
-	} else {
-		dsn = fmt.Sprintf("%s?dial_timeout=10s&read_timeout=30s", dsn)
+	params := d.Params
+	if params == "" {
+		params = "dial_timeout=10s&read_timeout=30s"
 	}
-	const driverName = "clickhouse"
-	return sql.Open(driverName, dsn)
+
+	tlsCfg := d.EffectiveTLS()
+	if tlsCfg == nil {
+		const driverName = "clickhouse"
+		return sql.Open(driverName, fmt.Sprintf("%s?%s", dsn, params))
+	}
+
+	// 结构化配置优先：DSN 里的 secure/skip_verify 会与注入的 Options.TLS 争夺同一事实
+	params = tlsx.StripKV(params, "secure", "skip_verify", "ca_certs", "client_certs", "tls_server_name")
+	opts, err := clickhouse.ParseDSN(fmt.Sprintf("%s?%s", dsn, params))
+	if err != nil {
+		return nil, errorx.NewBizf("parse clickhouse dsn failed: %s", err.Error())
+	}
+	built, err := tlsCfg.Build()
+	if err != nil {
+		return nil, err
+	}
+	// 直接注入 tls.Config：DSN 的 ca_certs/client_certs 只接受文件路径，且无法表达 verify-ca
+	opts.TLS = built
+	return clickhouse.OpenDB(opts), nil
 }
 
 func (cm *Backend) GetDialect(di *dbi.DbInfo) dbi.Dialect {

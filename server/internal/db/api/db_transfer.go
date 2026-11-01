@@ -8,6 +8,7 @@ import (
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/application/sqlexec"
 	"mayfly-go/internal/db/application/transfer"
+	"mayfly-go/internal/db/application/transfer/backupenc"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/imsg"
 	fileapp "mayfly-go/internal/file/application"
@@ -165,9 +166,15 @@ func (d *DbTransferTask) FileContent(rc *req.Ctx) {
 
 	rc.ReqParam = collx.Kvs("fileId", tFile.Id, "taskId", tFile.TaskId, "fileDbType", tFile.FileDbType)
 
-	filename, reader, err := d.fileApp.GetReader(rc.MetaCtx, tFile.FileKey)
+	filename, fileReader, err := d.fileApp.GetReader(rc.MetaCtx, tFile.FileKey)
 	biz.ErrIsNilAppendErr(err, "failed to read the export file: %s")
-	defer reader.Close()
+	defer fileReader.Close()
+
+	// 落盘是密文，下载时透明解密：运维拿到的仍是可直接恢复的 .sql/.zip。
+	// 加密保护的是存储介质（共享盘、对象存储、下载目录），不是「谁能点下载」——
+	// 后者由本路由的权限码与操作日志负责
+	reader, encErr := backupenc.WrapReader(fileReader)
+	biz.ErrIsNilAppendErr(encErr, "failed to decrypt the export file: %s")
 	rc.Download(reader, filename)
 }
 
@@ -205,14 +212,21 @@ func (d *DbTransferTask) FileRun(rc *req.Ctx) {
 
 	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(rc.GetLoginAccount().Id, targetDbConn.Info.CodePath...), "%s")
 
-	filename, fileReader, err := d.fileApp.GetReader(rc.MetaCtx, tFile.FileKey)
+	filename, rawReader, err := d.fileApp.GetReader(rc.MetaCtx, tFile.FileKey)
 	biz.ErrIsNil(err)
+
+	// 备份落盘是密文：先解密再交给解包器。历史明文备份没有 magic，WrapReader 原样返回
+	fileReader, encErr := backupenc.WrapReader(rawReader)
+	if encErr != nil {
+		_ = rawReader.Close()
+		biz.ErrIsNilAppendErr(encErr, "failed to decrypt the backup file: %s")
+	}
 
 	// 备份文件可能是 zip/gz 压缩包，与「SQL文件执行」入口保持同样的解包能力；
 	// 解压/非法包在此同步报错，避免异步任务静默失败后只留下一条失败记录
 	reader, readerErr := newSQLFileReader(filename, fileReader)
 	if readerErr != nil {
-		_ = fileReader.Close()
+		_ = rawReader.Close()
 	}
 	biz.ErrIsNilAppendErr(readerErr, "failed to read sql file: %s")
 
@@ -223,7 +237,7 @@ func (d *DbTransferTask) FileRun(rc *req.Ctx) {
 		// 源文件流必须等异步任务读完才能关闭（在 handler 返回时关闭会使导入读到已关闭的流）；
 		// zip 已整体缓冲、gz 包装器依赖该源流，故只需关闭源流
 		defer func() {
-			_ = fileReader.Close()
+			_ = rawReader.Close()
 		}()
 		biz.ErrIsNil(d.dbSQLExecApp.ExecReader(ctx, &dto.SQLReaderExec{
 			Reader:   reader,

@@ -100,4 +100,6 @@ var En = map[i18n.MsgId]string{
 	MetricDbSessionMaxElapsed: "Max session elapsed seconds",
 	MetricDbLockWaitCount:     "Sessions waiting for lock",
 	MetricDbSchemaDrift:       "Tables differing from the structure baseline",
+	MetricDbPitrNotReady:      "Point-in-time recovery not ready (1 = not ready)",
+	MetricDbTlsCertDaysLeft:   "Remaining days of the TLS certificate",
 }

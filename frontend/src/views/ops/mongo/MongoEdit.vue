@@ -41,6 +41,7 @@ import { computed, useTemplateRef, type PropType } from 'vue';
 import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
+import { relateTagItem } from '../component/relateTagItem';
 import { mongoApi } from './api';
 import type { Mongo } from './types';
 
@@ -75,7 +76,7 @@ const emit = defineEmits(['cancel', 'val-change']);
  */
 const items = computed(() =>
     defineFormItems<MongoForm>([
-        { prop: 'tagCodePaths', label: 'tag.relateTag', required: true },
+        relateTagItem<MongoForm>(),
         { prop: 'name', label: 'common.name', required: true },
         {
             prop: 'uri',

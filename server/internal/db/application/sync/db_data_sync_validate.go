@@ -130,6 +130,14 @@ var identifierReg = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za
 //  3. CursorInclusivity 与同步模式的组合不得语义矛盾（见 validateCursorSemantics）
 //  4. SleepBetweenBatchesMs 不得超出上限
 func validateDataSyncSQL(dialect dbi.Dialect, task *entity.DataSyncTask) error {
+	// 删除对账（软删/硬删同步）用 `DELETE ... WHERE 唯一键 NOT IN (本次同步到的键)` 清理目标侧多余行。
+	// 若同时配置了过滤条件，被过滤掉的源行不会进入"本次同步到的键"，于是它们在目标侧被判定为
+	// "源里已不存在"而删除 —— 过滤器的本意"只同步子集"会变成"删除子集之外的一切"，且任务报成功。
+	// 两种语义不可共存，保存阶段直接拒绝。
+	if task.FilterCondition != "" && (task.SyncMode == entity.DataSyncModeIncrementalSoftDel || task.SyncMode == entity.DataSyncModeIncrementalHardDel) {
+		return errorx.NewBiz("删除对账模式要求源集合完整，不能同时配置过滤条件：被过滤掉的行会被当作目标侧多余数据而删除")
+	}
+
 	if err := NewFilterEngine(task.FilterCondition).Validate(); err != nil {
 		return errorx.NewBizf("invalid filter condition: %s", err.Error())
 	}

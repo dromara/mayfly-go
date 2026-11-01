@@ -75,7 +75,7 @@ type DialectConfig struct {
 	Hierarchic bool
 }
 
-// 各方言能力表：与前端 utils/sqlParser.ts 的 dialectSplitOptions 逐项对应，
+// 各方言能力表：与前端 views/ops/db/core/sqlKind.ts 的 dialectSplitOptions 逐项对应，
 // 新增方言时在此登记一次即可，切割器与词法器自动获得正确语义
 var (
 	// StdConfig 标准 SQL（未注册方言的回落语义）：反斜杠为普通字符，双引号为标识符

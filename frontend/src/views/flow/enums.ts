@@ -48,12 +48,16 @@ export const FlowBizType = {
     // AI 变更提案发起的审批工单（与后端 agentops.AgentRemediationFlowBizType 同值）。
     // 只能由提案网关发起：手动提单入口用 ManualFlowBizType 排除它（值串再对一遍也造不出提案行）
     AgentRemediation: EnumValue.of('agent_remediation_flow', 'flow.agentRemediation').setTagType('primary'),
+    // 导出工单：策略把导出拦下后，用户可申请一次带审批的导出；审批通过后凭工单下载
+    DbExport: EnumValue.of('db_export_flow', 'flow.dbExport').setTagType('success'),
 };
 
 /** 允许人工提单的业务类型：AI 提案工单由受控执行链路自动发起，不在手动提单表单里出现 */
 export const ManualFlowBizType = {
     DbSqlExec: FlowBizType.DbSqlExec,
     RedisRunWriteCmd: FlowBizType.RedisRunWriteCmd,
+    // 导出工单本身就是人工发起的（策略拦截后由用户申请），进提单下拉
+    DbExport: FlowBizType.DbExport,
 };
 
 /**

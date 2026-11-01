@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,6 +45,12 @@ type captureSqlExecRepo struct {
 
 func (c *captureSqlExecRepo) GetPageList(*entity.DbSQLExecQuery, ...string) (*model.PageResult[*entity.DbSQLExec], error) {
 	return nil, nil
+}
+
+// DeleteBefore 接口扩张后必须补齐：仓储接口新增物理删除早期记录的能力，
+// 测试替身不实现会导致 -tags it 整体编译失败（不是被测代码的问题）。
+func (c *captureSqlExecRepo) DeleteBefore(_ context.Context, _ time.Time) (int64, error) {
+	return 0, nil
 }
 
 func (c *captureSqlExecRepo) Insert(_ context.Context, e *entity.DbSQLExec) error {

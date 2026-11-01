@@ -99,10 +99,6 @@ func NewAgent(ctx context.Context, opts ...option) (*Agent, error) {
 		if agent.contextManager == nil {
 			agent.contextManager = rt.ContextManager
 		}
-		if agent.chatModel == nil && rt.ChatModel != nil {
-			// 复用宿主装配期单次获取的 ChatModel（避免重复 IOC 查询）
-			agent.chatModel = rt.ChatModel
-		}
 		if agent.checkPointStore == nil && rt.CheckPointStore != nil {
 			agent.checkPointStore = rt.CheckPointStore
 		}
@@ -148,15 +144,15 @@ func NewAgent(ctx context.Context, opts ...option) (*Agent, error) {
 		agent.instruction = SystemInstruction()
 	}
 
-	if agent.chatModel == nil {
-		chatModel, err := GetChatModel(ctx)
-		if err != nil {
-			return nil, err
-		}
-		agent.chatModel = chatModel
+	// 模型：从当前模型运行时取快照。adk 构造后模型绑定不可刷新，因此 Agent 实例
+	// 本身由 ResetModelRuntime 失效重建（下一轮对话按新配置装配），在跑的轮次继续用
+	// 自己持有的模型实例
+	modelRt, err := GetModelRuntime(ctx)
+	if err != nil {
+		return nil, err
 	}
+	agent.chatModel = modelRt.chatModel
 
-	modelConf := aiconfig.GetModel()
 	adkAgent, err := adk.NewTypedChatModelAgent[*schema.AgenticMessage](ctx, &adk.TypedChatModelAgentConfig[*schema.AgenticMessage]{
 		Name:          agent.name,
 		Description:   agent.description,
@@ -174,8 +170,8 @@ func NewAgent(ctx context.Context, opts ...option) (*Agent, error) {
 		// 均未配置时保持零重试零转移行为；瞬时失败（网络/429/5xx）先重试、
 		// 重试耗尽后按序转移到备用模型；主动取消/超时不重试不转移
 		// （保持停止即中止语义）
-		ModelRetryConfig:    buildModelRetryConfig(modelConf.Retry),
-		ModelFailoverConfig: buildModelFailoverConfig(modelConf.Failover),
+		ModelRetryConfig:    buildModelRetryConfig(modelRt.retry),
+		ModelFailoverConfig: buildModelFailoverConfig(modelRt.failover),
 	})
 	if err != nil {
 		return nil, err
@@ -270,7 +266,7 @@ func truncateToolErrorDesc(s string) string {
 
 type Agent struct {
 	agent     agenticAgent
-	chatModel model.AgenticModel // agent使用的chat model
+	chatModel model.AgenticModel // 装配时从模型运行时取的快照（adk 构造后不可刷新，配置变更经 Agent 重建生效）
 
 	id          string
 	name        string // agent名称

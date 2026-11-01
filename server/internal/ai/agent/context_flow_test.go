@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"mayfly-go/internal/ai/agent/contributor"
+	"mayfly-go/internal/ai/llm/llmtest"
 	"mayfly-go/internal/ai/session"
 
 	"github.com/cloudwego/eino/schema"
@@ -68,7 +69,7 @@ func newCtxManagerWithRegistry(t *testing.T, sessionManager *session.Manager, b 
 	t.Helper()
 	cm, err := NewContextManager(&ContextManagerConfig{
 		SessionManager: sessionManager,
-		ContextWindow:  contextWindow,
+		ModelProvider:  &llmtest.Provider{Window: contextWindow},
 		Registry:       b.Build(),
 	})
 	if err != nil {

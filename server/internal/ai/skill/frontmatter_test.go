@@ -1,5 +1,4 @@
 package skill
-package skill
 
 import (
 	"testing"

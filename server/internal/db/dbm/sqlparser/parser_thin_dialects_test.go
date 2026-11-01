@@ -19,7 +19,7 @@ import (
 
 func thinParsers() map[string]sqlparserParser {
 	return map[string]sqlparserParser{
-		"mssql":      mssql.NewParser(),
+		"mssql":      new(mssql.MssqlParser),
 		"sqlite":     new(sqlite.SqliteParser),
 		"clickhouse": new(clickhouse.ClickhouseParser),
 	}
@@ -56,7 +56,7 @@ func TestThinDialectsConsumeUniversalCorpus(t *testing.T) {
 
 // TestMssqlNativeForms T-SQL 特有形态：方括号引用名、n 段限定名、TOP、WITH (NOLOCK)、SELECT INTO
 func TestMssqlNativeForms(t *testing.T) {
-	parser := mssql.NewParser()
+	parser := new(mssql.MssqlParser)
 
 	stmt, err := parser.Parse("SELECT [id], [name] AS [n] FROM [dbo].[users]")
 	if err != nil {

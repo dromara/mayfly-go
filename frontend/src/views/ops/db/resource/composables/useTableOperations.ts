@@ -13,8 +13,9 @@ import { h, ref, type Ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { dbApi } from '../../api';
 import { DbInst } from '../../db';
-import { getDbDialect, type ColumnDefinition, type IndexDefinition, type TableInfoEditContext } from '../../dialect/index';
-import type { TreeNodeCallbackData, TableOpData } from '../../types';
+import { buildColumnDefinitions } from '../../core/columnDefinition';
+import { extractSchema, getDbDialect, type ColumnDefinition, type IndexDefinition, type TableInfoEditContext } from '../../dialect/index';
+import type { TreeNodeCallbackData, TableOpData, DbTableKey } from '../../types';
 
 /** 表创建/编辑弹框状态 */
 export interface TableCreateDialogState {
@@ -61,39 +62,22 @@ export function useTableOperations(params: UseTableOperationsParams) {
         let { db, id, tableName, tableComment, type, parentKey, key, version } = data.params;
         if (tableName) {
             tableCreateDialog.value.title = useI18nEditTitle('db.table');
-            let [indexes, columns] = await Promise.all([dbApi.tableIndex.request({ id, db, tableName }), dbApi.columnMetadata.request({ id, db, tableName })]);
+            // 主键约束名单独取：pg/mssql 撤销主键要 DROP CONSTRAINT <名字>，索引列表里没有主键索引；
+            // 取不到（老后端/无权限）不阻断编辑，方言会退回默认命名
+            let [indexes, columns, keys] = await Promise.all([
+                dbApi.tableIndex.request({ id, db, tableName }),
+                dbApi.columnMetadata.request({ id, db, tableName }),
+                // pg 的 db 形如 "库/schema"，主键约束按 schema 定位，显式带上避免依赖连接默认 search_path
+                dbApi.tableKeys.request({ id, db, tableName, schema: extractSchema(db) }).catch(() => [] as DbTableKey[]),
+            ]);
+            const primaryKeyName = (keys ?? []).find((key) => key.type === 'primary')?.name;
 
             // 预处理：在抽屉打开前完成数据转换，避免 watch(visible) 阻塞打开动画
-            const fieldsRes: ColumnDefinition[] = [];
-            const fieldsOld: ColumnDefinition[] = [];
-            const indexColumns: { name: string; comment: string }[] = [];
+            const fieldsRes: ColumnDefinition[] = buildColumnDefinitions(columns ?? []);
+            const fieldsOld: ColumnDefinition[] = fieldsRes.map((field) => structuredClone(field));
+            const indexColumns: { name: string; comment: string }[] = fieldsRes.map((field) => ({ name: field.name, comment: field.comment }));
             const indexesRes: IndexDefinition[] = [];
             const indexesOld: IndexDefinition[] = [];
-
-            if (columns && Array.isArray(columns) && columns.length > 0) {
-                columns.forEach((a) => {
-                    let defaultValue = '';
-                    if (a.columnDefault) {
-                        defaultValue = a.columnDefault.trim().replace(/^'|'$/g, '');
-                        defaultValue = defaultValue.replace("'::character varying", '');
-                    }
-                    let field: ColumnDefinition = {
-                        name: a.columnName,
-                        oldName: a.columnName,
-                        type: a.dataType,
-                        value: defaultValue,
-                        length: a.showLength ?? '',
-                        numScale: a.showScale ?? '',
-                        nullable: a.nullable ?? false,
-                        isPrimaryKey: a.isPrimaryKey ?? false,
-                        autoIncrement: a.autoIncrement ?? false,
-                        comment: a.columnComment ?? '',
-                    };
-                    fieldsRes.push(field);
-                    fieldsOld.push(structuredClone(field));
-                    indexColumns.push({ name: a.columnName, comment: a.columnComment ?? '' });
-                });
-            }
 
             if (indexes && Array.isArray(indexes) && indexes.length > 0) {
                 indexes
@@ -112,8 +96,6 @@ export function useTableOperations(params: UseTableOperationsParams) {
                     });
             }
 
-            DbInst.initColumns(columns ?? []);
-
             const row = { tableName, tableComment };
             tableCreateDialog.value.data = {
                 edit: true,
@@ -126,6 +108,7 @@ export function useTableOperations(params: UseTableOperationsParams) {
                     oldTableName: tableName,
                     oldTableComment: tableComment ?? '',
                     db,
+                    primaryKeyName,
                     fields: { res: fieldsRes, oldFields: fieldsOld },
                     indexes: { res: indexesRes, oldIndexes: indexesOld, columns: indexColumns },
                 },

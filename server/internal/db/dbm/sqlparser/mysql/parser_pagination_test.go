@@ -10,7 +10,7 @@ import (
 
 func TestMysqlPaginationSimple(t *testing.T) {
 	sql := "SELECT * FROM users LIMIT 0, 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -34,7 +34,7 @@ func TestMysqlPaginationSimple(t *testing.T) {
 
 func TestMysqlPaginationWithOffset(t *testing.T) {
 	sql := "SELECT id, name FROM users LIMIT 20, 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -56,7 +56,7 @@ func TestMysqlPaginationWithOffset(t *testing.T) {
 func TestMysqlPaginationKeywordOffset(t *testing.T) {
 	// MySQL 8.0+ 支持 LIMIT count OFFSET offset
 	sql := "SELECT * FROM products LIMIT 15 OFFSET 30"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -80,7 +80,7 @@ func TestMysqlPaginationKeywordOffset(t *testing.T) {
 
 func TestMysqlPaginationOnlyLimit(t *testing.T) {
 	sql := "SELECT * FROM orders LIMIT 50"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -103,7 +103,7 @@ func TestMysqlPaginationOnlyLimit(t *testing.T) {
 
 func TestMysqlPaginationWithWhere(t *testing.T) {
 	sql := "SELECT id, name, email FROM users WHERE status = 1 AND age > 18 LIMIT 10, 20"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -127,7 +127,7 @@ func TestMysqlPaginationWithWhere(t *testing.T) {
 
 func TestMysqlPaginationWithOrderBy(t *testing.T) {
 	sql := "SELECT * FROM users ORDER BY created_at DESC, id ASC LIMIT 0, 100"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -151,7 +151,7 @@ func TestMysqlPaginationWithOrderBy(t *testing.T) {
 
 func TestMysqlPaginationWithWhereOrderBy(t *testing.T) {
 	sql := "SELECT id, name FROM users WHERE status = 'active' ORDER BY score DESC LIMIT 50, 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -178,7 +178,7 @@ func TestMysqlPaginationWithWhereOrderBy(t *testing.T) {
 
 func TestMysqlPaginationWithJoin(t *testing.T) {
 	sql := "SELECT u.id, u.name, o.amount FROM users u LEFT JOIN orders o ON u.id = o.user_id WHERE u.status = 1 ORDER BY o.created_at DESC LIMIT 100, 20"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -204,7 +204,7 @@ func TestMysqlPaginationWithJoin(t *testing.T) {
 
 func TestMysqlPaginationWithUnion(t *testing.T) {
 	sql := "SELECT id FROM users UNION SELECT id FROM admins ORDER BY 1 DESC LIMIT 0, 50"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -228,7 +228,7 @@ func TestMysqlPaginationWithUnion(t *testing.T) {
 
 func TestMysqlPaginationUnionAll(t *testing.T) {
 	sql := "SELECT name FROM products UNION ALL SELECT name FROM services LIMIT 10, 30"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -254,7 +254,7 @@ func TestMysqlPaginationUnionAll(t *testing.T) {
 
 func TestMysqlPaginationWithSubquery(t *testing.T) {
 	sql := "SELECT * FROM (SELECT id, name FROM users WHERE status = 1 ORDER BY id) AS tmp LIMIT 20, 10"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -279,7 +279,7 @@ func TestMysqlPaginationWithSubquery(t *testing.T) {
 func TestMysqlNestedPagination(t *testing.T) {
 	// 嵌套分页查询
 	sql := "SELECT * FROM (SELECT * FROM users LIMIT 0, 100) AS tmp LIMIT 10, 5"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -302,7 +302,7 @@ func TestMysqlNestedPagination(t *testing.T) {
 
 func TestMysqlLargeOffsetPagination(t *testing.T) {
 	sql := "SELECT * FROM logs ORDER BY id LIMIT 1000000, 100"
-	parser := NewParser(sql)
+	parser := newParser(sql)
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatalf("parse error: %v", err)

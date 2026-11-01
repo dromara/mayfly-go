@@ -12,18 +12,19 @@ import (
 	"mayfly-go/internal/ai/session"
 	"mayfly-go/internal/ai/tools"
 	"mayfly-go/pkg/logx"
-
-	"github.com/cloudwego/eino/components/model"
 )
 
 // DefaultRuntime 默认运行时装配结果（进程级唯一，Build 后只读、并发共享）
+//
+// 这里只放「装配结构」：会话/记忆存储、贡献者注册中心、上下文管理器、checkpoint 存储。
+// 模型本身不在此列 —— 它由 modelRuntime 单独持有并可整体热替换（见 model_runtime.go），
+// 因此模型配置变更不会重建注册中心与存储（扩展激活、中断注册表冻结都是进程级动作，
+// 重建会带来语义漂移：被禁用的扩展在中断注册表里删不掉）。
 type DefaultRuntime struct {
 	// ContextManager 默认上下文管理器（持有 Registry）
 	ContextManager *ContextManager
 	// Registry 默认贡献者注册中心（内置扩展 + 宿主扩展 + 配置裁剪后）
 	Registry *contributor.Registry
-	// ChatModel 默认聊天模型（装配期单次获取，Agent/摘要器等复用，避免重复 IOC 查询）
-	ChatModel model.AgenticModel
 	// CheckPointStore 中断恢复 checkpoint 存储（多实例部署可注入共享后端如 Redis；
 	// 未显式注入时使用进程内 cache 后端，适用于单实例部署）
 	CheckPointStore CheckPointStore
@@ -78,22 +79,22 @@ func assembleDefault(ctx context.Context) (*DefaultRuntime, error) {
 		session.DefaultSessionStore = sessionStore
 	}
 
-	chatModel, err := GetChatModel(ctx)
-	if err != nil {
+	// 模型运行时：装配期预热（配置缺失 / 模型非法尽早暴露），同时拿到 Provider
+	// 注入给长生命周期组件 —— 它们每轮按当前生效配置取模型，配置变更后无需重建
+	if _, err := GetModelRuntime(ctx); err != nil {
 		return nil, fmt.Errorf("get chat model: %w", err)
 	}
+	modelProvider := ModelProvider()
 
 	// 会话管理器（摘要 + 上下文窗口）
 	sessionManager := session.NewManager(sessionStore)
 	summaryConfig := session.DefaultSummaryConfig()
-	if chatModel != nil && summaryConfig.Summarizer != nil {
-		if llmSummarizer, ok := summaryConfig.Summarizer.(*session.LLMSummarizer); ok {
-			llmSummarizer.WithChatModel(chatModel)
-			logx.Info("ChatModel injected into LLM Summarizer")
-		}
+	if llmSummarizer, ok := summaryConfig.Summarizer.(*session.LLMSummarizer); ok {
+		llmSummarizer.WithModelProvider(modelProvider)
+		logx.Info("model provider injected into LLM Summarizer")
 	}
 	sessionManager.WithSummaryConfig(summaryConfig)
-	sessionManager.WithContextWindow(aiconfig.GetModel().ContextWindow)
+	sessionManager.WithModelProvider(modelProvider)
 
 	// 记忆存储：application 层装配时注入 DB 后端（t_ai_memory 表，多实例共享）；
 	// 未装配时降级本地 JSONL 存储（目录可配置，仅适用于单实例部署/单测）
@@ -114,7 +115,7 @@ func assembleDefault(ctx context.Context) (*DefaultRuntime, error) {
 	ext.InstallAll(b, ext.Deps{
 		MemoryManager:  memoryManager,
 		SessionManager: sessionManager,
-		ChatModel:      chatModel,
+		ModelProvider:  modelProvider,
 	})
 	ext.RunHostInstallers(b)
 	registry := b.Build().WithFilter(agentConf.DisabledExtensionSet())
@@ -130,8 +131,7 @@ func assembleDefault(ctx context.Context) (*DefaultRuntime, error) {
 	// 上下文管理器（持有注册中心，BuildMessages 经通道聚合）
 	cm, err := NewContextManager(&ContextManagerConfig{
 		SessionManager: sessionManager,
-		ChatModel:      chatModel,
-		ContextWindow:  aiconfig.GetModel().ContextWindow,
+		ModelProvider:  modelProvider,
 		Registry:       registry,
 	})
 	if err != nil {
@@ -149,7 +149,6 @@ func assembleDefault(ctx context.Context) (*DefaultRuntime, error) {
 	return &DefaultRuntime{
 		ContextManager:  cm,
 		Registry:        registry,
-		ChatModel:       chatModel,
 		CheckPointStore: checkPointStore,
 	}, nil
 }

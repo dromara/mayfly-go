@@ -23,6 +23,11 @@ import (
 // 且 SkipParentheses 按括号配对消费，天然能吃下 UNION 等任何内层形态。
 // Name 只保留括号表达式本身，别名交给 Alias（下游据此重新解析内层 SQL）。
 func (l *Lexer) parseTableRef() sqlstmt.TableRef {
+	// PG 的 `FROM ONLY t`：ONLY 是修饰词（只查父表不含分区/子表），不是表名。
+	// 不消费它会把 ONLY 当成表、真正的 t 反而丢失。
+	if l.wordIs("ONLY") {
+		l.Consume()
+	}
 	// 括号项：派生表或括号表名列表
 	if l.Current().Value == "(" {
 		start := l.Pos
@@ -57,7 +62,65 @@ func (l *Lexer) parseTableRef() sqlstmt.TableRef {
 	}
 
 	ref.Alias = l.parseOptionalTableAlias()
+	// 别名之后仍可能跟索引提示（JOIN t2 USE INDEX (idx) ON ...），一并消费
+	l.skipTableHints()
 	return ref
+}
+
+// skipTableHints 消费表级提示（不建模）：T-SQL 的 WITH (NOLOCK|UPDLOCK)、
+// MySQL 的 USE|FORCE|IGNORE INDEX|KEY [FOR JOIN|ORDER BY|GROUP BY] (列清单)。
+//
+// 返回是否消费过提示。MySQL 的提示是 `USE INDEX (...)` 而非 `USE (...)`：
+// 只认「关键字后紧跟 (」时，INDEX 一词会被当作下一张表收进 FROM。
+func (l *Lexer) skipTableHints() bool {
+	consumed := false
+	for {
+		if l.wordIs("TABLESAMPLE") {
+			// PG：TABLESAMPLE <method> ( <args> ) [REPEATABLE ( <seed> )]，不改变被作用的表
+			l.Consume()
+			l.Consume() // 采样方法名
+			if l.Current().Value == "(" {
+				l.SkipParentheses()
+			}
+			if l.wordIs("REPEATABLE") {
+				l.Consume()
+				if l.Current().Value == "(" {
+					l.SkipParentheses()
+				}
+			}
+			consumed = true
+			continue
+		}
+		if l.wordIs("FINAL") {
+			// ClickHouse FINAL：强制合并去重，不改变被作用的表
+			l.Consume()
+			consumed = true
+			continue
+		}
+		if l.wordIs("WITH") && l.Peek(1).Value == "(" {
+			l.Consume()
+			l.SkipParentheses()
+			consumed = true
+			continue
+		}
+		if l.wordIs("USE", "FORCE", "IGNORE") && l.wordIsAt(1, "INDEX", "KEY") {
+			l.Consume()
+			l.Consume()
+			if l.Current().IsKeyword("FOR") {
+				l.Consume()
+				l.Consume()
+				if l.Current().IsKeyword("BY") {
+					l.Consume()
+				}
+			}
+			if l.Current().Value == "(" {
+				l.SkipParentheses()
+			}
+			consumed = true
+			continue
+		}
+		return consumed
+	}
 }
 
 // parseOptionalTableAlias 解析可选的表别名（AS 显式，或隐式的裸名称）
@@ -69,6 +132,21 @@ func (l *Lexer) parseTableRef() sqlstmt.TableRef {
 func (l *Lexer) parseOptionalTableAlias() string {
 	if l.Current().IsKeyword("AS") {
 		l.Consume()
+	}
+	// 这些位置性词只在特定形态下不是别名（按结构判据，不能无条件排除：
+	// `INSERT ... IGNORE INTO` 里的 IGNORE 在别处仍可能是别名位置）：
+	//   - MySQL 索引提示 `USE|FORCE|IGNORE INDEX|KEY (...)`：若当别名，INDEX 会变成下一张表；
+	//   - T-SQL 表提示 `WITH (...)`；
+	//   - ClickHouse 的 `FINAL` 修饰。
+	if (l.wordIs("USE", "FORCE", "IGNORE") && l.wordIsAt(1, "INDEX", "KEY")) ||
+		(l.wordIs("WITH") && l.Peek(1).Value == "(") ||
+		l.wordIs("FINAL") ||
+		// PG TABLESAMPLE <method>(...)：采样修饰；不排除会把 SYSTEM 当第二张表
+		l.wordIs("TABLESAMPLE") ||
+		// ClickHouse SETTINGS / ARRAY JOIN：查询级修饰与数组连接子句
+		l.wordIs("SETTINGS") ||
+		(l.wordIs("ARRAY") && l.wordIsAt(1, "JOIN")) {
+		return ""
 	}
 	if !l.IsUsableName() {
 		return ""
@@ -103,6 +181,29 @@ func (l *Lexer) parseJoinClause() *sqlstmt.JoinClause {
 	case l.Current().IsKeyword("CROSS"):
 		l.Consume()
 		joinType = sqlstmt.JoinKindCross
+		// T-SQL CROSS APPLY：右侧是表值函数/相关子查询，同样是被连接的数据源
+		if l.wordIs("APPLY") {
+			l.Consume()
+			joined = true
+			// CROSS APPLY fn(x)：右侧可能是表值函数而非表——函数名不能进表清单
+			// （表级 ACL 会在函数名上误命中）。括号内是参数，整段消费即可。
+			if l.IsUsableName() && l.Peek(1).Value == "(" {
+				l.Consume()
+				l.SkipParentheses()
+				l.parseOptionalTableAlias()
+				return &sqlstmt.JoinClause{Kind: joinType, Table: sqlstmt.TableRef{}}
+			}
+		}
+	case l.isArrayJoin():
+		// ClickHouse ARRAY JOIN：右侧是数组列/表达式，不是表——整段消费但不登记表引用
+		l.skipArrayJoinClause()
+		return nil
+	case l.wordIs("OUTER") && l.wordIsAt(1, "APPLY"):
+		// T-SQL OUTER APPLY：右侧数据源保留（表要进清单），语义同 LEFT JOIN
+		l.Consume()
+		l.Consume()
+		joinType = sqlstmt.JoinKindLeft
+		joined = true
 	case l.Current().IsKeyword("NATURAL"):
 		// NATURAL JOIN 无 ON/USING 条件（按同名列自动连接），仅标记连接类型；
 		// IsJoinStart 已含 NATURAL（跨方言共用），此处必须消费，否则解析器停在 NATURAL
@@ -156,14 +257,13 @@ func (l *Lexer) parseFromTables() []sqlstmt.TableRef {
 			l.Consume()
 			continue
 		}
-		if l.IsJoinStart() || l.Current().IsKeyword("JOIN") {
+		if l.IsJoinStart() || l.Current().IsKeyword("JOIN") || l.isArrayJoin() {
 			break
 		}
-		// 表提示：T-SQL 的 WITH (NOLOCK|UPDLOCK)、mysql 的 FORCE/IGNORE USE INDEX(...)。
-		// 提示不建模（不改变被作用的行列集合），但必须消费，否则它会被当成 FROM 的第二张表
-		if l.Current().IsKeyword("WITH", "USE", "FORCE", "IGNORE") && l.Peek(1).Value == "(" {
-			l.Consume()
-			l.SkipParentheses()
+		// 表提示：T-SQL 的 WITH (NOLOCK|UPDLOCK)、MySQL 的 USE|FORCE|IGNORE INDEX|KEY (...)。
+		// 提示不建模（不改变被作用的行列集合），但必须消费，否则 INDEX 一词会被当成 FROM 的第二张表，
+		// 让表级 ACL/策略在错误的表上命中。
+		if l.skipTableHints() {
 			continue
 		}
 		// 防御：解析无进展时退出，避免异常输入导致死循环
@@ -182,7 +282,7 @@ func (l *Lexer) parseFromTables() []sqlstmt.TableRef {
 // parseJoinClauses 解析连续的 JOIN 子句链
 func (l *Lexer) parseJoinClauses() []sqlstmt.JoinClause {
 	var joins []sqlstmt.JoinClause
-	for l.IsJoinStart() || l.Current().IsKeyword("JOIN") {
+	for l.IsJoinStart() || l.Current().IsKeyword("JOIN") || l.isArrayJoin() {
 		join := l.parseJoinClause()
 		if join == nil {
 			break
@@ -190,4 +290,18 @@ func (l *Lexer) parseJoinClauses() []sqlstmt.JoinClause {
 		joins = append(joins, *join)
 	}
 	return joins
+}
+
+// skipArrayJoinClause 消费 ClickHouse 的 `ARRAY JOIN <expr>[, <expr>]`：
+// 右侧是数组列/表达式而非表，只消费不建模，避免数组列名进入表清单。
+func (l *Lexer) skipArrayJoinClause() {
+	l.Consume() // ARRAY
+	l.Consume() // JOIN
+	for !l.Current().IsEOF() && !l.IsFromClauseEnd() && l.Current().Value != ";" {
+		if l.Current().Value == "(" {
+			l.SkipParentheses()
+			continue
+		}
+		l.Consume()
+	}
 }

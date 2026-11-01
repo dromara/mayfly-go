@@ -32,6 +32,9 @@ func TestIsReadOnlyStatement(t *testing.T) {
 		"DESCRIBE t",
 		// 前导注释不得影响判定（切割器保留注释原文）
 		"-- 查一下\nSELECT * FROM t",
+		// 会话变量与维护语句不写业务数据，按只读放行（与 ACL 共用同一份白名单）
+		"SET @x = 1",
+		"VACUUM",
 	}
 	for _, sql := range readOnly {
 		require.Truef(t, isReadOnlyStatement(parser, splitter, sql), "应判只读: %s", sql)
@@ -47,8 +50,6 @@ func TestIsReadOnlyStatement(t *testing.T) {
 		"ALTER TABLE t ADD COLUMN c INT",
 		"TRUNCATE TABLE t",
 		"CALL my_proc()",
-		"SET @x = 1",
-		"VACUUM",
 		"DO SLEEP(1)",
 		// MERGE（upsert）是写：裸 MERGE 与 WITH 前置 MERGE 都不得从只读通道溜过
 		"MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.a = 1",

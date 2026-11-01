@@ -433,10 +433,13 @@ func TestRunGuard_RequestStop_LocalHolderFastPath(t *testing.T) {
 	t.Cleanup(func() { guard.ClearStopRequest(taskId) })
 
 	guard.RequestStop(taskId)
-	// RequestStop 内部先 Release：本地 held 清空，IsCurrentRun 立即 false
-	assert.False(t, guard.IsCurrentRun(taskId, runId), "本实例持有的场景 Release 已生效")
-	// Redis 里仍写了停止标记，其他观察方可读到
+	// RequestStop **不**释放互斥：锁必须留到持有者真正退出时（收尾 Release）。
+	// 否则旧执行还在写库、新一轮已经 Acquire 成功，两轮并发对同一目标表做 DDL/DML。
+	assert.True(t, guard.IsCurrentRun(taskId, runId), "停止只表达意图，不得顺手放锁")
+	// 停止信号通过独立标记通道传递，持有者在批边界读到
 	assert.True(t, guard.IsStopRequested(taskId))
+	// 持有者退出时自行释放（与收尾路径一致）
+	guard.ReleaseWithRunId(taskId, runId)
 }
 
 func TestRunGuard_AcquireClearsStaleMarker(t *testing.T) {

@@ -13,6 +13,7 @@ import type {
 import { createDefaultColumns, defaultColumnConfigs } from './shared/defaultColumns';
 import { buildSchemaTable, extractSchema, matchNumericType, QuoteEscape, wrapValueOracle } from './shared/utils';
 import { defineCapabilities, plsqlSplitOptions } from './shared/capabilities';
+import { diffPrimaryKey } from './shared/primaryKey';
 import { rownumPageSnippet } from './shared/snippets';
 import { DbType } from './dbType';
 import { registerDbDialect } from './registry';
@@ -48,6 +49,7 @@ const ORACLE_TYPE_LIST: SqlColumnType[] = [
     // { udtName: 'nterval day(days_precision) to second(seconds_precision)', dataType: 'nterval day(days_precision) to second(seconds_precision)', desc: '可以用来存储天、小时、分和秒的时间间隔', space: '', range: '' },
 
     { udtName: 'LONG', dataType: 'LONG', desc: '文本类型,不能作为主键或唯一约束', space: '', range: '最多达2GB' },
+    { udtName: 'RAW', dataType: 'RAW', desc: '定长二进制数据,最大 2000 字节', space: '', range: '1 - 2000' },
     { udtName: 'LONG RAW', dataType: 'LONG RAW', desc: '可变长二进制数据，不用进行字符集转换的数据', space: '', range: '最多达2GB' },
     { udtName: 'BLOB', dataType: 'BLOB', desc: '二进制大型对象', space: '', range: '最大长度4G' },
     { udtName: 'CLOB', dataType: 'CLOB', desc: '字符大型对象', space: '', range: '最大长度4G' },
@@ -135,6 +137,9 @@ export class OracleDialect extends SchemaDialectBase {
             defaultIndexType: 'NORMAL',
             // 以 SID / Service Name 连接，库名列表为空时回落到实例 SID
             connectDescriptor: 'sid_service',
+            // go-ora 的证书校验主机名固定取拨号地址（隧道下会是 127.0.0.1），也没有自定义 CA 入口，
+            // 故只声明 require（加密不校验证书）；证书校验需 wallet，属后续能力
+            tlsModes: ['require'],
             sqlSplitOptions: plsqlSplitOptions,
         });
     }
@@ -244,7 +249,8 @@ export class OracleDialect extends SchemaDialectBase {
         }
         const name = this.resolveColumnName(cl);
         const baseSql = ` ${this.quoteIdentifier(name)} ${cl.type}${incr ? '' : this.getTypeLengthSql(cl)} ${incr}`;
-        return incr ? baseSql : ` ${this.quoteIdentifier(name)} ${cl.type}${length} ${defVal} ${cl.nullable ? '' : 'NOT NULL'} `;
+        // NOT NULL 在 Oracle 里是列约束，MODIFY 时省略可空性不会撤销既有约束，故可空必须显式写出 NULL
+        return incr ? baseSql : ` ${this.quoteIdentifier(name)} ${cl.type}${length} ${defVal} ${cl.nullable ? 'NULL' : 'NOT NULL'} `;
     }
 
     /** 基类 genColumnBasicSql 的 Oracle 适配：默认按 ALTER 语义（不生成 IDENTITY） */
@@ -321,9 +327,6 @@ export class OracleDialect extends SchemaDialectBase {
         let renameArr: string[] = [];
         let commentArr: string[] = [];
 
-        // 主键字段
-        let priArr = new Set();
-
         if (changeData.upd.length > 0) {
             changeData.upd.forEach((a) => {
                 let commentSql = `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${QuoteEscape(a.comment)}'`;
@@ -338,9 +341,6 @@ export class OracleDialect extends SchemaDialectBase {
                     }
                 }
                 modifyArr.push(`${baseSql} MODIFY (${this.genOracleColumnSql(a, false)})`);
-                if (a.isPrimaryKey) {
-                    priArr.add(this.quoteIdentifier(a.name));
-                }
             });
         }
 
@@ -349,9 +349,6 @@ export class OracleDialect extends SchemaDialectBase {
                 modifyArr.push(`${baseSql} ADD (${this.genOracleColumnSql(a, false)})`);
                 if (a.comment) {
                     commentArr.push(`COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${QuoteEscape(a.comment)}'`);
-                }
-                if (a.isPrimaryKey) {
-                    priArr.add(this.quoteIdentifier(a.name));
                 }
             });
         }
@@ -362,21 +359,21 @@ export class OracleDialect extends SchemaDialectBase {
             });
         }
 
-        let dropPkSql = '';
-        if (priArr.size > 0) {
-            let resPri = tableData.fields.res.find((a: ColumnDefinition) => a.isPrimaryKey);
-            if (resPri) {
-                priArr.add(this.quoteIdentifier(resPri.name));
-            }
-            if (tableData.fields.oldFields.find((a: ColumnDefinition) => a.isPrimaryKey)) {
-                dropPkSql = `ALTER TABLE ${dbTable} DROP PRIMARY KEY;`;
-            }
-        }
+        // 主键是表级约束：按「旧主键 → 新主键」整体求值，不能只收集被改动的那几列
+        // （复合主键会因此丢掉成员，最终建成错误的主键）
+        const primaryKey = diffPrimaryKey(tableData.fields.oldFields, tableData.fields.res);
+        const hasOldPrimaryKey = tableData.fields.oldFields.some((field) => field.isPrimaryKey);
+        let dropPkSql = primaryKey.changed && hasOldPrimaryKey ? `ALTER TABLE ${dbTable} DROP PRIMARY KEY;` : '';
 
         let modifySql = modifyArr.length > 0 ? modifyArr.join(';\n') + ';' : '';
         let dropSql = dropArr.length > 0 ? `${baseSql} DROP (${dropArr.join(',')});` : '';
         let renameSql = renameArr.join(';\n') + (renameArr.length > 0 ? ';' : '');
-        let addPkSql = priArr.size > 0 ? `ALTER TABLE ${dbTable} ADD CONSTRAINT "PK_${tableName}" PRIMARY KEY (${Array.from(priArr).join(',')});` : '';
+        let addPkSql =
+            primaryKey.changed && primaryKey.columns.length > 0
+                ? `ALTER TABLE ${dbTable} ADD CONSTRAINT ${this.quoteIdentifier(`PK_${tableName}`)} PRIMARY KEY (${primaryKey.columns
+                      .map((name) => this.quoteIdentifier(name))
+                      .join(',')});`
+                : '';
         let commentSql = commentArr.join(';\n') + (commentArr.length > 0 ? ';' : '');
 
         return dropPkSql + modifySql + dropSql + renameSql + addPkSql + commentSql;

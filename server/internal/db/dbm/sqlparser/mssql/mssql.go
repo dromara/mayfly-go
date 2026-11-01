@@ -15,11 +15,6 @@ import (
 type MssqlParser struct {
 }
 
-// NewParser 构造 MssqlParser
-func NewParser() *MssqlParser {
-	return new(MssqlParser)
-}
-
 func (*MssqlParser) Parse(stmt string) (result sqlstmt.Stmt, err error) {
 	defer func() {
 		if e := recover(); e != nil {

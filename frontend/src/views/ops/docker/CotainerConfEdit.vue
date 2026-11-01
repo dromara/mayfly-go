@@ -20,11 +20,11 @@
 </template>
 
 <script lang="ts" setup>
-import { Rules } from '@/common/rule';
 import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
 import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import { computed, type PropType } from 'vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
+import { relateTagItem } from '../component/relateTagItem';
 import { dockerApi } from './api';
 import type { Container, ContainerConfForm } from './types';
 
@@ -44,7 +44,7 @@ const emit = defineEmits(['val-change', 'cancel']);
 
 /** 表单声明（defineFormItems<ContainerConfForm>，渲染 + 校验唯一数据源；关联标签走 custom 插槽） */
 const items = defineFormItems<ContainerConfForm>([
-    { prop: 'tagCodePaths', label: 'tag.relateTag', type: 'custom', rules: [Rules.requiredSelect('tag.relateTag')] },
+    relateTagItem<ContainerConfForm>(),
     { prop: 'name', label: 'common.name', required: true },
     { prop: 'addr', label: 'docker.addr', type: 'textarea', placeholder: 'docker.addrTips', required: true },
     { prop: 'remark', label: 'common.remark', type: 'textarea' },

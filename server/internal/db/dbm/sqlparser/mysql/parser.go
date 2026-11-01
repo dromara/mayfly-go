@@ -18,7 +18,7 @@ type Parser struct {
 }
 
 // NewParser 创建 MySQL 解析器
-func NewParser(sql string) *Parser {
+func newParser(sql string) *Parser {
 	return &Parser{Lexer: base.NewLexer(sql, tokenizer.MysqlConfig)}
 }
 
@@ -80,11 +80,14 @@ func (p *Parser) parseInsert() sqlstmt.Stmt {
 
 // ---------- SHOW 解析（MySQL 特有）----------
 
-// parseShow SHOW 按查询形态返回（执行链路走查询分支），列结构由服务端决定故不建模
+// parseShow SHOW 独立建模为 ShowStmt（不再伪装成 SelectStmt）。
+//
+// 伪装会导致类型失真：Classify 输出 select、下游按「查询」对待；而 SHOW 是元信息导航语句，
+// 应归 other-read。列结构由服务端决定，故不建模主体。
 func (p *Parser) parseShow() sqlstmt.Stmt {
 	start := p.Pos
 	p.SkipToNextStatement()
-	return &sqlstmt.SelectStmt{
+	return &sqlstmt.ShowStmt{
 		Base: sqlstmt.Base{Text: p.TextFrom(start)},
 	}
 }

@@ -240,7 +240,7 @@ func TestBuildPKWhereClause(t *testing.T) {
 	target2Src := map[string]string{"id": "user_id"}
 	srcRow := map[string]any{"user_id": 42}
 
-	clause := buildPKWhereClause(srcRow, target2Src, meta, nil)
+	clause := buildPKWhereClause(srcRow, target2Src, meta, nil, func(s string) string { return s })
 	assert.Equal(t, "id = 42", clause)
 }
 
@@ -250,7 +250,7 @@ func TestBuildPKWhereClause_CompositeKey(t *testing.T) {
 	target2Src := map[string]string{"org_id": "org", "user_id": "uid"}
 	srcRow := map[string]any{"org": "acme", "uid": 7}
 
-	clause := buildPKWhereClause(srcRow, target2Src, meta, nil)
+	clause := buildPKWhereClause(srcRow, target2Src, meta, nil, func(s string) string { return s })
 	assert.Contains(t, clause, "org_id = 'acme'")
 	assert.Contains(t, clause, "user_id = 7")
 	assert.Contains(t, clause, " AND ")
@@ -262,7 +262,7 @@ func TestBuildPKWhereClause_MissingColumn(t *testing.T) {
 	target2Src := map[string]string{"id": "user_id"}
 	srcRow := map[string]any{"name": "alice"}
 
-	clause := buildPKWhereClause(srcRow, target2Src, meta, nil)
+	clause := buildPKWhereClause(srcRow, target2Src, meta, nil, func(s string) string { return s })
 	assert.Empty(t, clause, "missing src column → empty WHERE")
 }
 

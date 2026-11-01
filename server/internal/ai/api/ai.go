@@ -7,6 +7,7 @@ import (
 	"mayfly-go/internal/ai/application"
 	"mayfly-go/internal/ai/application/dto"
 	"mayfly-go/internal/ai/application/resource"
+	aiconfig "mayfly-go/internal/ai/config"
 	"mayfly-go/internal/ai/domain/entity"
 	"mayfly-go/internal/ai/protocol"
 	"mayfly-go/internal/ai/skill"
@@ -41,10 +42,27 @@ func (a *Ai) ReqConfs() *req.Confs {
 		req.NewGet("/chat/resources", a.ChatResources),
 		// 运行中 turn 列表（会话列表执行中指示器数据源）
 		req.NewGet("/chat/running-turns", a.ChatRunningTurns),
+		// AI 可用状态（前端 AI 助手入口可见性探测）
+		req.NewGet("/status", a.AiStatus),
 		// WebSocket 聊天（EventMsg 协议）
 		req.NewGet("/chat/ws", a.Chat).NoRes(),
 	}
 	return req.NewConfs("/ai", reqs[:]...)
+}
+
+// ============== AI 可用状态 ==============
+
+// AiStatus AI 能力可用性（模型 / 地址 / Key 三要素齐全即视为可用）
+//
+// 前端 AI 助手入口据此决定是否渲染。刻意只回布尔与模型标识，不回任何配置原文：
+// 模型配置行的值里含 apiKey，而公开的 /sys/configs/value 只适合无凭据的配置，
+// 状态探测不应成为密钥的下发通道。
+func (a *Ai) AiStatus(rc *req.Ctx) {
+	conf := aiconfig.GetModel()
+	rc.ResData = collx.Kvs(
+		"enabled", conf.Model != "" && conf.BaseUrl != "" && conf.ApiKey != "",
+		"model", conf.Model,
+	)
 }
 
 // ============== 会话管理 ==============

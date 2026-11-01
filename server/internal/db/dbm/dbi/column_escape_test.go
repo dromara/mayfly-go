@@ -147,7 +147,8 @@ func TestSQLValueBytes(t *testing.T) {
 	// 大写hex同样识别为二进制字面量，输出保持原形态
 	assert.Equal(t, "X'0001FF61'", SQLValueBytes(strings.ToUpper(encodeHexLower(raw))))
 	// 非hex形态退化为字符串转义
-	assert.Equal(t, `'not-hex'`, SQLValueBytes("not-hex"))
+	// 非 hex 文本按字面字节写入（与 BindValueBytes 及各方言覆写统一），不再是字符串字面量
+	assert.Equal(t, "X'6e6f742d686578'", SQLValueBytes("not-hex"))
 	assert.Equal(t, "NULL", SQLValueBytes(nil))
 	// 空hex无长度，无法与空串区分，退化为字符串字面量
 	assert.Equal(t, "''", SQLValueBytes(""))

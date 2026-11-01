@@ -10,7 +10,6 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/dbi/value"
 	"mayfly-go/internal/db/dbm/export"
-	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/gox"
@@ -71,7 +70,8 @@ func (app *DbTransferAppImpl) Verify(ctx context.Context, taskId uint64) (uint64
 	task.LogId = logId
 	task.RunningState = entity.DbTransferTaskRunStateRunning
 	if err = app.UpdateById(ctx, task); err != nil {
-		app.runGuard.Release(taskId)
+		// 与 Run 同源：日志行已创建，必须落成失败终态再返回
+		app.EndVerify(ctx, logId, taskId, "start verify task failed", err)
 		return logId, err
 	}
 
@@ -415,13 +415,9 @@ func sampleOrderedRows(ctx context.Context, conn *dbi.DbConn, tableName, pkColum
 	}
 	quote := conn.GetDialect().Quoter().QuoteIdent
 	baseSQL := fmt.Sprintf("SELECT * FROM %s ORDER BY %s ASC", quote(tableName), quote(pkColumn))
-	sqlStr := sqlparser.DefaultRewritePagination(baseSQL, offset, int64(limit))
-	if rewriter := sqlparser.GetPaginationRewriter(conn.GetDialect().GetSQLParser()); rewriter != nil {
-		var err error
-		sqlStr, err = rewriter.RewritePagination(baseSQL, offset, int64(limit))
-		if err != nil {
-			return nil, err
-		}
+	sqlStr, err := conn.GetDialect().GetSQLParser().RewritePagination(baseSQL, offset, int64(limit))
+	if err != nil {
+		return nil, err
 	}
 	_, rows, err := conn.QueryContext(ctx, sqlStr)
 	if err != nil {

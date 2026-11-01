@@ -85,7 +85,9 @@ func (d *Instance) Instances(rc *req.Ctx) {
 
 func (d *Instance) TestConn(rc *req.Ctx) {
 	form, instance := rc.BindJsonAndCopyTo[form.InstanceForm, entity.DbInstance]()
-	biz.ErrIsNil(d.instanceApp.TestConn(rc.MetaCtx, instance, form.AuthCerts[0]))
+	res, err := d.instanceApp.TestConn(rc.MetaCtx, instance, form.AuthCerts[0], form.TlsMaterial)
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 // SaveInstance 保存数据库实例信息
@@ -93,11 +95,13 @@ func (d *Instance) TestConn(rc *req.Ctx) {
 func (d *Instance) SaveInstance(rc *req.Ctx) {
 	form, instance := rc.BindJsonAndCopyTo[form.InstanceForm, entity.DbInstance]()
 
-	rc.ReqParam = form
+	// 操作日志只记脱敏副本：表单里含口令密文与 TLS 私钥，原样落日志等于把凭据抄一份到长期表
+	rc.ReqParam = form.AuditReplica()
 	id, err := d.instanceApp.SaveDbInstance(rc.MetaCtx, &dto.SaveDbInstance{
 		DbInstance:   instance,
 		AuthCerts:    form.AuthCerts,
 		TagCodePaths: form.TagCodePaths,
+		TLSMaterial:  form.TlsMaterial,
 	})
 	biz.ErrIsNil(err)
 	rc.ResData = id
