@@ -1,7 +1,7 @@
 package itest
 
 // 大表主键分片迁移真实链路集成测试：
-// mysql源（3000行整型主键表）→ 分片规划（调小ShardTargetRows验证多分片）→ pg目标并行导入，
+// mysql源（3000行整型主键表）→ 分片规划（调小shard.TargetRows验证多分片）→ pg目标并行导入，
 // 验证分片where条件无缝覆盖、行数一致、无重复无丢失、内容抽样比对。
 //
 // 运行方式：cd server && go test -tags it -count=1 -v ./internal/db/application/
@@ -9,6 +9,8 @@ package itest
 import (
 	"context"
 	"fmt"
+	"math"
+	"mayfly-go/internal/db/application/shard"
 	"mayfly-go/internal/db/application/transfer"
 	"strings"
 	"testing"
@@ -23,11 +25,31 @@ import (
 
 const shardItRows = 3000
 
-// parseShardWhere 解析分片where条件中的主键闭区间（quote形式的前后缀由方言决定，先剥离列引用）
+// parseShardWhere 解析分片where条件中的主键区间（quote形式的前后缀由方言决定，先剥离列引用）。
+//
+// 三种形态都是合法输出（见 shard.rangePredicate）：`id <= hi`（首片，无下界）、
+// `id >= lo AND id <= hi`（中间）、`id >= lo`（末片，无上界）；无界端返回 MinInt64/MaxInt64，
+// 让调用方继续拿「衔接 + 覆盖到两端」做断言而不是比对旧文案。
 func parseShardWhere(t *testing.T, where string) (lo, hi int64) {
 	t.Helper()
 	// 兼容 `id`/id/"id" 引用形式
 	normalized := strings.NewReplacer("`", "", "\"", "").Replace(where)
+	if !strings.Contains(normalized, " AND ") {
+		lo, hi = int64(math.MinInt64), int64(math.MaxInt64)
+		switch {
+		case strings.HasPrefix(normalized, "id <= "):
+			n, err := fmt.Sscanf(normalized, "id <= %d", &hi)
+			require.NoError(t, err, "where格式异常: %s", where)
+			require.Equal(t, 1, n)
+		case strings.HasPrefix(normalized, "id >= "):
+			n, err := fmt.Sscanf(normalized, "id >= %d", &lo)
+			require.NoError(t, err, "where格式异常: %s", where)
+			require.Equal(t, 1, n)
+		default:
+			require.Failf(t, "where格式异常", "%s", where)
+		}
+		return lo, hi
+	}
 	n, err := fmt.Sscanf(normalized, "id >= %d AND id <= %d", &lo, &hi)
 	require.NoError(t, err, "where格式异常: %s", where)
 	require.Equal(t, 2, n)
@@ -65,26 +87,28 @@ func TestITShardPlanAndMigrate_MysqlToPg(t *testing.T) {
 		strings.NewReader(buildDumpScript(srcQuote, srcTable, shardItRows))))
 
 	// 调小分片目标行数：3000行/1000行每片 → 3片（验证多分片路径）
-	origTargetRows := transfer.ShardTargetRows
-	transfer.ShardTargetRows = 1000
-	defer func() { transfer.ShardTargetRows = origTargetRows }()
+	origTargetRows := shard.TargetRows
+	shard.TargetRows = 1000
+	defer func() { shard.TargetRows = origTargetRows }()
 
 	app := &transfer.DbTransferAppImpl{}
 	wheres := app.PlanTableShards(context.Background(), 0, srcConn, srcTable, shardItRows)
 	require.Len(t, wheres, 3, "3000行、每片1000行应规划为3片")
 
-	// 分片闭区间无缝覆盖[1, 3000]，无重叠
-	require.Equal(t, int64(1), func() int64 { lo, _ := parseShardWhere(t, wheres[0]); return lo }(), "首片应从min开始")
-	prevHi := int64(0)
+	// 分片无缝衔接且并集覆盖到键空间两端（首片无下界、末片无上界，见 shard.rangePredicate：
+	// 规划时刻之后落入 [MIN,MAX] 之外的新行也必须能归到某一片）
+	prevHi := int64(math.MinInt64)
 	for i, w := range wheres {
 		lo, hi := parseShardWhere(t, w)
-		if i > 0 {
+		assert.LessOrEqual(t, lo, hi, "片%d边界倒挂: %s", i, w)
+		if i == 0 {
+			assert.Equal(t, int64(math.MinInt64), lo, "首片必须无下界")
+		} else {
 			assert.Equal(t, prevHi+1, lo, "分片%d与前一档应无缝衔接", i)
 		}
-		assert.LessOrEqual(t, lo, hi)
 		prevHi = hi
 	}
-	assert.Equal(t, int64(shardItRows), prevHi, "末片应覆盖到max")
+	assert.Equal(t, int64(math.MaxInt64), prevHi, "末片必须不带上界，覆盖到键空间上缘")
 
 	// 目标表
 	_, err = tgtConn.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tgtQuote(tgtTable)))
@@ -162,9 +186,9 @@ func TestITPlanShards_PgMetadata(t *testing.T) {
 	_, err = conn.Exec(fmt.Sprintf("INSERT INTO %s (val) VALUES ('a'), ('b'), ('c')", quote(table)))
 	require.NoError(t, err)
 
-	origTargetRows := transfer.ShardTargetRows
-	transfer.ShardTargetRows = 2 // 3行/2行每片 → 2片
-	defer func() { transfer.ShardTargetRows = origTargetRows }()
+	origTargetRows := shard.TargetRows
+	shard.TargetRows = 2 // 3行/2行每片 → 2片
+	defer func() { shard.TargetRows = origTargetRows }()
 
 	app := &transfer.DbTransferAppImpl{}
 	wheres := app.PlanTableShards(context.Background(), 0, conn, table, 3)

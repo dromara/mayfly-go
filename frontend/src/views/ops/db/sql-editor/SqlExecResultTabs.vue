@@ -82,7 +82,7 @@
 
                 <db-table-data
                     v-else-if="!dt.errorMsg && !dt.notice && !dt.cancelled"
-                    class="shrink-0"
+                    class="flex-1 min-h-0"
                     :ref="(el: unknown) => setDbTableRef(dt, el)"
                     :db-id="dbId"
                     :db="db"
@@ -92,7 +92,6 @@
                     :column-more-actions="['fixed']"
                     :loading="dt.loading"
                     :abort-fn="dt.abortFn"
-                    :height="tableDataHeight"
                     :empty-text="tableDataEmptyText"
                     @change-updated-field="emit('changeUpdatedField', $event, dt)"
                     @data-delete="emit('dataDelete', $event, dt)"
@@ -138,7 +137,6 @@ const props = defineProps<{
     activeTab: number;
     dbId: number;
     db: string;
-    tableDataHeight: string;
     tableDataEmptyText: string;
 }>();
 

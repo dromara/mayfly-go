@@ -124,6 +124,18 @@ func (di *DbInfo) GetDb() *sql.DB {
 	return di.db
 }
 
+// dbOrErr 取底层连接池，池不存在时返回错误而不是解引用。
+//
+// 为什么必须有：DbConn.Close() 会把与 DbInfo 共享的 db 置 nil，而 DbInfo 本身仍被
+// 实例缓存/健康巡检等路径持有。此前 QueryContext/ExecContext/Ping 直接解引用，
+// 后台巡检协程撞上正在关闭的实例就会 panic 并把整个进程带走（真机复现过）。
+func (di *DbInfo) dbOrErr() (*sql.DB, error) {
+	if di.db == nil {
+		return nil, errorx.NewBizf("database connection is not available (closed or never opened): %s", di.GetLogDesc())
+	}
+	return di.db, nil
+}
+
 // QueryContext 执行查询语句，返回列信息、结果集和错误。
 // 支持 context 控制超时/取消。
 //
@@ -131,7 +143,11 @@ func (di *DbInfo) GetDb() *sql.DB {
 // QueryColumn.Key 回写与 rows.Err() 检查在各查询路径上行为一致（元数据查询常含
 // SELECT a.id, b.id 之类同名列，若不去重会静默丢列）。
 func (di *DbInfo) QueryContext(ctx context.Context, querySQL string, args ...any) ([]*QueryColumn, []map[string]any, error) {
-	rows, err := di.db.QueryContext(ctx, querySQL, args...)
+	db, err := di.dbOrErr()
+	if err != nil {
+		return nil, nil, err
+	}
+	rows, err := db.QueryContext(ctx, querySQL, args...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -166,7 +182,11 @@ func (di *DbInfo) Query(querySQL string, args ...any) ([]*QueryColumn, []map[str
 // ExecContext 执行 SQL 语句，返回影响行数和错误。
 // 支持 context 控制超时/取消。
 func (di *DbInfo) ExecContext(ctx context.Context, sql string, args ...any) (int64, error) {
-	res, err := di.db.ExecContext(ctx, sql, args...)
+	db, err := di.dbOrErr()
+	if err != nil {
+		return 0, err
+	}
+	res, err := db.ExecContext(ctx, sql, args...)
 	if err != nil {
 		return 0, err
 	}

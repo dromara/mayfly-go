@@ -56,6 +56,14 @@ type sqlExecParam struct {
 	tx *sql.Tx
 }
 
+// 闸门结论的展示型分类（PolicyBlockKind 的返回值）
+const (
+	// PolicyBlockApproval 需提交工单审批后才能执行
+	PolicyBlockApproval = "approval"
+	// PolicyBlockWarnAck 命中「仅提醒」策略，执行前需操作者确认
+	PolicyBlockWarnAck = "warn_ack"
+)
+
 type DbSQLExec interface {
 	flowapp.FlowBizHandler
 

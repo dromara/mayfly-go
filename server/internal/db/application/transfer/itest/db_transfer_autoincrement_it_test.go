@@ -16,9 +16,11 @@ package itest
 import (
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/shard"
 	"mayfly-go/internal/db/application/transfer"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -237,11 +239,11 @@ func TestITAutoIncrementShardDataOnlyImport(t *testing.T) {
 // 每个分片段尾部都带一句序列校正，而校正写在本分片事务内、提交前执行，
 // 因而只能读到“本段已写入 + 他人已提交”的max。此处的不变式是：
 // 无论分片以何种顺序完成，序列终值必须不低于全表最大id；否则迁移后第一条业务写入即撞主键（duplicate key）。
-// 该性质依赖“校正只增不减”（写入值与本段读到的max及序列当前值取GREATEST，实测setval立即生效
-// 且不随事务回滚，故后执行的校正必然看到先执行校正推高的当前值），一旦被改回“直写读到的max”
-// 就会在特定调度下丢数（旧实现实测20轮约半数命中：末次校正只读到228而全表最大300），
-// 因此用多轮×多分片×满并发采样不同交错，断言只依赖结果（对所有正确调度恒成立，不引入抖动）；
-// 语句形态本身另由单测 postgres.TestAfterInsertSequenceCorrection 确定性钉死（竞态在本用例只能概率性暴露）
+// 该性质不能只靠「写入值与本段读到的max及序列当前值取GREATEST」：读当前值与写回不是一个原子动作，
+// 并发下仍会丢更新（本机 pg16 实测：B 读到旧值后 A 写 100 并提交，B 仍写回 GREATEST(50,1)=50）。
+// 语句现在用事务级咨询锁把「读→写」围成临界区（见 postgres.AfterInsert），竞态本身由
+// TestITPgSequenceCorrectionHoldsAdvisoryLock 确定性钉死；本用例则从结果侧守住全链路的行数与终值
+// （多轮×多分片×满并发采样不同交错，断言只依赖结果，不引入抖动）
 func TestITAutoIncrementParallelShardImport(t *testing.T) {
 	const (
 		rows        = 300
@@ -255,9 +257,9 @@ func TestITAutoIncrementParallelShardImport(t *testing.T) {
 			conn := node.conn(t)
 			defer conn.Close()
 
-			origTargetRows := transfer.ShardTargetRows
-			transfer.ShardTargetRows = shardRows
-			defer func() { transfer.ShardTargetRows = origTargetRows }()
+			origTargetRows := shard.TargetRows
+			shard.TargetRows = shardRows
+			defer func() { shard.TargetRows = origTargetRows }()
 
 			app := &transfer.DbTransferAppImpl{}
 			for cycle := 0; cycle < cycles; cycle++ {
@@ -316,4 +318,92 @@ func itAiDistinctIdCount(t *testing.T, conn *dbi.DbConn) int64 {
 	cnt, ok := value.ValToInt64(rows[0]["cnt"])
 	require.True(t, ok, "去重id数取值形态异常: %T", rows[0]["cnt"])
 	return cnt
+}
+
+// itAiCorrectionStmt 从真实 dump 产物里取出自增序列校正那一句（用例要跑的就是生产语句原文，
+// 而不是自己拼一份看似等价的副本）
+func itAiCorrectionStmt(t *testing.T, conn *dbi.DbConn) string {
+	t.Helper()
+	script := itDumpTable(t, conn, itAiTable, "postgres", false, true, "")
+	for _, line := range strings.Split(script, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "SELECT setval(") {
+			return strings.TrimSpace(line)
+		}
+	}
+	t.Fatalf("dump 产物未含序列校正语句:\n%s", itTruncate(script, 2000))
+	return ""
+}
+
+// itAiSeqLastValue 读序列当前值（仅 pg：本用例钉的就是 pg 的 setval 读-改-写）
+func itAiSeqLastValue(t *testing.T, conn *dbi.DbConn) int64 {
+	t.Helper()
+	_, rows, err := conn.Query(`SELECT last_value FROM "it_ai_tbl_id_seq"`)
+	require.NoError(t, err, "读序列当前值失败")
+	require.Len(t, rows, 1)
+	v, ok := value.ValToInt64(rows[0]["last_value"])
+	require.True(t, ok, "序列当前值形态异常: %T", rows[0]["last_value"])
+	return v
+}
+
+// TestITPgSequenceCorrectionHoldsAdvisoryLock 并发分片导入下，校正语句的「读序列当前值→写回」
+// 必须是一个事务级咨询锁保护的临界区。
+//
+// 竞态原型（本机 pg16 psql 实测，无需任何巧合调度）：
+//   - B 先执行，读到 last_value=1；
+//   - A 随后 setval(100) 并提交；
+//   - B 再写回 GREATEST(50, 1)=50 → 序列终值 50 低于全表最大 100。
+//
+// setval 本身立即生效且不随事务回滚，所以「只增不减」的 GREATEST 仍拦不住：丢的是**读到的那一份**
+// 旧值（旧注释把“setval 立即可见”误当成“读与写不可分割”）。不修则 pg 目标库上的并行分片迁移
+// 会随机产出「迁移后第一条业务插入即撞主键」的表。
+//
+// 本用例不用概率性并发，而是直接钉住机制：A 持有事务不提交时，B 的同一句必须阻塞在锁上；
+// A 提交后 B 才能进入临界区，因而它读到的当前值必然不低于 A 刚写入的值。去掉锁后两个断言都会变红。
+func TestITPgSequenceCorrectionHoldsAdvisoryLock(t *testing.T) {
+	conn := itPg.conn(t)
+	defer conn.Close()
+	itAiPrepare(t, conn, 0)
+	defer itAiDrop(t, conn)
+	quote := conn.GetDialect().Quoter().QuoteIdent
+
+	// 基线行 id=50 已提交：并发侧（B）看到的 max 就是 50，比 A 写入的 100 小
+	_, err := conn.Exec(fmt.Sprintf("INSERT INTO %s (id, val) VALUES (50, 'base')", quote(itAiTable)))
+	require.NoError(t, err)
+	correction := itAiCorrectionStmt(t, conn)
+
+	app := &transfer.DbTransferAppImpl{}
+
+	// A：事务内写入 id=100（未提交但自身可见）→ 执行校正 → 故意不提交，持有锁到用例放行
+	txA, err := conn.Begin()
+	require.NoError(t, err)
+	_, err = conn.TxExecContext(context.Background(), txA,
+		fmt.Sprintf("INSERT INTO %s (id, val) VALUES (100, 'holder')", quote(itAiTable)))
+	require.NoError(t, err)
+	_, err = conn.TxExecContext(context.Background(), txA, correction)
+	require.NoError(t, err, "A 侧执行生产校正语句失败（语句形态本身不合法？）")
+
+	// B：走真实导入链路（自带事务与语句切割），它在 A 提交前不得完成
+	done := make(chan error, 1)
+	go func() {
+		done <- app.ImportDumpStream(context.Background(), 0, conn, strings.NewReader(correction))
+	}()
+	select {
+	case err := <-done:
+		t.Fatalf("并发侧未被咨询锁阻塞，「读→写」不是临界区（丢更新竞态仍存在）: err=%v seq=%d", err, itAiSeqLastValue(t, conn))
+	case <-time.After(400 * time.Millisecond):
+	}
+
+	require.NoError(t, dbi.CommitTargetTx(conn, txA))
+	select {
+	case err := <-done:
+		require.NoError(t, err, "A 提交后并发侧执行校正失败")
+	case <-time.After(30 * time.Second):
+		t.Fatal("A 已提交但并发侧仍未完成：事务级咨询锁未随事务释放")
+	}
+
+	// 结果侧不变式：没有锁时 B 会用旧值把序列拉回 50
+	maxId := itAiMaxId(t, conn)
+	require.GreaterOrEqual(t, maxId, int64(100), "夹具前提：全表最大 id 应为 100")
+	assert.GreaterOrEqual(t, itAiSeqLastValue(t, conn), maxId, "序列终值必须不低于全表最大id")
+	require.NoError(t, itAiInsertNext(t, conn), "首条业务写入仍撞主键")
 }

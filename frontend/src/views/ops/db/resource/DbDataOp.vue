@@ -93,6 +93,7 @@
                         :db-id="dt.dbId"
                         :db-name="dt.db"
                         :db-code="(dt.params.dbCode as string) ?? ''"
+                        :db-type="dbInfo.type ?? ''"
                         :sql-name="dt.params.sqlName"
                         @save-sql-success="reloadSqls"
                         @editor-ready="(editorUri: string) => onEditorReady(dt, editorUri)"

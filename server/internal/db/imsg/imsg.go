@@ -189,4 +189,50 @@ const (
 
 	// 跨属主 execId 碰撞：登记的顶替行为不得绕过取消侧的属主校验
 	ErrSqlExecIdConflict
+
+	// SQL 草稿（自然语言转 SQL）：生成侧的事实与降级口径。
+	// 新增 id 一律追加在末尾：id 由 iota 连续生成，插入中间会重编号已写入历史日志的 id
+	LogDbSqlDraft
+	ErrSqlDraftUnavailable
+	ErrSqlDraftIntentUnknown
+	ErrSqlDraftPromptRequired
+	ErrSqlDraftParseFailed
+	ErrSqlDraftUnknownTable
+	ErrSqlDraftUnknownColumn
+	ErrSqlDraftTableRestricted
+	ErrSqlDraftColumnRestricted
+	ErrSqlDraftWriteHint
+	ErrSqlDraftPolicyUnavailable
+	ErrSqlDraftAclDenied
+	ErrSqlDraftPlanFullScan
+	ErrSqlDraftContextTruncated
+	ErrSqlDraftTablesTruncated
+	ErrSqlDraftLinkerDegraded
+	ErrSqlDraftChooserDegraded
+	ErrSqlDraftRepairFailed
+	SqlDraftChooseReason
+	ErrSqlDraftModelTimeout
+	ErrSqlDraftModelFailed
+	ErrSqlDraftNoTableLocated
+	ErrSqlDraftNeedApproval
+	ErrSqlDraftNeedWarnAck
+	ErrSqlDraftValueNotSampled
+	ErrSqlDraftTargetUnconfirmed
+	SqlDraftSiblingReason
+	SqlDraftIdentifierReason
+	SqlDraftCommentReason
+	SqlDraftRelationReason
+	ErrSqlDraftChooserTruncated
+	ErrSqlDraftMaterialTooLong
+	SqlDraftReasonJoiner
+	SqlDraftMaterialIdentifierReason
+
+	// 文生 SQL 业务词典（语义层）：召回依据、审计文案与条目校验
+	SqlDraftGlossaryReason
+	LogDbAiTermSave
+	LogDbAiTermDelete
+	ErrAiTermRequired
+	ErrAiTermLimitExceeded
+	ErrAiTermNotFound
+	ErrSqlDraftNoTableSource
 )

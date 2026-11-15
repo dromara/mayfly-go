@@ -26,6 +26,10 @@ type SQLSplitter interface {
 	// MaskComments 将文本中的普通注释替换为等长空白（字面量保留原文，可执行注释解壳保留内容），
 	// 供「按语句整体文本判定语句类型」使用（如导入侧识别 dump 事务包装语句）
 	MaskComments(sql string) string
+
+	// Config 返回本切割器使用的方言词法能力表。切割、解析与任何需要「按原词扫描语句」的
+	// 上层判定共用同一份方言语义，避免调用方按方言名单自行选配置（新增方言时遗漏）。
+	Config() tokenizer.DialectConfig
 }
 
 // DialectSplitter 基于方言能力表的统一 SQL 切割器。
@@ -84,6 +88,11 @@ func (s *DialectSplitter) LeadingKeyword(sql string) string {
 // MaskComments 按本方言语义掩码注释（等长空白，保留换行与字面量原文，可执行注释解壳）
 func (s *DialectSplitter) MaskComments(sql string) string {
 	return tokenizer.MaskSQLComments(sql, s.cfg)
+}
+
+// Config 返回本切割器的方言词法能力表，供需要按词扫描整句 SQL 的上层判定复用
+func (s *DialectSplitter) Config() tokenizer.DialectConfig {
+	return s.cfg
 }
 
 // callbackStmts 逐条回调已切割出的语句，并优先透传扫描错误

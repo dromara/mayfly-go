@@ -4,6 +4,7 @@ import (
 	"mayfly-go/internal/ai/application/resource"
 	"mayfly-go/internal/ai/memory"
 	"mayfly-go/internal/ai/pkg/headless"
+	"mayfly-go/internal/ai/pkg/textgen"
 	"mayfly-go/internal/ai/session"
 	"mayfly-go/pkg/ioc"
 )
@@ -12,6 +13,10 @@ func Init() {
 	// 注册无头运行适配器（headless.Runner 端口实现）：供 flow/application 等消费方
 	// 经中立契约包 headless.Run 调用，破除 flow → ai/application 的循环依赖
 	headless.Register(RunHeadless)
+
+	// 注册一次性文本生成端口（textgen.Port 实现）：供 db 等业务模块经中立包
+	// textgen.Complete 生成草稿文本，同样为避免业务模块反向依赖 ai/application
+	textgen.Register(textgenPort{})
 
 	// 注册档位目录端口实现：消费方（如 agentops 的表单选项装配与无人值守派发校验）
 	// 经 headless.Profiles() 读同一个注册表，不再各自抄一份档位清单

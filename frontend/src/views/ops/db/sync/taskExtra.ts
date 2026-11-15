@@ -9,11 +9,15 @@
  * - 前后端 key 拼写分叉无编译期告警
  *
  * key 需与服务端 entity.ExtraKeyCursorInclusivity 等常量保持字面一致，改名时双向同步。
+ * 数值型配置的合法区间也只有一份真源（服务端 entity/shard 常量），本文件不重复声明上限；
+ * 表单上的 min/max 只用于约束控件，越界值由 Save 校验明确报错。
  */
 export const TASK_EXTRA_KEYS = {
     cursorInclusivity: 'cursorInclusivity',
     sleepBetweenBatchesMs: 'sleepBetweenBatchesMs',
     skipIndexValidation: 'skipIndexValidation',
+    shardTargetRows: 'shardTargetRows',
+    countWriteSplit: 'countWriteSplit',
 } as const;
 
 type TaskExtra = Record<string, unknown> | undefined | null;
@@ -24,7 +28,8 @@ export function readExtraNumber(extra: TaskExtra, key: string, fallback = 0): nu
     return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
 }
 
-/** 读取布尔型 extra，只有显式 true 才返 true（保持与后端 setter "非 true 即清 key" 的语义对称） */
-export function readExtraBool(extra: TaskExtra, key: string): boolean {
-    return extra?.[key] === true;
+/** 读取布尔型 extra，默认只认显式 true；fallback 用于「默认开启」的开关（缺失/非法值回落 fallback） */
+export function readExtraBool(extra: TaskExtra, key: string, fallback = false): boolean {
+    const v = extra?.[key];
+    return typeof v === 'boolean' ? v : fallback;
 }

@@ -103,8 +103,8 @@ func TestITDataSyncStopMidRunKeepsCommittedWatermark(t *testing.T) {
 		FieldMap: `[{"src":"id","target":"id"},{"src":"name","target":"name"}]`,
 	}
 	// 不 Acquire：首批（3行）提交后 IsCurrentRun=false → 终止
-	sql := "select id, name from it_lc_stop_src where 1=1 order by id asc"
-	err := app.doDataSync(context.Background(), sql, task, src, dst, &entity.DataSyncLog{}, &SyncMetrics{})
+	plan := newSyncQueryPlan("select id, name from it_lc_stop_src", "where 1=1", "", "order by id asc")
+	err := app.doDataSync(context.Background(), plan, task, src, dst, &entity.DataSyncLog{}, &SyncMetrics{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "terminated")
 	assert.Equal(t, 3, lcCount(t, dst, "it_lc_stop_tgt"), "仅首批3行应提交")
@@ -228,9 +228,9 @@ func TestITCrossInstanceStopTaskAbortsBatch(t *testing.T) {
 		TargetTableName: "it_lc_xins_tgt", PageSize: 2, UpdField: "id", UpdFieldVal: "0",
 		FieldMap: `[{"src":"id","target":"id"},{"src":"name","target":"name"}]`,
 	}
-	sql := "select id, name from it_lc_xins_src order by id asc"
+	plan := newSyncQueryPlan("select id, name from it_lc_xins_src", "", "", "order by id asc")
 	syncLog := &entity.DataSyncLog{RunId: runId}
-	err := app.doDataSync(context.Background(), sql, task, src, dst, syncLog, &SyncMetrics{})
+	err := app.doDataSync(context.Background(), plan, task, src, dst, syncLog, &SyncMetrics{})
 	require.Error(t, err, "他实例发起停止后，本实例首批边界必须中止")
 	assert.Contains(t, err.Error(), "terminated")
 	// 首批 PageSize=2 行已提交（批次边界在写完之后检查），后续批次因停止信号中止

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
@@ -54,24 +55,74 @@ func paginateTopN(conn *dbi.DbConn, baseSQL string, n int64) (string, error) {
 	return conn.GetDialect().GetSQLParser().RewritePagination(baseSQL, 0, n)
 }
 
-// advanceSyncWatermark 推进同步水位
-func advanceSyncWatermark(srcRes []map[string]any, task *entity.DataSyncTask, updFieldName string) error {
+// advanceSyncWatermark 把本批**所有行**的增量字段值并入「本轮最大值」，并据此刷新内存水位。
+//
+// 为什么逐行取最大而不是只看末行：
+//   - 不分片时源查询带 `order by UpdField asc`，末行即最大，两种算法等价；
+//   - 开启分片扫描后，分片查询按**分片键**排序（片内续扫的充分条件，见 shardScanOrder），
+//     增量字段与排序键不同序：末行完全可能是中间值，只看末行会把水位停在过去
+//     （下一轮大量重放，Append 模式下就是重复行）；
+//   - 即使某片内末行恰好最大，片与片之间仍是交错。
+//
+// 仍不落库：写库只发生在整轮成功后（见 doDataSync 末尾），此处只维护内存值。
+func advanceSyncWatermark(srcRes []map[string]any, sec *syncExecContext) error {
 	if len(srcRes) == 0 {
 		return nil
 	}
-	waterField := cmp.Or(task.UpdFieldSrc, updFieldName)
+	task := sec.task
+	waterField := cmp.Or(task.UpdFieldSrc, sec.updFieldName)
 	if waterField == "" {
 		return nil
 	}
-	val, ok := lookupRowValue(srcRes[len(srcRes)-1], waterField)
-	if !ok {
-		return fmt.Errorf("update field [%s] not found in the last synced row, keep watermark [%s] unchanged", waterField, task.UpdFieldVal)
+	found := false
+	seenNull := false
+	var maxVal any
+	for _, row := range srcRes {
+		val, ok := lookupRowValue(row, waterField)
+		if !ok {
+			continue
+		}
+		if val == nil {
+			seenNull = true
+			continue
+		}
+		if !found || watermarkAhead(val, maxVal) {
+			maxVal = val
+			found = true
+		}
 	}
-	if val == nil {
-		return fmt.Errorf("update field [%s] of the last synced row is NULL, keep watermark [%s] unchanged", waterField, task.UpdFieldVal)
+	if !found {
+		// 本批没有任何可用的增量值：保持水位不动，并给出可检索的原因（不静默）
+		if seenNull {
+			return fmt.Errorf("update field [%s] is NULL in every row of the synced batch, keep watermark [%s] unchanged", waterField, task.UpdFieldVal)
+		}
+		return fmt.Errorf("update field [%s] not found in the synced batch, keep watermark [%s] unchanged", waterField, task.UpdFieldVal)
 	}
-	task.UpdFieldVal = cast.ToString(val)
+	if sec.watermarkVal != nil && !watermarkAhead(maxVal, sec.watermarkVal) {
+		// 本轮已有更靠后的值（分片间增量值交错时的正常情形），水位保持不动
+		return nil
+	}
+	sec.watermarkVal = maxVal
+	task.UpdFieldVal = cast.ToString(maxVal)
 	return nil
+}
+
+// watermarkAhead 判断候选水位是否比已记录的水位更靠后。
+//
+// time.Time 必须按时间点比：Go 的 time 字符串布局带时区后缀，跳时区/夏令时下字典序不再等于
+// 时间序，而判反方向的代价是「水位推得过分 → 中间那段行被永久跳过」，属于不可静默的数据丢失。
+// 其余形态（整型/decimal/日期串）沿用过滤条件同一个比较器 compareOrdered，避免同一模块里两套大小判据。
+// 类型对不上（同列不应出现）一律保守返 false：宁可下轮重放，不可漏数据。
+func watermarkAhead(candidate, current any) bool {
+	ct, ctOk := current.(time.Time)
+	kt, ktOk := candidate.(time.Time)
+	if ctOk || ktOk {
+		if !ctOk || !ktOk {
+			return false
+		}
+		return kt.After(ct)
+	}
+	return compareOrdered(cast.ToString(candidate), ">", cast.ToString(current))
 }
 
 // lookupRowValue 从查询行中取列值

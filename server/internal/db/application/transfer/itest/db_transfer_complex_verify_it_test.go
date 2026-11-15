@@ -14,6 +14,7 @@ package itest
 import (
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/shard"
 	"mayfly-go/internal/db/application/transfer"
 	"strings"
 	"testing"
@@ -192,9 +193,9 @@ func TestITShardComplexValuesMigrate(t *testing.T) {
 			itCreateShardComplexTable(t, srcConn, table)
 			itInsertShardComplexRows(t, srcConn, table, shardCxRows)
 
-			origTargetRows := transfer.ShardTargetRows
-			transfer.ShardTargetRows = 1000 // 2400行/每片1000行 → 3片
-			defer func() { transfer.ShardTargetRows = origTargetRows }()
+			origTargetRows := shard.TargetRows
+			shard.TargetRows = 1000 // 2400行/每片1000行 → 3片
+			defer func() { shard.TargetRows = origTargetRows }()
 
 			app := &transfer.DbTransferAppImpl{}
 			wheres := app.PlanTableShards(context.Background(), 0, srcConn, table, shardCxRows)

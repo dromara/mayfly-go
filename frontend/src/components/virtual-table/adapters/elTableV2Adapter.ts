@@ -44,6 +44,9 @@ function getProps(input: AdapterPropsInput): Record<string, unknown> {
         rowClass: input.rowClass,
         rowKey: null,
         fixed: true,
+        // 滚动条常驻：el-table-v2 默认只在鼠标悬停时才显出细滚动条，宽结果集里用户找不到可拖动的
+        // 横向把手（表现为「列放不下却没法横向滚动」）。这里用官方 prop 而非覆盖 EP 样式
+        scrollbarAlwaysOn: true,
         rowEventHandlers: input.rowEventHandlers ? transformRowEventHandlers(input.rowEventHandlers) : undefined,
     };
 }

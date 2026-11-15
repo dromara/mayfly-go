@@ -174,6 +174,24 @@ func TestProbeWriteSplitWithoutProbeQuery(t *testing.T) {
 	assert.Equal(t, writeSplit{}, empty, "空批次不产生任何计数")
 }
 
+// TestProbeWriteSplitDisabled 关闭探测时不再发 COUNT（nil 连接不会 panic 即为证），
+// 计数退化为按策略整体口径：写入语义不受影响，只是不再区分新增与更新。
+func TestProbeWriteSplitDisabled(t *testing.T) {
+	task := &entity.DataSyncTask{DuplicateStrategy: dbi.DuplicateStrategyUpdate}
+	task.SetCountWriteSplit(false)
+	sec := &syncExecContext{task: task, targetTableMeta: &dbi.TargetTableMeta{UniqueColumns: []string{"id"}}}
+
+	split, err := probeWriteSplit(t.Context(), sec, []map[string]any{{"id": 1}, {"id": 2}})
+	require.NoError(t, err)
+	assert.Equal(t, writeSplit{updates: 2}, split, "更新策略下整批记为更新（不再区分新增）")
+
+	ignoreTask := &entity.DataSyncTask{DuplicateStrategy: dbi.DuplicateStrategyIgnore}
+	ignoreTask.SetCountWriteSplit(false)
+	split, err = probeWriteSplit(t.Context(), &syncExecContext{task: ignoreTask, targetTableMeta: &dbi.TargetTableMeta{UniqueColumns: []string{"id"}}}, []map[string]any{{"id": 1}})
+	require.NoError(t, err)
+	assert.Equal(t, writeSplit{inserts: 1}, split)
+}
+
 func TestSyncMetricsRecordWrite(t *testing.T) {
 	m := NewSyncMetrics()
 	m.RecordWrite(3, 2, 1)

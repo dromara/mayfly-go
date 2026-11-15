@@ -5,8 +5,11 @@ import (
 	"regexp"
 	"strings"
 
+	"mayfly-go/internal/db/application/shard"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
+	"mayfly-go/internal/db/dbm/sqlparser/tokenizer"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
@@ -129,6 +132,7 @@ var identifierReg = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za
 //  2. DataSQL必须是**单条**SELECT/WITH查询（拒绝DML/DDL/多语句）
 //  3. CursorInclusivity 与同步模式的组合不得语义矛盾（见 validateCursorSemantics）
 //  4. SleepBetweenBatchesMs 不得超出上限
+//  5. ShardTargetRows 为负或越界直接拒（运行期会钳制，但静默钳掉用户显式写的值等于“配了但无效果”）
 func validateDataSyncSQL(dialect dbi.Dialect, task *entity.DataSyncTask) error {
 	// 删除对账（软删/硬删同步）用 `DELETE ... WHERE 唯一键 NOT IN (本次同步到的键)` 清理目标侧多余行。
 	// 若同时配置了过滤条件，被过滤掉的源行不会进入"本次同步到的键"，于是它们在目标侧被判定为
@@ -143,6 +147,9 @@ func validateDataSyncSQL(dialect dbi.Dialect, task *entity.DataSyncTask) error {
 	}
 	if sleepMs := task.GetSleepBetweenBatchesMs(); sleepMs < 0 || sleepMs > entity.MaxSleepBetweenBatchesMs {
 		return errorx.NewBizf("invalid sleepBetweenBatchesMs [%d]: must be within [0, %d]", sleepMs, entity.MaxSleepBetweenBatchesMs)
+	}
+	if rows := task.GetShardTargetRows(); rows < 0 || (rows != 0 && (rows < shard.MinTargetRows || rows > shard.MaxTargetRows)) {
+		return errorx.NewBizf("invalid shardTargetRows [%d]: must be 0 (auto) or within [%d, %d]", rows, shard.MinTargetRows, shard.MaxTargetRows)
 	}
 	if err := validateCursorSemantics(task); err != nil {
 		return err
@@ -197,7 +204,7 @@ func validateDataSyncSQL(dialect dbi.Dialect, task *entity.DataSyncTask) error {
 		if !ok {
 			return nil
 		}
-		return validateDataSyncAppendable(sel, task)
+		return validateDataSyncAppendable(dialect.GetSQLSplitter(), sel, task)
 	case sqlstmt.KindWith:
 		// WITH语句解析结果无法内省顶层SELECT形态，而Run时是在语句尾部拼接条件，
 		// 无法可靠判定顶层WHERE与尾部子句位置，只能保守拦截会产生非法SQL的组合：
@@ -247,15 +254,167 @@ var dataSyncTrailingClauseReg = regexp.MustCompile(`(?i)\b(group\s+by|having|ord
 // 语句顶层存在GROUP BY/HAVING/ORDER BY/LIMIT时，追加内容必然落在这些子句之后（非法SQL）；
 // 子查询内的同名子句不影响（仅检查顶层）。已含WHERE且未配置增量字段时不追加任何内容，无需限制。
 // 注意：无WHERE且有GROUP BY时即使未配置增量字段也需拒绝（"where 1=1"同样拼在group by之后）
-func validateDataSyncAppendable(sel *sqlstmt.SelectStmt, task *entity.DataSyncTask) error {
-	appends := sel.Where == nil || task.UpdField != ""
-	if !appends {
-		return nil
+//
+// 还有一类与子句存在性正交的风险：顶层 WHERE 以 OR/XOR 为根时 AND 优先级更高，追加的
+// `and (...)` 只约束其中一支，其余支的每一行会在拼接后的每个查询里重复返回。
+// 分片区间走同一个拼接面，故两边共用 scanSQLShape 这一份形态事实（优先级越线一项取同一字段）。
+func validateDataSyncAppendable(splitter sqlparser.SQLSplitter, sel *sqlstmt.SelectStmt, task *entity.DataSyncTask) error {
+	// 两类拼接各有自己的成立条件，不能共用一个闸门：
+	//   - 尾部子句位置风险（拼在任何顶层子句之后都会非法 SQL）：补 where 1=1、拼 order by、
+	//     或注入谓词（谓词也是拼在尾部，顶层 ORDER BY 后拼 `and (...)` 同样非法）；
+	//   - 优先级越线风险（顶层 OR/XOR 只约束一支）：仅当真的向 WHERE 链注入谓词。
+	// 早先版本用同一个 `appends` 提前 return，把后一类判定挡在了它不理解的窄条件后面。
+	if sel.Where == nil || task.UpdField != "" || appendsWherePredicate(task) {
+		if len(sel.GroupBy) > 0 || sel.Having != nil || len(sel.OrderBy) > 0 || sel.Limit != nil {
+			return errorx.NewBizf("data sql cannot contain top-level group by/having/order by/limit clauses when it has no where or appends predicates: the sync runner appends conditions after the statement")
+		}
 	}
-	if len(sel.GroupBy) > 0 || sel.Having != nil || len(sel.OrderBy) > 0 || sel.Limit != nil {
-		return errorx.NewBizf("data sql cannot contain top-level group by/having/order by/limit clauses when it has no where or has incremental updField: the sync runner appends conditions after the statement")
+	if appendsWherePredicate(task) && scanSQLShape(task.DataSQL, splitter).topLevelOr {
+		return errorx.NewBiz("data sql top-level WHERE is rooted at OR/XOR: the sync runner appends incremental/soft-delete conditions with AND, which binds tighter and constrains only one branch, so the other branch would be synced repeatedly - wrap the original condition in parentheses (e.g. WHERE (a OR b)), or use table mode sync")
 	}
 	return nil
+}
+
+// syncModeNeedsFullScan 模式级事实：全量刷新(3)/增量软删(4)/增量硬删(5) 一律全量扫描源查询，
+// 不拼水位增量条件（删除对账需要完整源键集，见 planSyncQuery）。
+// 收在本文件作为单一真源：运行期拼不拼谓词、保存期要不要拦「会被优先级越过」的形态，
+// 两处必须同一个口径，否则校验会误拒运行期根本不注入谓词的配置。
+func syncModeNeedsFullScan(mode entity.DataSyncMode) bool {
+	return mode == entity.DataSyncModeFullRefresh ||
+		mode == entity.DataSyncModeIncrementalSoftDel ||
+		mode == entity.DataSyncModeIncrementalHardDel
+}
+
+// appendsWherePredicate 报告运行期是否真的会向 DataSQL 的 WHERE 链追加谓词。
+//
+// 它比 validateDataSyncAppendable 里原有的 `sel.Where == nil || UpdField != ""` 窄：后者是
+// 「尾部会不会拼任何内容」（含补 where 1=1 与 order by）的判据，用于子句位置约束是对的；
+// 但「顶层 OR 被越线」只在真正追加谓词时才是风险。拿宽的判据去拦 OR 根会误拒存量合法任务：
+// 模式 3/5 配了增量字段只拼 `order by`（不注入 WHERE），历史行为完全正确，而 runSync 每轮
+// 都会重新校验——等于让这批任务从此跑不动。
+func appendsWherePredicate(task *entity.DataSyncTask) bool {
+	// 软删过滤：模式 4 每轮都注入 `and (flag <> v OR flag IS NULL)`，与增量字段无关
+	if task.SyncMode == entity.DataSyncModeIncrementalSoftDel && task.SoftDeleteField != "" && task.SoftDeleteValue != "" {
+		return true
+	}
+	// 水位增量条件：非全量扫描模式且配了增量字段。当前水位值不参与判定——首轮为 "0"/空串
+	// 不拼，但第二轮起必有值，保存期按「以后会拼」保守处理才是正确口径
+	return !syncModeNeedsFullScan(task.SyncMode) && task.UpdField != ""
+}
+
+// sqlShape 一次词法扫描得到的、与「能否安全向原文尾部追加片段」相关的形态事实。
+//
+// 三件事必须同一次扫描得出：它们共享同一套括号深度/CASE 深度/WHERE 区间状态，拆成三个
+// 函数只会让三套状态机各自漂移（新增一类形态时只会多一个字段，不会多一次扫描）。
+type sqlShape struct {
+	// topLevelOr WHERE 子句在深度 0（且不在无括号 CASE 表达式内）出现 OR/XOR：追加的
+	// `and (...)` 会被 AND 优先级越过、只约束其中一支，其余支每片/每轮重复返回。
+	topLevelOr bool
+	// topLevelPipes WHERE 子句在深度 0 出现 `||`。mysql/mariadb/Doris/StarRocks 默认 sql_mode
+	// 下 `||` 就是 OR（同样危险），pg/oracle 下它是字符串拼接（无害）。DialectConfig 没有
+	// PIPES_AS_CONCAT 能力位（实测字段清单无此项），而确切语义取决于会话级 sql_mode，方言层
+	// 无法表达 → 本事实只用于「误判代价仅为退回单次流式」的分片门禁，不用于保存校验（那会
+	// 误拒 pg/oracle 的字符串拼接条件）。
+	topLevelPipes bool
+	// topLevelTail 语句在深度 0 出现 GROUP BY/HAVING/ORDER BY/LIMIT/OFFSET/集合运算等尾部子句：
+	// 追加内容会落在其后而成为非法 SQL。AST 也能判这件事，但解析器在不认识的运算符处会静默
+	// 截断整个表达式、其后的顶层子句在 AST 里彻底不存在（实测 `WHERE id % 2 = 0 ORDER BY id
+	// LIMIT 10` → OrderBy=0/Limit=nil），故必须按词扫原文。
+	topLevelTail bool
+}
+
+// worstCaseShape 无法完成词法扫描时的保守结果：三项全按最危处理。
+// 对分片门禁意味着退回单次流式（无副作用），对保存校验意味着拦住并给出改法。
+var worstCaseShape = sqlShape{topLevelOr: true, topLevelPipes: true, topLevelTail: true}
+
+// tailClauseKeywords 深度 0 上意味着「尾部子句开始」的词：命中即代表再往后拼东西会落在子句之后，
+// 同时也意味着 WHERE 子句到此结束（其后的 OR 不属于它）。WINDOW 不列入：它不在任何方言的
+// 关键字表里（命中不了，写了就是死项），命名窗口的内容均在括号内（深度>0），不影响判定。
+var tailClauseKeywords = map[string]bool{
+	"GROUP": true, "HAVING": true, "ORDER": true, "LIMIT": true, "OFFSET": true,
+	"UNION": true, "INTERSECT": true, "EXCEPT": true, "MINUS": true,
+	"FETCH": true, "RETURNING": true, "INTO": true, "FOR": true,
+}
+
+// scanSQLShape 按原文词法扫描 sqlShape。splitter 提供词法能力表（与切割/解析同一份方言语义，
+// 调用方无需按方言名单选配置）。
+//
+// 为什么不拿解析器 AST 判这些形态（本轮两次实测取证，不是推测）：解析器在不认识的运算符处
+// 静默丢弃后半段表达式——`WHERE id % 2 = 0 OR id = 1` 解出的 Where.Text 只剩 "id"、Root 只剩
+// ColumnRef(id)，且其后的 ORDER BY/LIMIT 因词法位置错位而根本不进 AST（`%`/`&`/`?`/`#` 等字符
+// 甚至不产出 token，见 tokenizer.isOperatorStart/isPunctuation）。分片区间与增量条件都拼在
+// **原文**尾部，风险由原文里真实存在的结构决定，不能信有损的 AST。
+//
+// 只看深度 0：深度 >0 的 OR 已被括号约束在自己的子表达式里（`WHERE a AND (b OR c)`），
+// 追加 `and (...)` 仍作用于整个 WHERE，语义正确，不能误拒。同理，无括号的 CASE 表达式内
+// （`WHERE CASE WHEN a=1 OR b=2 THEN 1 ELSE 0 END = 1`）的 OR 也不构成风险——CASE 已在比较
+// 运算符左侧收口，故用 caseDepth 单独跟踪（少了这一步会误拒一类合法存量任务）。
+//
+// 词法器处理引号/注释/引用标识符，字符串与注释里的 or 不算运算符；方言差异导致的误判
+// 一律落在保守侧（不分片 / 保存时报错并给出括号改法），不会改变已放行任务的数据。
+func scanSQLShape(dataSQL string, splitter sqlparser.SQLSplitter) sqlShape {
+	if splitter == nil {
+		return worstCaseShape
+	}
+	tz := tokenizer.New(dataSQL, splitter.Config())
+	var shape sqlShape
+	depth, caseDepth := 0, 0
+	inWhere := false
+	for {
+		tok := tz.Next()
+		if tok.IsEOF() {
+			// 扫到结尾仍未闭合括号或 CASE：语句本身非法，子句边界与 WHERE 作范围无从推断，
+			// 与「括号不配对」同处理（真确 SQL 永远进不了这个分支）
+			if depth > 0 || caseDepth > 0 {
+				return worstCaseShape
+			}
+			return shape
+		}
+		upper := strings.ToUpper(tok.Value)
+		if tok.Value == ";" {
+			return shape
+		}
+		// XOR 与 `||` 不按 token 类型判：XOR 不在关键字表里（被词法归为标识符，解析器也因此
+		// 在此截断），但将来任何方言把它加进 ExtraKeywords 就会变成 Keyword；`||` 是 Operator。
+		// 按词面判才能避开「判定依于类型表登记」这个隐形耦合。
+		if depth == 0 && caseDepth == 0 && inWhere {
+			switch tok.Value {
+			case "XOR":
+				shape.topLevelOr = true
+			case "||":
+				shape.topLevelPipes = true
+			}
+		}
+		switch tok.Type {
+		case tokenizer.TokenPunctuation:
+			switch tok.Value {
+			case "(":
+				depth++
+			case ")":
+				if depth == 0 {
+					// 括号不配对：语句本身非法，子句边界无从推断，整句按最危处理
+					return worstCaseShape
+				}
+				depth--
+			}
+		case tokenizer.TokenKeyword:
+			switch {
+			case upper == "CASE":
+				caseDepth++
+			case upper == "END":
+				if caseDepth > 0 {
+					caseDepth--
+				}
+			case depth == 0 && caseDepth == 0 && upper == "WHERE":
+				inWhere = true
+			case depth == 0 && caseDepth == 0 && upper == "OR" && inWhere:
+				shape.topLevelOr = true
+			case depth == 0 && caseDepth == 0 && tailClauseKeywords[upper]:
+				shape.topLevelTail = true
+				inWhere = false // WHERE 子句到此结束，其后的 OR 不属于它
+			}
+		}
+	}
 }
 
 // dataSQLHasWhere 判断DataSQL是否已含WHERE条件（用于决定是否补"where 1=1"）。

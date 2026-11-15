@@ -14,4 +14,6 @@ func InitIoc() {
 	ioc.Register(new(DbMask))
 	ioc.Register(new(DbSession))
 	ioc.Register(new(DbSchemaDiff))
+	ioc.Register(new(DbSqlDraft))
+	ioc.Register(new(DbAiTerm))
 }

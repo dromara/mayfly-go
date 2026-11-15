@@ -28,9 +28,17 @@ type DataSyncTaskForm struct {
 	// CursorInclusivity：0=Auto、1=Exclusive(>)、2=Inclusive(>=，需目标 UPSERT 幂等)；Save 侧校验与模式组合合法性
 	// SleepBetweenBatchesMs：0-60000，批间等待毫秒（目标侧节流）；上限在 Save 处校验
 	// SkipIndexValidation：P1 逃生阀，视图/函数索引/无法推断单表时手动开启后跳过增量字段索引探测（存于 Extra）
+	// ShardTargetRows：源侧主键分片扫描的单片目标行数，0=自动（小表单片等于不分片）；
+	//   越界值在 Save 拒（运行期会钳制，但静默钳掉显式配置就是「配了但无效果」）；
+	//   binding 拦住负值，否则 -1 与 0（自动）写入的 Extra 完全一致，同一个字段两种失败模式
 	CursorInclusivity     entity.CursorInclusivity `json:"cursorInclusivity"`
 	SleepBetweenBatchesMs int                      `json:"sleepBetweenBatchesMs" binding:"omitempty,min=0,max=60000"`
 	SkipIndexValidation   bool                     `json:"skipIndexValidation"`
+	ShardTargetRows       int                      `json:"shardTargetRows" binding:"omitempty,min=0"`
+	// CountWriteSplit：写入前探测目标冲突键以拆出「新增/更新」计数（存于 Extra）。
+	// 用指针区分「未传（默认开启）」与「显式关闭」——用 bool 会让不传该字段的调用方
+	// （存量前端、API 直连、脚本）把历史口径静默改成关闭。
+	CountWriteSplit *bool `json:"countWriteSplit"`
 
 	// 目标数据库信息
 	TargetDbId        int64  `binding:"required" json:"targetDbId"`

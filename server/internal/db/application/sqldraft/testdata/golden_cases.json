@@ -1,0 +1,329 @@
+[
+  {
+    "id": "instance_db_count",
+    "intent": "draft",
+    "prompt": "统计每个数据库实例下有多少个数据库资源",
+    "tables": [
+      {
+        "name": "t_db_instance",
+        "comment": "数据库实例",
+        "columns": [
+          {
+            "name": "id",
+            "type": "bigint",
+            "pk": true
+          },
+          {
+            "name": "code",
+            "type": "varchar(32)"
+          },
+          {
+            "name": "name",
+            "type": "varchar(255)"
+          },
+          {
+            "name": "is_deleted",
+            "type": "tinyint"
+          }
+        ]
+      },
+      {
+        "name": "t_db",
+        "comment": "数据库资源",
+        "columns": [
+          {
+            "name": "id",
+            "type": "bigint",
+            "pk": true
+          },
+          {
+            "name": "instance_id",
+            "type": "bigint"
+          },
+          {
+            "name": "is_deleted",
+            "type": "tinyint"
+          }
+        ]
+      }
+    ],
+    "chooser": [
+      "t_db_instance",
+      "t_db"
+    ],
+    "model": [
+      "{\"statements\":[{\"sql\":\"SELECT `i`.`id` AS `instance_id`, `i`.`name` AS `instance_name`, COUNT(`d`.`id`) AS `db_count` FROM `t_db_instance` AS `i` LEFT JOIN `t_db` AS `d` ON `d`.`instance_id` = `i`.`id` AND `d`.`is_deleted` = 0 WHERE `i`.`is_deleted` = 0 GROUP BY `i`.`id`, `i`.`name` ORDER BY `db_count` DESC\",\"notes\":\"按实例统计库数量\"}]}"
+    ],
+    "expect": {
+      "pickedContains": [
+        "t_db_instance",
+        "t_db"
+      ],
+      "verification": "verified",
+      "findingCodes": []
+    }
+  },
+  {
+    "id": "role_account_count",
+    "intent": "draft",
+    "prompt": "统计每个角色下有多少个账号",
+    "tables": [
+      {
+        "name": "t_sys_role",
+        "columns": [
+          {
+            "name": "id",
+            "type": "bigint",
+            "pk": true
+          },
+          {
+            "name": "name",
+            "type": "varchar(64)"
+          },
+          {
+            "name": "is_deleted",
+            "type": "tinyint"
+          }
+        ]
+      },
+      {
+        "name": "t_sys_account_role",
+        "columns": [
+          {
+            "name": "role_id",
+            "type": "bigint"
+          },
+          {
+            "name": "account_id",
+            "type": "bigint"
+          },
+          {
+            "name": "is_deleted",
+            "type": "tinyint"
+          }
+        ]
+      },
+      {
+        "name": "t_sys_account",
+        "columns": [
+          {
+            "name": "id",
+            "type": "bigint",
+            "pk": true
+          },
+          {
+            "name": "is_deleted",
+            "type": "tinyint"
+          }
+        ]
+      }
+    ],
+    "chooser": [
+      "t_sys_role",
+      "t_sys_account_role",
+      "t_sys_account"
+    ],
+    "model": [
+      "{\"statements\":[{\"sql\":\"SELECT r.`id`, r.`name`, COUNT(DISTINCT a.`id`) AS `account_count` FROM `t_sys_role` r LEFT JOIN `t_sys_account_role` ar ON ar.`role_id` = r.`id` AND ar.`is_deleted` = 0 LEFT JOIN `t_sys_account` a ON a.`id` = ar.`account_id` AND a.`is_deleted` = 0 WHERE r.`is_deleted` = 0 GROUP BY r.`id`, r.`name`\"}]}"
+    ],
+    "expect": {
+      "pickedContains": [
+        "t_sys_role"
+      ],
+      "verification": "verified",
+      "findingCodes": []
+    }
+  },
+  {
+    "id": "metric_value_not_sampled",
+    "intent": "draft",
+    "prompt": "统计每个数据库实例近30天的平均查询耗时",
+    "tables": [
+      {
+        "name": "t_db_metric_sample",
+        "columns": [
+          {
+            "name": "id",
+            "type": "bigint",
+            "pk": true
+          },
+          {
+            "name": "instance_id",
+            "type": "bigint"
+          },
+          {
+            "name": "metric",
+            "type": "varchar(48)"
+          },
+          {
+            "name": "value",
+            "type": "double"
+          },
+          {
+            "name": "sample_time",
+            "type": "datetime"
+          },
+          {
+            "name": "is_deleted",
+            "type": "tinyint"
+          }
+        ]
+      },
+      {
+        "name": "t_db_instance",
+        "columns": [
+          {
+            "name": "id",
+            "type": "bigint",
+            "pk": true
+          },
+          {
+            "name": "name",
+            "type": "varchar(255)"
+          },
+          {
+            "name": "is_deleted",
+            "type": "tinyint"
+          }
+        ]
+      }
+    ],
+    "sampledValues": {
+      "t_db_metric_sample.metric": [
+        "lock_wait_count",
+        "ping_fail",
+        "pitr_ready"
+      ]
+    },
+    "chooser": [
+      "t_db_metric_sample",
+      "t_db_instance"
+    ],
+    "model": [
+      "{\"statements\":[{\"sql\":\"SELECT i.id, i.name, AVG(m.value) AS avg_query_time FROM `t_db_instance` i JOIN `t_db_metric_sample` m ON m.instance_id = i.id WHERE i.is_deleted = 0 AND m.metric = 'query_time' AND m.sample_time >= DATE_SUB(NOW(), INTERVAL 30 DAY) GROUP BY i.id, i.name\"}]}"
+    ],
+    "expect": {
+      "pickedContains": [
+        "t_db_metric_sample"
+      ],
+      "verification": "unverified",
+      "findingCodes": [
+        "value_not_sampled"
+      ]
+    }
+  },
+  {
+    "id": "hallucinated_column_repaired",
+    "intent": "draft",
+    "prompt": "查询每个实例的名称",
+    "tables": [
+      {
+        "name": "t_db_instance",
+        "columns": [
+          {
+            "name": "id",
+            "type": "bigint",
+            "pk": true
+          },
+          {
+            "name": "name",
+            "type": "varchar(255)"
+          }
+        ]
+      }
+    ],
+    "chooser": [
+      "t_db_instance"
+    ],
+    "model": [
+      "{\"statements\":[{\"sql\":\"SELECT inst_name FROM t_db_instance\"}]}",
+      "{\"statements\":[{\"sql\":\"SELECT name FROM t_db_instance\"}]}"
+    ],
+    "expect": {
+      "pickedContains": [
+        "t_db_instance"
+      ],
+      "verification": "verified",
+      "findingCodes": [],
+      "repairs": 1
+    }
+  },
+  {
+    "id": "write_statement_needs_ticket",
+    "intent": "draft",
+    "prompt": "把每个实例的备注更新为实例名称",
+    "tables": [
+      {
+        "name": "t_db_instance",
+        "columns": [
+          {
+            "name": "id",
+            "type": "bigint",
+            "pk": true
+          },
+          {
+            "name": "name",
+            "type": "varchar(255)"
+          },
+          {
+            "name": "remark",
+            "type": "varchar(255)"
+          },
+          {
+            "name": "is_deleted",
+            "type": "tinyint"
+          }
+        ]
+      }
+    ],
+    "chooser": [
+      "t_db_instance"
+    ],
+    "gateBlock": "approval",
+    "model": [
+      "{\"statements\":[{\"sql\":\"UPDATE `t_db_instance` SET `remark` = `name` WHERE `is_deleted` = 0\"}]}"
+    ],
+    "expect": {
+      "pickedContains": [
+        "t_db_instance"
+      ],
+      "verification": "verified",
+      "findingCodes": [
+        "write_statement",
+        "policy_ticket"
+      ]
+    }
+  },
+  {
+    "id": "explain_prose",
+    "intent": "explain",
+    "prompt": "解释这条语句",
+    "tables": [
+      {
+        "name": "t_db_instance",
+        "columns": [
+          {
+            "name": "id",
+            "type": "bigint",
+            "pk": true
+          },
+          {
+            "name": "is_deleted",
+            "type": "tinyint"
+          }
+        ]
+      }
+    ],
+    "chooser": [
+      "t_db_instance"
+    ],
+    "model": [
+      "这段 SQL 统计未删除实例的数量。风险：无 WHERE 之外的索引可用，实例表很大时会全表扫描。"
+    ],
+    "expect": {
+      "pickedContains": [],
+      "verification": "",
+      "findingCodes": []
+    }
+  }
+]

@@ -3,6 +3,7 @@ package application
 import (
 	"mayfly-go/internal/db/application/mask"
 	dbschema "mayfly-go/internal/db/application/schema"
+	"mayfly-go/internal/db/application/sqldraft"
 	"mayfly-go/internal/db/application/sqlexec"
 	dbsync "mayfly-go/internal/db/application/sync"
 	transfer "mayfly-go/internal/db/application/transfer"
@@ -29,6 +30,10 @@ func InitIoc() {
 	ioc.Register(new(mask.MaskAppImpl))
 	ioc.Register(new(dbschema.SchemaDiffAppImpl))
 	ioc.Register(new(dbschema.SchemaBaselineAppImpl))
+	// SQL 草稿（自然语言转 SQL）：依赖 DbConnReader/TableAcl/SqlGate/SavedSqlExamples
+	// 四个窄接口，注入期按结构匹配，无需显式映射
+	ioc.Register(new(sqldraft.DraftAppImpl))
+	ioc.Register(new(sqldraft.TermsAppImpl))
 }
 
 func Init() {

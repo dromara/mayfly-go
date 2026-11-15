@@ -114,15 +114,15 @@ func (app *DataSyncAppImpl) runSync(ctx context.Context, task *entity.DataSyncTa
 		return nil
 	}
 
-	// 构建同步查询 SQL（增量条件、排序、软删除过滤等）
-	sqlStr, err := app.buildSyncQuery(ctx, task, srcConn, srcConn.GetDialect(), syncLog)
+	// 构建源查询规划（增量条件、排序、软删除过滤、主键分片区间）
+	plan, err := app.planSyncQuery(ctx, task, srcConn, srcConn.GetDialect(), syncLog)
 	if err != nil {
 		syncLog.ErrText = i18n.T(imsg.DataSyncFailMsg, "msg", err.Error())
 		logx.ErrorContext(ctx, syncLog.ErrText)
 		return err
 	}
 
-	if err = app.doDataSync(ctx, sqlStr, task, srcConn, targetConn, syncLog, metrics); err != nil {
+	if err = app.doDataSync(ctx, plan, task, srcConn, targetConn, syncLog, metrics); err != nil {
 		syncLog.ErrText = i18n.T(imsg.DataSyncFailMsg, "msg", err.Error())
 		logx.ErrorContext(ctx, syncLog.ErrText)
 		syncLog.Status = entity.DataSyncTaskStateFail
@@ -152,17 +152,74 @@ func (app *DataSyncAppImpl) SyncTask(ctx context.Context, task *entity.DataSyncT
 	return app.runSync(ctx, task, srcConn, targetConn, syncLog, metrics)
 }
 
-// buildSyncQuery 构建同步查询 SQL：根据同步模式组装增量条件、排序、软删除过滤等。
-// 拆分自 Run 方法，降低单方法复杂度。
-func (app *DataSyncAppImpl) buildSyncQuery(ctx context.Context, task *entity.DataSyncTask, srcConn *dbi.DbConn, dialect dbi.Dialect, syncLog *entity.DataSyncLog) (string, error) {
-	// 是否需要「全量扫描源查询」（不叠加水位增量条件）：
+// syncQueryPlan 一轮同步的源查询规划。
+//
+// 为什么不是一个拼好的字符串而是一次规划：分片扫描下同一轮要发 N 条源查询，而增量字段的
+// 取值形态探测（跑一次源查询、首行即停）与增量条件/排序子句的拼装对每个分片都一样。
+// 拼成字符串再逐片插主键区间条件就得对 SQL 做字符串手术（插在哪种子句之前容易错），
+// 把「一次算好的片段」与「每片不同的区间」分开后，分片只是 sqlFor 的一个入参。
+type syncQueryPlan struct {
+	dataSQL string // 去尾部空白与分号后的源查询主体
+	where   string // "where 1=1" 或空（源查询已含 WHERE 时不补）
+	pred    string // 增量条件 + 软删除过滤（AND 链，接在分片区间之后）
+	order   string // 默认排序（增量字段升序）；分片续扫时由 sqlForOrder 换成分片键升序
+}
+
+// newSyncQueryPlan 按四段组装一次规划，供执行链路与测试共用（不做任何数据库探测）。
+func newSyncQueryPlan(dataSQL, where, pred, order string) *syncQueryPlan {
+	return &syncQueryPlan{dataSQL: dataSQL, where: where, pred: strings.TrimSpace(pred), order: strings.TrimSpace(order)}
+}
+
+// sqlFor 组装指定分片的完整源查询；cond 为空即整表单次查询（也是写入执行日志的那条完整 SQL）。
+//
+// 分片区间的落点：始终在 WHERE 子句链里（接在 where 片段之后、增量条件与排序之前）。
+// planSyncQuery 保证「源查询无 WHERE 则 where=where 1=1，有则 where=」，因此这里拼 `and (...)`
+// 总能接上；空片段不参与拼接，避免拼出双空格（DataSQLFull 会直接展示给用户）。
+func (p *syncQueryPlan) sqlFor(cond string) string {
+	return p.sqlForOrder(cond, p.order)
+}
+
+// sqlForOrder 同 sqlFor，但用传入的排序片段替换默认排序。
+//
+// 存在的理由（片内续扫的前提）：续扫用「最后读到的分片键值」做键集游标（`key > 该值`），
+// 这要求该查询的结果是按分片键**有序**返回的——无序扫描时，未读行可能落在已读键值的左侧，
+// 按 `>` 续扫会静默漏行。分片模式下把排序换成 `order by 分片键 asc` 后，已读行恰是键值最小的
+// 一段，续扫点才能证明无损。默认的「按增量字段排序」不满足这个性质（分片键与增量字段不同序）。
+func (p *syncQueryPlan) sqlForOrder(cond, order string) string {
+	parts := make([]string, 0, 5)
+	for _, seg := range []string{p.dataSQL, p.where} {
+		if seg != "" {
+			parts = append(parts, seg)
+		}
+	}
+	if cond != "" {
+		// 括号包裹：区间自身是 `pk >= a AND pk <= b`，包上后与周边 and 链的优先关系一目了然，
+		// 也不依赖区间串自身不含 OR
+		parts = append(parts, "and ("+cond+")")
+	}
+	if p.pred != "" {
+		parts = append(parts, p.pred)
+	}
+	if order != "" {
+		parts = append(parts, order)
+	}
+	// 片段必须用换行而非空格连接：行注释（`--` / mysql 的 `#`）到行尾结束，而 planSyncQuery
+	// 里的 TrimSpace+TrimRight(";") 恰好会把注释行尾的换行裁掉。用空格连接时，拼接的
+	// where/区间/tail 会整段落进用户 DataSQL 的尾行注释里——语句仍然合法，但分片区间完全消失：
+	// 每一片读的都是同一张过滤后的整表，N 片 = N 倍重复写入且行数与目标一一对得上，任务自标成功。
+	// 这是「静默大规模错数据」里最难发现的一类，换行连接从根上消除该形态（各方言行注释均以换行结束）。
+	return strings.Join(parts, "\n")
+}
+
+// planSyncQuery 构建源查询规划：根据同步模式组装增量条件、排序、软删除过滤等。
+func (app *DataSyncAppImpl) planSyncQuery(ctx context.Context, task *entity.DataSyncTask, srcConn *dbi.DbConn, dialect dbi.Dialect, syncLog *entity.DataSyncLog) (*syncQueryPlan, error) {
+	// 是否需要「全量扫描源查询」（不叠加水位增量条件）：见 syncModeNeedsFullScan（真源已收到校验层，
+	// 与保存期的「会不会注入谓词」判定共用同一个口径）：
 	//   - 全量刷新(3)：TRUNCATE + 全量 INSERT，本就须读全表；
 	//   - 增量+软删除(4) / 增量+硬删除(5)：删除对账靠「DELETE 目标 WHERE 唯一键 NOT IN 源主键集」实现，
 	//     该主键集必须是**完整**源集合。若沿用水位增量只取本次新增/变更行，NOT IN 会把目标中「源仍存在、
 	//     但未落入本次增量」的行一并误删（静默大规模数据丢失）。故这三种模式一律全量扫描源表。
-	needsFullScan := task.SyncMode == entity.DataSyncModeFullRefresh ||
-		task.SyncMode == entity.DataSyncModeIncrementalSoftDel ||
-		task.SyncMode == entity.DataSyncModeIncrementalHardDel
+	needsFullScan := syncModeNeedsFullScan(task.SyncMode)
 
 	// 增量合并/软删除/硬删除模式自动切为 UPSERT 策略（各方言原生语法）
 	if task.SyncMode == entity.DataSyncModeIncrementalMerge ||
@@ -229,11 +286,10 @@ func (app *DataSyncAppImpl) buildSyncQuery(ctx context.Context, task *entity.Dat
 	// DataSQL尾部可能带分号
 	dataSQL := strings.TrimRight(strings.TrimSpace(task.DataSQL), ";")
 
-	// 组装查询sql
-	sqlStr := fmt.Sprintf("%s %s %s %s %s", dataSQL, where, updSQL, softDelFilter, orderSQL)
-	syncLog.DataSQLFull = sqlStr
+	plan := newSyncQueryPlan(dataSQL, where, updSQL+" "+softDelFilter, orderSQL)
+	syncLog.DataSQLFull = plan.sqlFor("")
 
-	return sqlStr, nil
+	return plan, nil
 }
 
 func (app *DataSyncAppImpl) StopTask(ctx context.Context, taskId uint64) error {

@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -104,9 +105,11 @@ func itAfterInsert(t *testing.T, table string, columns []dbi.Column) string {
 // TestAfterInsertSequenceCorrection 自增序列校正语句的形态守卫。
 //
 // 并发下调竞态在IT侧只能概率性暴露（实测20轮约半数命中），本用例钉死语句形态，
-// 使「去掉GREATEST」「去掉NULL守卫」这类回归在单测阶段即变红。三项语义要求（详见AfterInsert注释）：
+// 使「去掉GREATEST」「去掉咨询锁」「去掉NULL守卫」这类回归在单测阶段即变红。四项语义要求（详见AfterInsert注释）：
 //   - 只增不减：写入值必须与本段读到的max及序列当前值取GREATEST，否则大表分片并行迁移时
 //     后完成但id更小的分片会把序列下调，迁移后首条业务插入即撞主键；
+//   - 读与写不可分割：「读序列当前值」必须在持有事务级咨询锁之后完成，否则并发下仍是丢更新
+//     （本机 pg16 实测：B 读到旧值后阻塞在序列锁上，A 写 100 并提交，B 仍写 50）；
 //   - 空表零副作用：max为NULL时必须靠WHERE整条跳过，不能让GREATEST忽略NULL后把is_called置true（首条插入平白跳号）；
 //   - 不携带事务包装：导入方自管事务，脚本内BEGIN/COMMIT会破坏外层事务
 func TestAfterInsertSequenceCorrection(t *testing.T) {
@@ -119,10 +122,17 @@ func TestAfterInsertSequenceCorrection(t *testing.T) {
 		t.Log(out)
 		assert.Equal(t,
 			"SELECT setval('\"t_order_id_seq\"', GREATEST((SELECT max(\"id\") FROM \"t_order\"), "+
-				"(SELECT last_value FROM \"t_order_id_seq\")), true) "+
+				"(SELECT _v FROM (SELECT pg_advisory_xact_lock(hashtext('\"t_order_id_seq\"'))) _lock, "+
+				"LATERAL (SELECT last_value AS _v FROM \"t_order_id_seq\") _now)), true) "+
 				"WHERE (SELECT max(\"id\") FROM \"t_order\") IS NOT NULL;\n", out)
 		assert.NotContains(t, out, "BEGIN", "不得输出事务包装语句")
 		assert.NotContains(t, out, "COMMIT", "不得输出事务包装语句")
+		// 咨询锁必须走在「读序列当前值」之前，否则临界区不成立（锁取了也白取）
+		assert.Less(t, strings.Index(out, "pg_advisory_xact_lock"), strings.Index(out, "last_value"),
+			"咨询锁要早于序列当前值的读取:\n%s", out)
+		// 不能用 CASE/WHERE 承载锁：实测 pg_advisory_xact_lock 返回 void 且 `void IS NULL` 为 false，
+		// 作为 CASE 条件会永远走 ELSE，把 setval 写成 NULL 而静默不校正
+		assert.NotContains(t, out, "CASE", "咨询锁不得依赖 CASE 分支取值")
 	})
 
 	t.Run("多个自增列各自一条校正", func(t *testing.T) {
@@ -140,7 +150,8 @@ func TestAfterInsertSequenceCorrection(t *testing.T) {
 	t.Run("含引号表名的双位引用", func(t *testing.T) {
 		out := itAfterInsert(t, "it's_tbl", []dbi.Column{{ColumnName: "id", AutoIncrement: true}})
 		assert.Contains(t, out, `setval('"it''s_tbl_id_seq"'`, "序列名在字符串字面量内必须按字面量转义:\n"+out)
-		assert.Contains(t, out, `(SELECT last_value FROM "it's_tbl_id_seq")`, "序列名在FROM位必须按标识符引用:\n"+out)
+		assert.Contains(t, out, `LATERAL (SELECT last_value AS _v FROM "it's_tbl_id_seq")`, "序列名在FROM位必须按标识符引用:\n"+out)
+		assert.Contains(t, out, `hashtext('"it''s_tbl_id_seq"')`, "锁键与 setval 同用一个转义后的序列名:\n"+out)
 	})
 
 	// 列名作为主键参与max子查询，含特殊字符时必须引用，否则切割与执行均语法错误

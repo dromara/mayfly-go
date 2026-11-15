@@ -112,6 +112,10 @@ func (d *DataSyncTask) SaveTask(rc *req.Ctx) {
 	task.SetSleepBetweenBatchesMs(form.SleepBetweenBatchesMs)
 	// P1 逃生阀：写入同名 Extra key，Save 里的 validateIncrementalFieldIndex 读到则跳过探测
 	task.SetSkipIndexValidation(form.SkipIndexValidation)
+	// 源侧主键分片扫描的单片行数：0 不能写成 Extra（缺失即“自动”，与“显式 0”语义相同但不应占位）
+	task.SetShardTargetRows(form.ShardTargetRows)
+	// 写入前冲突键探测：nil = 未传（保持默认开启），显式 false 才落 Extra
+	task.SetCountWriteSplit(form.CountWriteSplit == nil || *form.CountWriteSplit)
 
 	rc.ReqParam = form
 	biz.ErrIsNil(d.dataSyncTaskApp.Save(rc.MetaCtx, task))

@@ -20,6 +20,9 @@ func (fakeSplitter) SplitSQL(_ io.Reader, _ utils.StmtCallback) error { return n
 func (f fakeSplitter) LeadingKeyword(_ string) string                 { return f.kw }
 func (f fakeSplitter) MaskComments(s string) string                   { return s }
 
+// 分类不碰词法能力表，给标准配置即可（接口的能力表由 DialectSplitter 从方言注册带入）
+func (fakeSplitter) Config() tokenizer.DialectConfig { return tokenizer.StdConfig }
+
 func TestAstStmtType(t *testing.T) {
 	cases := map[string]struct {
 		stmt sqlstmt.Stmt

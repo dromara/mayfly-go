@@ -107,10 +107,19 @@ const (
 	ExtraKeyCursorInclusivity     = "cursorInclusivity"
 	ExtraKeySleepBetweenBatchesMs = "sleepBetweenBatchesMs"
 	ExtraKeySkipIndexValidation   = "skipIndexValidation"
+	// ExtraKeyShardTargetRows 源侧主键分片扫描的单片目标行数（0/缺失=用包默认值）。
+	// 与分片区间数学同源，上限与下限也在 application/shard 定义，本枚举只负责承载配置。
+	ExtraKeyShardTargetRows = "shardTargetRows"
+	// ExtraKeyCountWriteSplit 是否在写入前探测目标冲突键、把批次拆成「新增/更新」两个计数。
+	//
+	// 纯观测口径：探测要在写入前对目标表发 `SELECT COUNT(*) ... WHERE k1 = .. OR k2 = ..`
+	// （每 100 个键一条，一批 PageSize 行就是 PageSize/100 条），大表/宽表上开销显著。
+	// 关掉只损失「新增/更新」的精确拆分（退化为整批按策略记一种），不影响任何写入语义。
+	ExtraKeyCountWriteSplit = "countWriteSplit"
 )
 
-// MaxSleepBetweenBatchesMs 上限（防手滑）：1 分钟。真正的精细节流应靠 cron 频率 + 分片扫描（P2），
-// 不靠单任务里把 sleep 拉很长。
+// MaxSleepBetweenBatchesMs 上限（防手滑）：1 分钟。真正的精细节流应靠 cron 频率 + 源侧主键分片扫描，
+// 不靠单任务里把 sleep 拉很长（批间 sleep 只能缓解目标侧；源侧间歇只存在于分片之间）。
 const MaxSleepBetweenBatchesMs = 60_000
 
 // GetCursorInclusivity 从 Extra 读取游标边界语义；未配置时返回 Auto。
@@ -163,6 +172,42 @@ func (t *DataSyncTask) SetSkipIndexValidation(skip bool) {
 		t.Extra = collx.M{}
 	}
 	t.Extra[ExtraKeySkipIndexValidation] = true
+}
+
+// GetShardTargetRows 读取源侧主键分片扫描的单片目标行数；0 表示未配置（由 application/shard 取默认）。
+// 不在此处做区间合法性判断：上下限的唯一定义在 shard 包（Plan/NormalizeTargetRows 会钳制），
+// Save 校验拒绝的是“用户显式写了越界值”，两处不能各自一套阈值口径。
+func (t *DataSyncTask) GetShardTargetRows() int {
+	return t.GetExtraInt(ExtraKeyShardTargetRows)
+}
+
+// SetShardTargetRows 写入单片目标行数；<=0 时清除 key（回到自动：不分片或小表单片）。
+func (t *DataSyncTask) SetShardTargetRows(rows int) {
+	if rows <= 0 {
+		delete(t.Extra, ExtraKeyShardTargetRows)
+		return
+	}
+	t.SetExtraValue(ExtraKeyShardTargetRows, rows)
+}
+
+// ShouldCountWriteSplit 是否在写入前探测目标冲突键以拆出「新增/更新」计数。默认开启（历史口径）。
+func (t *DataSyncTask) ShouldCountWriteSplit() bool {
+	if _, ok := t.Extra[ExtraKeyCountWriteSplit]; !ok {
+		return true
+	}
+	return t.GetExtraBool(ExtraKeyCountWriteSplit)
+}
+
+// SetCountWriteSplit 写入探测开关；true 时清除 key（默认即开启，不保留无意义配置）。
+func (t *DataSyncTask) SetCountWriteSplit(count bool) {
+	if count {
+		delete(t.Extra, ExtraKeyCountWriteSplit)
+		return
+	}
+	if t.Extra == nil {
+		t.Extra = collx.M{}
+	}
+	t.Extra[ExtraKeyCountWriteSplit] = false
 }
 
 // DataSyncTask 数据同步

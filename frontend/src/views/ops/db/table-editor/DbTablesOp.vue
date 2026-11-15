@@ -48,10 +48,14 @@
             <!-- 表级权限的配置入口放在表清单旁：管理员看到「有哪些表」的地方才是决定「保护哪张表」的地方 -->
             <el-button v-auth="'db:save'" size="small" @click="aclVisible = true">{{ $t('db.tableAcl.entry') }}</el-button>
             <el-button size="small" @click="sensitiveVisible = true">{{ $t('db.sensitive.entry') }}</el-button>
+            <!-- 词典入口与表保护同处：管理员在「看得见有哪些表」的地方决定「这个词对应哪张表」。
+                 AI 未配置时不显示（与编辑器里的 AI 入口同一门控判据） -->
+            <el-button v-if="aiEnabled" v-auth="'db:save'" size="small" @click="termsVisible = true">{{ $t('db.aiTerms.menu') }}</el-button>
         </el-row>
 
         <DbTableAclDialog v-model:visible="aclVisible" :db-id="dbId" :db-name="db" />
         <DbSensitiveScanDialog v-model:visible="sensitiveVisible" :db-id="dbId" :db="db" />
+        <DbAiTermsDialog v-model:visible="termsVisible" :db-id="dbId" :db-name="db" />
 
         <el-table v-loading="loading" @selection-change="handleDumpTableSelectionChange" border stripe :data="filterTableInfos" size="small" :height="height">
             <el-table-column type="selection" width="30" />
@@ -171,6 +175,7 @@
 import { computed, defineAsyncComponent, nextTick, onMounted, reactive, ref, toRefs, watch } from 'vue';
 import { formatByteSize } from '@/common/utils/format';
 import { dbApi } from '@/views/ops/db/api';
+import { useSqlAiEnabled } from '../sql-ai/useSqlAiEnabled';
 import { openTicket } from '@/views/flow/ticketService';
 import SqlExecBox from '../sql-editor/SqlExecBox';
 import config from '@/common/config';
@@ -189,6 +194,8 @@ import type { TableDefinition, TableColumnDefinition, TableIndexDefinition, Inde
 const DbTableOp = defineAsyncComponent(() => import('./DbTableOp.vue'));
 const DbTableAclDialog = defineAsyncComponent(() => import('./DbTableAclDialog.vue'));
 const DbSensitiveScanDialog = defineAsyncComponent(() => import('./DbSensitiveScanDialog.vue'));
+// 词典弹窗只在点开时加载：低频配置入口，不该占表清单页的首次渲染
+const DbAiTermsDialog = defineAsyncComponent(() => import('../sql-ai/DbAiTermsDialog.vue'));
 // DDL 查看是低频动作，编辑器主体（约 3.9M）随弹窗首次打开才加载
 const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
 
@@ -218,6 +225,9 @@ const props = defineProps({
 const aclVisible = ref(false);
 // 敏感列扫描同样低频，弹窗打开才跑（一次扫描要逐表取列元数据）
 const sensitiveVisible = ref(false);
+// AI 业务词典（语义层）：只在配了模型时才出现入口，弹窗本身也是点开才加载
+const termsVisible = ref(false);
+const { aiEnabled } = useSqlAiEnabled();
 
 const state = reactive({
     row: {},

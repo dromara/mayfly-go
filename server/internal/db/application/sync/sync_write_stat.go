@@ -45,6 +45,12 @@ func probeWriteSplit(ctx context.Context, sec *syncExecContext, targetData []map
 		return writeSplit{}, nil
 	}
 	strategy := cmp.Or(sec.task.DuplicateStrategy, dbi.DuplicateStrategyNone)
+	// 关闭探测时按策略整体计数：探测只为「新增/更新」的观测口径，不影响写入语义。
+	// 每批要发 PageSize/100 条 `WHERE (k1=..) OR (k2=..)` 的 COUNT，大表/宽表上开销显著，
+	// 因此给它一个关闭阀；关闭后的口径见 coarseWriteSplit 的说明。
+	if !sec.task.ShouldCountWriteSplit() {
+		return coarseWriteSplit(strategy, total), nil
+	}
 	// 未内省目标表元信息时无从判断冲突键，与无冲突键同义：退化为直接插入
 	var uniqueCols []string
 	if sec.targetTableMeta != nil {

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"mayfly-go/internal/db/application/runlog"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 )
@@ -54,7 +55,10 @@ func (app *DataSyncAppImpl) appendRunLog(syncLog *entity.DataSyncLog, format str
 	}
 	ts := time.Now().Format("15:04:05.000")
 	line := fmt.Sprintf("[%s] %s\n", ts, fmt.Sprintf(format, args...))
-	syncLog.RunLog += line
+	// 超出上限就折叠中段：不处理则整轮同步会在某个分片/批次中段写日志失败（严格模式 1406 直接
+	// 使本轮失败，非严格模式静默截断后日志不再更新），那比「日志变短」恶劣得多——本次修复的
+	// 目标只是大表能跑完，不能把一个超时换成一个日志溢出
+	syncLog.RunLog = runlog.Append(syncLog.RunLog, line)
 	// 同步更新缓存，供 GetLogPageList 实时读取
 	if syncLog.Id > 0 {
 		app.setRunningSyncLog(syncLog.Id, syncLog)

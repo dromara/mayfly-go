@@ -331,6 +331,24 @@ const tabs: AutoFormTab[] = [
                 span: 8,
                 props: { inlinePrompt: true },
             },
+            // 源侧主键分片扫描的单片行数（0=自动）；上限与语义真源在服务端 application/shard
+            {
+                prop: 'shardTargetRows',
+                label: 'db.shardTargetRows',
+                type: 'number',
+                tooltip: 'db.shardTargetRowsTips',
+                props: { min: 0, max: 5000000, step: 1000 },
+                span: 8,
+            },
+            // 写入前冲突键探测开关：纯观测口径，关掉可省每批 PageSize/100 条 COUNT 探测
+            {
+                prop: 'countWriteSplit',
+                label: 'db.countWriteSplit',
+                type: 'switch',
+                tooltip: 'db.countWriteSplitTips',
+                span: 8,
+                props: { inlinePrompt: true },
+            },
         ],
     },
     {
@@ -401,6 +419,10 @@ type SyncTaskForm = {
     sleepBetweenBatchesMs?: number;
     // P1：跳过增量字段索引校验的逃生阀，同样存于 Extra
     skipIndexValidation?: boolean;
+    // 源侧主键分片扫描的单片行数（0=自动），同样存于 Extra
+    shardTargetRows?: number;
+    // 写入前冲突键探测（新增/更新拆分计数），同样存于 Extra；默认开启
+    countWriteSplit?: boolean;
 };
 
 /**
@@ -449,6 +471,8 @@ const basicFormData: SyncTaskForm = {
     cursorInclusivity: 0,
     sleepBetweenBatchesMs: 0,
     skipIndexValidation: false,
+    shardTargetRows: 0,
+    countWriteSplit: true,
 };
 
 const editData: SyncTaskForm = { ...basicFormData };
@@ -509,6 +533,9 @@ const onOpened = openedWith(async () => {
     formData.cursorInclusivity = readExtraNumber(extra, TASK_EXTRA_KEYS.cursorInclusivity);
     formData.sleepBetweenBatchesMs = readExtraNumber(extra, TASK_EXTRA_KEYS.sleepBetweenBatchesMs);
     formData.skipIndexValidation = readExtraBool(extra, TASK_EXTRA_KEYS.skipIndexValidation);
+    formData.shardTargetRows = readExtraNumber(extra, TASK_EXTRA_KEYS.shardTargetRows);
+    // 默认开启：只有显式 false 才表示关闭（与后端 ShouldCountWriteSplit 的默认口径对称）
+    formData.countWriteSplit = readExtraBool(extra, TASK_EXTRA_KEYS.countWriteSplit, true);
     Object.assign(internalForm.value, formData);
     let { srcDbId, srcDbName, targetDbId } = formData;
 

@@ -79,11 +79,23 @@ func (dh *DumpTxnWrapper) AfterInsert(writer io.Writer, tableName string, column
 			// 校正只增不减：setval立即生效且不随事务回滚，故序列终值等于**最后一次执行**的校正写入值。
 			// 大表按主键分片并行迁移时每段尾部都带一句校正，其max子查询只能读到本分片+他人已提交的数据，
 			// 直接写入读到的值会让“后完成但id更小”的分片把序列下调（实测300行/8分片并发下终值228而全表最大300），
-			// 迁移后首条业务插入即撞主键；与序列当前值取GREATEST后，终值恒不低于全表最大id
+			// 迁移后首条业务插入即撞主键。
 			maxExpr := fmt.Sprintf("(SELECT max(%s) FROM %s)", dbi.DefaultQuoter.QuoteIdent(column.ColumnName), dbi.DefaultQuoter.QuoteIdent(tableName))
+			// 与序列当前值取GREATEST还不够：读当前值与写回不是一个原子动作，并发下仍是丢更新。
+			// 本机 pg16 实测：B 先读到 last_value=1，A 随即 setval(100) 并提交，B 后执行 setval 时
+			// 写的是 GREATEST(50, 1)=50 → 终值 50 低于全表最大 100（旧文案认为“后执行的校正必
+			// 然看到先执行推高的当前值”，忽略了它是在对方写入**之前**读的那一份）。
+			// 因此用事务级咨询锁把「读当前值→写回」围成一个临界区：pg_advisory_xact_lock 持锁到本事务
+			// 结束，并发的另一句只能等它提交后再读，读到的必然不低于对方刚写入的值。各句写入值又不低于
+			// 自己的 max，故终值恒不低于全表最大 id。
+			// 锁必须走在读之前：这里靠 LATERAL 造出真实的数据依赖（侧向子查询要求左侧先产出行），
+			// 不用 CASE/WHERE 里的求值顺序——实测 pg_advisory_xact_lock 返回 void 且 `void IS NULL` 为 false，
+			// 拿它做 CASE 条件会走 ELSE 分支把 setval 写成 NULL（静默不校正）。
+			lockedNow := fmt.Sprintf("(SELECT _v FROM (SELECT pg_advisory_xact_lock(hashtext('%s'))) _lock, LATERAL (SELECT last_value AS _v FROM %s) _now)",
+				dbi.QuoteEscape(seqIdent), seqIdent)
 			// 空表时max为NULL，而GREATEST会忽略NULL取到序列当前值并把is_called置true（首条插入平白跳号），故用WHERE整体跳过
-			seq := fmt.Sprintf("SELECT setval('%s', GREATEST(%s, (SELECT last_value FROM %s)), true) WHERE %s IS NOT NULL;\n",
-				dbi.QuoteEscape(seqIdent), maxExpr, seqIdent, maxExpr)
+			seq := fmt.Sprintf("SELECT setval('%s', GREATEST(%s, %s), true) WHERE %s IS NOT NULL;\n",
+				dbi.QuoteEscape(seqIdent), maxExpr, lockedNow, maxExpr)
 			if _, err := writer.Write([]byte(seq)); err != nil {
 				return err
 			}

@@ -772,6 +772,23 @@ func (d *DbSQLExecAppImpl) CheckSqlsWithoutTicket(ctx context.Context, conn *dbi
 	return d.checkSqlsWithoutTicket(ctx, conn, conn.Info.CodePath, conn.GetDialect(), sqls)
 }
 
+// PolicyBlockKind 把闸门返回的错误归类成「展示型结论」，供不执行语句的消费方使用。
+//
+// 存在动机：CheckSqlsWithoutTicket 对「需审批 / 仅提醒确认」是把结论包装成带错误码的
+// 业务错误返回的，而 SQL 草稿只想把结论告诉用户、并不执行。若调用方把这类错误一律当成
+// "读策略失败"，写语句的卡片就会显示「无法读取审批策略」——把一条明确的拦截结论说成了
+// 系统故障（真机实测踩到）。分类留在这里，因为它已经依赖 flowapp；草稿侧只按字符串消费，
+// 不必也无法 import flow（会成环）。
+func (d *DbSQLExecAppImpl) PolicyBlockKind(err error) string {
+	switch {
+	case flowapp.IsNeedApprovalError(err):
+		return PolicyBlockApproval
+	case flowapp.IsWarnAckError(err):
+		return PolicyBlockWarnAck
+	}
+	return ""
+}
+
 // checkSqlsWithoutTicket 判定本体：把「从连接取信息」与「判定」分开，前者是 I/O、后者可单测
 func (d *DbSQLExecAppImpl) checkSqlsWithoutTicket(ctx context.Context, conn *dbi.DbConn, codePaths []string, dialect dbi.Dialect, sqls []string) ([]string, error) {
 	notices := make([]string, len(sqls))

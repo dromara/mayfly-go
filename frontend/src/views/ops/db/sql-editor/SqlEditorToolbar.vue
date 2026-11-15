@@ -60,7 +60,16 @@
                 </el-upload>
             </div>
 
-            <div>
+            <div class="flex items-center gap-2">
+                <!-- AI 入口：功能型入口带文字，不与纯图标动作混排。
+                     工具条只留这一个 AI 入口：选中 SQL 不再浮出动作条，生成 / 改写 / 优化 / 解释
+                     都在打开的面板里选（右键菜单与 ⌘/Ctrl+K 仍保留为直达加速器）；
+                     「注释补全」是计费门禁但属 AI 偏好，收在面板底部，不常驻工具条 -->
+                <el-tooltip v-if="aiEnabled" :show-after="800" effect="dark" :content="$t('db.draft.entryTip', { key: modKey })" placement="top">
+                    <el-button v-auth="'db:sqlscript:run'" @click="emit('openSqlAssistant')" icon="Cpu" plain size="small">
+                        {{ $t('db.draft.entry') }}
+                    </el-button>
+                </el-tooltip>
                 <el-button @click="emit('save')" type="primary" icon="document-add" plain size="small">{{ $t('db.saveSql') }}</el-button>
             </div>
         </div>
@@ -69,7 +78,8 @@
 
 <script lang="ts" setup>
 import { Msg } from '@/hooks/useI18n';
-import { toRefs } from 'vue';
+import { computed, toRefs } from 'vue';
+import { currentModKeyLabel } from '../sql-ai/shortcut';
 
 const props = defineProps<{
     token: string;
@@ -77,9 +87,14 @@ const props = defineProps<{
     uploadFn: (options: { file: File }) => { abort: () => void };
     /** 是否以原子批次执行多条语句（由父级编辑器保持状态，工具条只负责开关与展示） */
     atomic: boolean;
+    /** AI 是否可用（模型已配置）；false 时本组件的 AI 入口都不渲染 */
+    aiEnabled: boolean;
 }>();
 
 const { atomic } = toRefs(props);
+
+// 入口 tooltip 里的快捷键前缀随平台变（mac 显示 ⌘K，其余显示 Ctrl+K）
+const modKey = computed(() => currentModKeyLabel());
 
 const emit = defineEmits<{
     run: [];
@@ -89,6 +104,7 @@ const emit = defineEmits<{
     save: [];
     'update:atomic': [value: boolean];
     precheck: [];
+    openSqlAssistant: [];
 }>();
 
 const beforeUpload = (file: File) => {

@@ -1,0 +1,71 @@
+[
+  {
+    "id": "instance_db_count",
+    "intent": "draft",
+    "prompt": "统计每个数据库实例下有多少个数据库资源",
+    "anchor": "",
+    "expect": {
+      "minRows": 5
+    }
+  },
+  {
+    "id": "instance_top3",
+    "intent": "draft",
+    "prompt": "列出数据库资源最多的前 3 个实例名称和资源数",
+    "anchor": "",
+    "expect": {
+      "minRows": 3
+    }
+  },
+  {
+    "id": "role_account_count",
+    "intent": "draft",
+    "prompt": "统计每个角色下有多少个账号",
+    "anchor": "",
+    "expect": {
+      "minRows": 1
+    }
+  },
+  {
+    "id": "metric_avg_unspecified",
+    "intent": "draft",
+    "prompt": "统计每个数据库实例近 30 天的指标采样平均值",
+    "anchor": "",
+    "expect": {
+      "minRows": 1
+    }
+  },
+  {
+    "id": "write_remark",
+    "intent": "draft",
+    "prompt": "把每个实例的备注更新为实例名称",
+    "anchor": "",
+    "expect": {
+      "verification": "verified"
+    }
+  },
+  {
+    "id": "explain_prose",
+    "intent": "explain",
+    "prompt": "解释这条语句",
+    "anchor": "select i.name, count(d.id) as c from t_db_instance i left join t_db d on d.instance_id = i.id group by i.name",
+    "expect": {}
+  },
+  {
+    "id": "optimize_where_func",
+    "intent": "optimize",
+    "prompt": "让这条语句能走索引，不要全表扫描",
+    "anchor": "select i.name, count(d.id) from t_db_instance i left join t_db d on d.instance_id = i.id where date(i.create_time) = curdate() group by i.name",
+    "expect": {
+      "minRows": 0,
+      "requireSubstrings": [
+        "create_time >=",
+        "interval 1 day"
+      ],
+      "forbidSubstrings": [
+        "date(i.create_time)",
+        "date(`i`.`create_time`)"
+      ]
+    }
+  }
+]

@@ -758,9 +758,10 @@ func Migrations() []*gormigrate.Migration {
 		},
 	}
 
-	// v1.12.2 批次（AgentOps 模块与配套 AI 会话隔离）与 v1.12.3 批次（DB 实例 TLS 证书列）
-	// 依次接在本版本条目之后，与发布顺序一致；已发布的 v1.12.0/v1.12.1 条目不得改动顺序与 ID
-	return append(append(ms, v1122()...), v1123()...)
+	// v1.12.2 批次（AgentOps 模块与配套 AI 会话隔离）、v1.12.3 批次（DB 实例 TLS 证书列）
+	// 与 v1.12.4 批次（文生 SQL 业务词典）依次接在本版本条目之后，与发布顺序一致；
+	// 已发布的 v1.12.0/v1.12.1 条目不得改动顺序与 ID
+	return append(append(append(ms, v1122()...), v1123()...), v1124()...)
 }
 
 // flowRuleSegmentResources 可复用条件组的菜单与按钮权限资源

@@ -113,7 +113,9 @@ func (app *DataSyncAppImpl) doDataValidation(ctx context.Context, task *entity.D
 		const checkSampleRows = 100
 		// 两端分别排序抽样；不同排序规则可能选中不同样本，不能据此证明全量一致。
 		// 先构造不含分页子句的基础 SQL，再按各自方言改写：源/目标可能异构，Oracle/DM/MSSQL 不识别裸 LIMIT。
-		srcBaseCheckSQL := fmt.Sprintf("SELECT %s FROM (%s) _src ORDER BY %s",
+		// 包裹后的 `) _src` 必须另起一行：用户 DataSQL 以行注释（`--` / mysql 的 `#`）结尾时，
+		// 同行拼接会让 `) _src ORDER BY` 整段落进注释（与 syncQueryPlan.sqlFor 同一类形态）。
+		srcBaseCheckSQL := fmt.Sprintf("SELECT %s FROM (\n%s\n) _src ORDER BY %s",
 			strings.Join(srcKeyCols, ", "), dataSQL, strings.Join(srcKeyCols, ", "))
 		targetBaseCheckSQL := fmt.Sprintf("SELECT %s FROM %s ORDER BY %s",
 			strings.Join(keyColumns, ", "), targetTable, strings.Join(keyColumns, ", "))

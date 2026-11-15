@@ -20,5 +20,6 @@ func InitIoc() {
 	ioc.Register(newSchemaBaselineRepo())
 	ioc.Register(newDbTableAclRepo())
 	ioc.Register(newDbColumnAclRepo())
+	ioc.Register(newDbAiTermRepo())
 	ioc.Register(newDbMetricSampleRepo())
 }

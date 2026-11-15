@@ -46,7 +46,10 @@ func (d *DbConn) Close() error {
 }
 
 func (d *DbConn) Ping() error {
-	db := d.Info.GetDb()
+	db, err := d.Info.dbOrErr()
+	if err != nil {
+		return err
+	}
 	stats := db.Stats()
 	logx.Debugf("[%s] db stats -> open: %d, idle: %d,  inUse: %d, maxOpen: %d", d.Info.Name, stats.OpenConnections, stats.Idle, stats.InUse, stats.MaxOpenConnections)
 	if stats.OpenConnections == 0 {

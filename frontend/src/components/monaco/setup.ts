@@ -52,6 +52,21 @@ import 'monaco-editor/editor/contrib/gotoError/browser/markerSelectionStatus.js'
 import 'monaco-editor/editor/contrib/semanticTokens/browser/documentSemanticTokens.js'; // 语义化着色
 import 'monaco-editor/editor/contrib/suggest/browser/suggestController.js'; // 联想补全（Ctrl+Space）
 
+/**
+ * 按需装配「行内补全（ghost text）」贡献模块。
+ *
+ * 它没有进上面的静态装配清单，原因有两条：
+ *  1. 只有 SQL 编辑器的「注释补全」开关需要它，本应用其它编辑器不该为它付费；
+ *  2. 静态引入会让该模块在单测环境里被求值，实测连带影响无关用例
+ *     （同一个 mock 被多调一次）。
+ *
+ * 只注册 provider 而不调用本函数时，monaco 会照常调用 provider 却**永不渲染**建议
+ * （真机现象：开关打开、界面上什么都没有），所以使用方必须先等它完成。
+ */
+export async function ensureInlineCompletionsFeature() {
+    await import('monaco-editor/editor/contrib/inlineCompletions/browser/inlineCompletions.contribution.js');
+}
+
 // ---------------- 语言 ----------------
 
 import 'monaco-editor/languages/definitions/sql/register.js';

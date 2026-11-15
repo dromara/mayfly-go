@@ -15,6 +15,7 @@ import (
 	"context"
 	"strings"
 
+	"mayfly-go/internal/db/application/sqlutil"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
 	"mayfly-go/internal/db/domain/entity"
@@ -26,12 +27,10 @@ import (
 
 // ColumnRef 语句里显式写出的一处列引用。
 //
-// Table 允许为空：SELECT 列表里 `t.col` 拿得到表别名，但别名到真表的映射要跨 JOIN 解析；
-// 这里按「任一目标表命中即拒」处理，宁可多拦一次，也不让 JOIN 写法成为旁路。
-type ColumnRef struct {
-	Table  string
-	Column string
-}
+// 类型定义在 sqlutil：列级访问控制与 SQL 草稿校验必须基于同一份 AST 抽取，
+// 否则同一句 SQL 在两处的「引用了什么」会漂移。此处的别名只是保持本包接口
+// 签名可读（`[]ColumnRef` 而非 `[]sqlutil.ColumnRef`），不是第二份定义。
+type ColumnRef = sqlutil.ColumnRef
 
 // columnsFor 返回这些表上「当前账号无权」的列（列名小写）。
 //
@@ -235,108 +234,12 @@ func (a *tableAclAppImpl) DeleteColumn(ctx context.Context, id uint64) error {
 	return nil
 }
 
-// statementColumnRefs 语句里显式出现的列引用（用于列级拒绝判定）。
+// statementColumnRefs 语句里显式出现的列引用（委托 sqlutil 的单一实现）。
 //
-// 表达式里的列不会被结构化拆出来（COUNT(secret)、CONCAT(a, b)），因此对表达式文本
-// 再做一次整词比对：这一侧宁可误拦（把同名列都算上），也不能让「外头包一层函数」成为旁路。
+// 保留本包函数名只因为它是语义别名（「用于列级拒绝的引用」），实现不在本包：
+// 列级访问控制与 SQL 草稿校验必须对同一句 SQL 得出同一份引用清单。
 func statementColumnRefs(stmt sqlstmt.Stmt) []ColumnRef {
-	switch typed := stmt.(type) {
-	case *sqlstmt.SelectStmt:
-		refs := selectColumnRefs(typed)
-		// 条件里引用无权列同样要拦：`WHERE phone LIKE '138%'` 能把值一点点试出来，
-		// 「不返回这一列」并不等于「不能用这一列做条件」
-		refs = append(refs, exprColumnRefs(typed.Where)...)
-		// ORDER BY / GROUP BY / HAVING 同属「用这一列做条件」：
-		// 按无权列排序就能二分出它的值，按它分组计数更直接暴露取值分布
-		for _, group := range typed.GroupBy {
-			refs = append(refs, ColumnRef{Column: group})
-		}
-		refs = append(refs, exprColumnRefs(typed.Having)...)
-		for _, order := range typed.OrderBy {
-			refs = append(refs, exprColumnRefs(&sqlstmt.Expr{Text: order.Text})...)
-		}
-		return refs
-	case *sqlstmt.InsertStmt:
-		// VALUES 里出现的列引用（如 `INSERT INTO t (a) SELECT phone FROM u` 由 Select 分支覆盖）
-		refs := make([]ColumnRef, 0, len(typed.Columns))
-		for _, column := range typed.Columns {
-			refs = append(refs, ColumnRef{Table: typed.Table.Name, Column: column})
-		}
-		return refs
-	case *sqlstmt.UpdateStmt:
-		refs := make([]ColumnRef, 0, len(typed.Set)+8)
-		for _, assignment := range typed.Set {
-			refs = append(refs, ColumnRef{Column: assignment.Column})
-		}
-		return append(refs, exprColumnRefs(typed.Where)...)
-	case *sqlstmt.DeleteStmt:
-		// 删除条件引用无权列：删除行为本身会暴露「该列等于某值时有多少行」
-		return exprColumnRefs(typed.Where)
-	}
-	return nil
-}
-
-// exprColumnRefs 从条件表达式里取列引用（按文本整词，保守取全）
-func exprColumnRefs(expr *sqlstmt.Expr) []ColumnRef {
-	if expr == nil {
-		return nil
-	}
-	words := identifierWords(expr.Text)
-	refs := make([]ColumnRef, 0, len(words))
-	for _, word := range words {
-		refs = append(refs, ColumnRef{Column: word})
-	}
-	return refs
-}
-
-// selectColumnRefs 查询列表里的列引用（含 UNION 各分支）
-func selectColumnRefs(stmt *sqlstmt.SelectStmt) []ColumnRef {
-	if stmt == nil {
-		return nil
-	}
-	refs := make([]ColumnRef, 0, len(stmt.Items))
-	for _, item := range stmt.Items {
-		if item.IsStar() {
-			// 星号代表「全部列」：整表导出场景由 AssertWholeTableAllowed 拒，
-			// 交互查询场景由结果集裁剪兜住，这里不产生具体列引用
-			continue
-		}
-		if item.ColumnName != "" {
-			refs = append(refs, ColumnRef{Table: item.TableAlias, Column: item.ColumnName})
-		}
-		for _, word := range identifierWords(item.Text) {
-			refs = append(refs, ColumnRef{Table: item.TableAlias, Column: word})
-		}
-	}
-	for _, union := range stmt.Unions {
-		refs = append(refs, selectColumnRefs(union.Select)...)
-	}
-	return refs
-}
-
-// identifierWords 从表达式文本里取标识符（字母/下划线开头）。
-//
-// 不做关键字过滤：这里只用于与「无权列名」比对，关键字永远配不上具体列，
-// 多留几个词不会带来误判，却能避免维护一份与解析器不同步的关键字表。
-func identifierWords(text string) []string {
-	words := make([]string, 0, 8)
-	var current strings.Builder
-	flush := func() {
-		if current.Len() > 0 {
-			words = append(words, current.String())
-			current.Reset()
-		}
-	}
-	for _, r := range text {
-		switch {
-		case r == '_' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9'):
-			current.WriteRune(r)
-		default:
-			flush()
-		}
-	}
-	flush()
-	return words
+	return sqlutil.StatementColumnRefs(stmt)
 }
 
 // TrimDeniedColumns 从结果集里裁掉无权列（`SELECT *` 的兜底）。

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"mayfly-go/internal/db/application/runlog"
 	"mayfly-go/internal/db/domain/entity"
 	msgdto "mayfly-go/internal/msg/application/dto"
 	"mayfly-go/internal/pkg/event"
@@ -88,9 +89,13 @@ func (app *DbTransferAppImpl) GetLogWithRunLog(logId uint64) (*entity.DbTransfer
 }
 
 // appendRunLine 向日志对象追加一行带时间戳的运行记录（纯内存操作，是否回写缓存由调用方决定）
+//
+// 长度治理交给 runlog：迁移日志只在收尾一次性落库，超出 text 列上限会让收尾 UPDATE 整行
+// 失败（日志永远停在「执行中」，行数/耗时指标全丢），比「日志变短」恶劣得多；数据校验还会
+// 一次性写入整段报告 JSON（单行即可能超列宽），所以必须由兼顾单行的 Fold 兜住硬上限。
 func appendRunLine(log *entity.DbTransferLog, msg string) {
 	ts := time.Now().Format("15:04:05.000")
-	log.RunLog += fmt.Sprintf("[%s] %s\n", ts, msg)
+	log.RunLog = runlog.Append(log.RunLog, fmt.Sprintf("[%s] %s\n", ts, msg))
 }
 
 // Log 向运行日志追加一行带时间戳的记录，并同步更新缓存以供前端实时查看。

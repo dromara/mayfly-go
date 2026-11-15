@@ -15,6 +15,7 @@ package itest
 import (
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/shard"
 	"mayfly-go/internal/db/application/transfer"
 	"strings"
 	"testing"
@@ -35,6 +36,56 @@ var itNarrowPkDDL = map[string]string{
 	"postgres": "(id smallint PRIMARY KEY, val VARCHAR(64))",
 	"sqlite":   "(id SMALLINT PRIMARY KEY, val TEXT)",
 	"mssql":    "(id SMALLINT PRIMARY KEY, val NVARCHAR(64))",
+}
+
+// TestITNullPrimaryKeyShardCoverage 主键为 NULL 的行必须仍被分片覆盖。
+//
+// 只跑 sqlite：它是受支持方言里唯一能在「声明了 PRIMARY KEY 但未写 NOT NULL」的列里存 NULL 的
+// （其余方言 PK 隐含 NOT NULL），而这恰恰是最危的组合：主键被识别为可分片整型、元数据又报
+// Nullable=true，而任何 `pk <= x` / `pk >= x` 都不匹配 NULL——不补 NULL 片时，这一行在单次大查询里
+// 读得到、在分片后读不到，迁移与同步同一条规划路径上都是静默丢行。
+func TestITNullPrimaryKeyShardCoverage(t *testing.T) {
+	const rows = 200
+
+	conn := itSQLite.conn(t)
+	defer conn.Close()
+
+	origTargetRows := shard.TargetRows
+	shard.TargetRows = 40
+	defer func() { shard.TargetRows = origTargetRows }()
+
+	itNarrowPrepare(t, conn, rows)
+	quote := conn.GetDialect().Quoter().QuoteIdent
+	defer func() { _, _ = conn.Exec("DROP TABLE IF EXISTS " + quote(itNarrowPkTable)) }()
+
+	// 夹具前提：NULL 主键行真能写进去（写不进去则本用例没有意义，直接失败而不是静默跳过）
+	_, err := conn.Exec(fmt.Sprintf("INSERT INTO %s (id, val) VALUES (NULL, 'v-null')", quote(itNarrowPkTable)))
+	require.NoError(t, err, "夹具前提：sqlite 主键列应能存 NULL")
+	require.EqualValues(t, 1, itNarrowAgg(t, conn, "COUNT(CASE WHEN id IS NULL THEN 1 END)"), "NULL 主键行必须已落入源表")
+
+	columns, cerr := conn.Metadata().GetColumns(itNarrowPkTable)
+	require.NoError(t, cerr)
+	require.Equal(t, "id", shard.DetectIntPrimaryKey(columns), "主键仍可判为可分片（可空性不参与这一判定）")
+
+	app := &transfer.DbTransferAppImpl{}
+	wheres := app.PlanTableShards(context.Background(), 0, conn, itNarrowPkTable, rows+1)
+	require.GreaterOrEqual(t, len(wheres), 3, "夹具应切出多片，否则片尾的 NULL 片没有意义")
+
+	var hasNullShard bool
+	var dump strings.Builder
+	for _, where := range wheres {
+		if strings.Contains(strings.ToUpper(where), "IS NULL") {
+			hasNullShard = true
+		}
+		dump.WriteString(itDumpTable(t, conn, itNarrowPkTable, itSQLite.dbType, false, true, where))
+	}
+	require.True(t, hasNullShard, "必须有一片接住 NULL 主键行，否则它会被全部区间谓词排除: %v", wheres)
+
+	// 端到端证据：片并集真的带走那一行，且区间两端的首尾行也在（无丢区）
+	content := dump.String()
+	assert.Contains(t, content, "v-null", "NULL 主键行必须出现在某一片产物里")
+	assert.Contains(t, content, "v001", "首片必须带走最下行")
+	assert.Contains(t, content, "v200", "末片必须带走最高行")
 }
 
 func itNarrowPrepare(t *testing.T, conn *dbi.DbConn, rowCount int) {
@@ -86,9 +137,9 @@ func TestITNarrowIntPrimaryKeySharding(t *testing.T) {
 			conn := node.conn(t)
 			defer conn.Close()
 
-			origTargetRows := transfer.ShardTargetRows
-			transfer.ShardTargetRows = shardRows
-			defer func() { transfer.ShardTargetRows = origTargetRows }()
+			origTargetRows := shard.TargetRows
+			shard.TargetRows = shardRows
+			defer func() { shard.TargetRows = origTargetRows }()
 
 			itNarrowPrepare(t, conn, rows)
 			defer func() {
@@ -99,7 +150,7 @@ func TestITNarrowIntPrimaryKeySharding(t *testing.T) {
 			// 元数据必须把smallint识别为可分片整型主键，否则本用例失去鉴别力
 			columns, err := conn.Metadata().GetColumns(itNarrowPkTable)
 			require.NoError(t, err, "[%s] 查询列元数据失败", node.name)
-			require.Equal(t, "id", transfer.DetectIntPrimaryKey(columns),
+			require.Equal(t, "id", shard.DetectIntPrimaryKey(columns),
 				"[%s] smallint主键应判为可分片（元数据类型=%v）", node.name, columns)
 
 			app := &transfer.DbTransferAppImpl{}

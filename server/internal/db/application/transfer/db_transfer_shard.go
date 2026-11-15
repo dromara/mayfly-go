@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"mayfly-go/internal/db/application/shard"
 	"mayfly-go/internal/db/dbm/dbi"
-	"mayfly-go/internal/db/dbm/dbi/value"
 )
 
 // normalizeConcurrency 归一化迁移并行度：0→默认值，越界钳制到[1,16]
@@ -24,36 +24,15 @@ func normalizeConcurrency(c int) int {
 
 // PlanTableShards 规划表的主键范围分片，返回每片的数据过滤条件（空字符串=整表无过滤）。
 //
-// 仅当表存在**真实单列整型主键**时分片（见DetectIntPrimaryKey）；否则返回nil，
-// 调用方应整表单任务迁移。规划失败（元数据查询异常等）降级为整表迁移，不阻断迁移流程。
+// 区间数学与探测均在 shard 包（迁移与数据同步共用一份，见该包注释），本函数只负责
+// 把它接进迁移日志语义：不可分片返回 nil（调用方整表单任务），探测失败也降级为整表迁移、
+// 不阻断迁移流程——分片是加速手段，不是正确性前提。
 func (app *DbTransferAppImpl) PlanTableShards(ctx context.Context, logId uint64, srcConn *dbi.DbConn, tableName string, tableRows int) []string {
-	columns, err := srcConn.Metadata().GetColumns(tableName)
+	shards, err := shard.PlanTable(ctx, srcConn, tableName, tableRows, 0)
 	if err != nil {
-		app.Log(ctx, logId, fmt.Sprintf("plan shards: get columns of table [%s] failed: %s, fallback to whole-table transfer", tableName, err.Error()))
+		app.Log(ctx, logId, fmt.Sprintf("plan shards: %s, fallback to whole-table transfer", err.Error()))
 		return nil
 	}
-
-	pk := DetectIntPrimaryKey(columns)
-	if pk == "" {
-		return nil
-	}
-
-	// 查询主键范围（空表MIN/MAX为NULL → 不分片）
-	quote := srcConn.GetDialect().Quoter().QuoteIdent
-	minMaxSQL := fmt.Sprintf("SELECT MIN(%s) AS mn, MAX(%s) AS mx FROM %s", quote(pk), quote(pk), quote(tableName))
-	_, rows, err := srcConn.Query(minMaxSQL)
-	if err != nil || len(rows) == 0 {
-		app.Log(ctx, logId, fmt.Sprintf("plan shards: query pk range of table [%s] failed: %v, fallback to whole-table transfer", tableName, err))
-		return nil
-	}
-	pkMin, ok1 := value.ValToInt64(rows[0]["mn"])
-	pkMax, ok2 := value.ValToInt64(rows[0]["mx"])
-	if !ok1 || !ok2 {
-		// 空表或非数值返回形态：整表迁移（可能0行，dump自然无数据）
-		return nil
-	}
-
-	shards := PlanShards(pk, pkMin, pkMax, tableRows, quote)
 	if shards == nil {
 		return nil
 	}
@@ -61,6 +40,8 @@ func (app *DbTransferAppImpl) PlanTableShards(ctx context.Context, logId uint64,
 	for _, s := range shards {
 		wheres = append(wheres, s.Where)
 	}
-	app.Log(ctx, logId, fmt.Sprintf("table [%s] pk range [%d, %d], planned %d shard(s)", tableName, pkMin, pkMax, len(wheres)))
+	if len(wheres) > 1 {
+		app.Log(ctx, logId, fmt.Sprintf("table [%s] planned %d shard(s)", tableName, len(wheres)))
+	}
 	return wheres
 }

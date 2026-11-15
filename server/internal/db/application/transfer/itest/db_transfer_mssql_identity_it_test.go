@@ -16,6 +16,7 @@ package itest
 import (
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/shard"
 	"mayfly-go/internal/db/application/transfer"
 	"regexp"
 	"strings"
@@ -192,9 +193,9 @@ func TestITMssqlIdentityParallelShardImport(t *testing.T) {
 	conn := itMssqlNode(t)
 	defer conn.Close()
 
-	origTargetRows := transfer.ShardTargetRows
-	transfer.ShardTargetRows = shardRows
-	defer func() { transfer.ShardTargetRows = origTargetRows }()
+	origTargetRows := shard.TargetRows
+	shard.TargetRows = shardRows
+	defer func() { shard.TargetRows = origTargetRows }()
 
 	app := &transfer.DbTransferAppImpl{}
 	for cycle := 0; cycle < cycles; cycle++ {
